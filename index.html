@@ -403,7 +403,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ v2.4</p>
+    <p>AI 梗圖產文系統 ✨ v2.5</p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1566,5 +1566,135 @@ function clearAllHistory() {
     </div>
   </div>
 </div>
+
+<script>
+// ── SETTINGS ──────────────────────────────────────
+const THEMES = {
+  pink:   { header:'linear-gradient(135deg,#F4A7B9 0%,#C9B8E8 100%)', '--pink':'#F4A7B9','--pink-deep':'#E07A95','--cream':'#FFF8F0','--lavender':'#C9B8E8','tab':'#E07A95' },
+  peach:  { header:'linear-gradient(135deg,#FFCBA4 0%,#FFB347 100%)', '--pink':'#FFCBA4','--pink-deep':'#E8900A','--cream':'#FFFAF5','--lavender':'#FFD9A0','tab':'#E8900A' },
+  mint:   { header:'linear-gradient(135deg,#B5EAD7 0%,#85D8C0 100%)', '--pink':'#B5EAD7','--pink-deep':'#2D9C7A','--cream':'#F5FFFA','--lavender':'#A8E6CF','tab':'#2D9C7A' },
+  sky:    { header:'linear-gradient(135deg,#A8D8F0 0%,#6BB8E8 100%)', '--pink':'#A8D8F0','--pink-deep':'#2980B9','--cream':'#F5FAFF','--lavender':'#BFE3F7','tab':'#2980B9' },
+  lilac:  { header:'linear-gradient(135deg,#D8B4FE 0%,#A78BFA 100%)', '--pink':'#D8B4FE','--pink-deep':'#7C3AED','--cream':'#FAF5FF','--lavender':'#E9D5FF','tab':'#7C3AED' },
+  rose:   { header:'linear-gradient(135deg,#FDA4AF 0%,#FB7185 100%)', '--pink':'#FDA4AF','--pink-deep':'#E11D48','--cream':'#FFF5F7','--lavender':'#FFC0CB','tab':'#E11D48' },
+  dark:   { header:'linear-gradient(135deg,#374151 0%,#1F2937 100%)', '--pink':'#6B7280','--pink-deep':'#9CA3AF','--cream':'#111827','--lavender':'#374151','tab':'#E5E7EB' },
+};
+
+let currentTheme = localStorage.getItem('fumei_theme') || 'pink';
+
+function applyTheme(name) {
+  const t = THEMES[name];
+  if (!t) return;
+  const root = document.documentElement;
+  root.style.setProperty('--pink', t['--pink']);
+  root.style.setProperty('--pink-deep', t['--pink-deep']);
+  root.style.setProperty('--cream', t['--cream']);
+  root.style.setProperty('--lavender', t['--lavender']);
+  document.querySelector('header').style.background = t.header;
+  document.body.style.backgroundColor = t['--cream'];
+  document.querySelectorAll('.tab.active').forEach(tab => tab.style.color = t.tab);
+  currentTheme = name;
+}
+
+function openSettings() {
+  document.getElementById('studioNameInput').value = localStorage.getItem('fumei_studio_name') || 'Fumei Studio';
+  const emoji = localStorage.getItem('fumei_avatar_emoji') || '🐾';
+  const url   = localStorage.getItem('fumei_avatar_url') || '';
+  document.getElementById('avatarEmojiInput').value = emoji;
+  document.getElementById('avatarUrlInput').value   = url;
+  updateAvatarPreview();
+  document.querySelectorAll('.color-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.theme === currentTheme);
+  });
+  if (window._currentUid) {
+    document.getElementById('accountSection').style.display = 'block';
+    document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
+  } else {
+    document.getElementById('accountSection').style.display = 'none';
+  }
+  document.getElementById('settingsModal').classList.add('show');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('show');
+}
+
+function closeSettingsOutside(e) {
+  if (e.target === document.getElementById('settingsModal')) closeSettings();
+}
+
+function updateAvatarPreview() {
+  const url   = document.getElementById('avatarUrlInput').value.trim();
+  const emoji = document.getElementById('avatarEmojiInput').value.trim() || '🐾';
+  const prev  = document.getElementById('avatarPreview');
+  if (url) {
+    prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    prev.textContent = emoji;
+  }
+}
+
+function saveSettings() {
+  const name  = document.getElementById('studioNameInput').value.trim() || 'Fumei Studio';
+  const emoji = document.getElementById('avatarEmojiInput').value.trim() || '🐾';
+  const url   = document.getElementById('avatarUrlInput').value.trim();
+  localStorage.setItem('fumei_studio_name', name);
+  localStorage.setItem('fumei_avatar_emoji', emoji);
+  localStorage.setItem('fumei_avatar_url', url);
+  localStorage.setItem('fumei_theme', currentTheme);
+  document.querySelector('.logo-text h1').textContent = name;
+  document.title = name + ' ✨';
+  const logoIcon = document.querySelector('.logo-icon');
+  if (url) {
+    logoIcon.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    logoIcon.textContent = emoji;
+  }
+  if (window.syncToCloud) window.syncToCloud();
+  const btn = document.querySelector('.settings-save-btn');
+  btn.textContent = '✓ 已儲存！';
+  setTimeout(() => { btn.textContent = '💾 儲存設定'; closeSettings(); }, 1200);
+}
+
+function confirmDeleteAccount() {
+  if (!confirm('確定要刪除帳號與所有雲端資料嗎？此操作無法復原！')) return;
+  deleteAccount();
+}
+
+async function deleteAccount() {
+  if (!window._currentUid) return;
+  try {
+    await window.saveToCloud(window._currentUid, { fumei_key:'',fumei_gemini_key:'',fumei_gpt_key:'',fumei_tasks:'[]',fumei_history:'[]' });
+    ['fumei_key','fumei_gemini_key','fumei_gpt_key','fumei_tasks','fumei_history','fumei_studio_name','fumei_avatar_emoji','fumei_avatar_url','fumei_theme','fumei_view'].forEach(k => localStorage.removeItem(k));
+    await window.logoutUser();
+    closeSettings();
+    alert('帳號資料已刪除，已登出。');
+    location.reload();
+  } catch(e) { alert('刪除失敗：' + e.message); }
+}
+
+// 初始化設定
+window.addEventListener('load', () => {
+  applyTheme(currentTheme);
+  const savedName = localStorage.getItem('fumei_studio_name');
+  if (savedName) { document.querySelector('.logo-text h1').textContent = savedName; document.title = savedName + ' ✨'; }
+  const savedUrl   = localStorage.getItem('fumei_avatar_url');
+  const savedEmoji = localStorage.getItem('fumei_avatar_emoji') || '🐾';
+  const logoIcon   = document.querySelector('.logo-icon');
+  if (savedUrl) { logoIcon.innerHTML = `<img src="${savedUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
+  else { logoIcon.textContent = savedEmoji; }
+  // swatch listeners
+  document.querySelectorAll('.color-swatch').forEach(s => {
+    s.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('active'));
+      s.classList.add('active');
+      applyTheme(s.dataset.theme);
+    });
+  });
+  // avatar input listeners
+  document.getElementById('avatarEmojiInput').addEventListener('input', updateAvatarPreview);
+  document.getElementById('avatarUrlInput').addEventListener('input', updateAvatarPreview);
+});
+</script>
+
 </body>
 </html>
