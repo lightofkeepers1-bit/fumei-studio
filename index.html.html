@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fumei Studio ✨</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #F4A7B9;
+    --pink-deep: #E07A95;
+    --cream: #FFF8F0;
+    --mint: #B5EAD7;
+    --lavender: #C9B8E8;
+    --brown: #5C3D2E;
+    --shadow: 0 8px 32px rgba(224,122,149,0.13);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans TC', sans-serif; background: var(--cream); min-height: 100vh;
+    background-image: radial-gradient(circle at 10% 20%, #fce4ec55 0%, transparent 50%), radial-gradient(circle at 90% 80%, #e8d5f555 0%, transparent 50%); }
+
+  header { background: linear-gradient(135deg, #F4A7B9 0%, #C9B8E8 100%); padding: 18px 32px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(244,167,185,0.3); position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+  .logo-icon { width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);display:flex;align-items:center;justify-content:center;font-size:1.6rem;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.15);flex-shrink:0 }
+  .logo-text h1 { font-family:'Nunito',sans-serif;font-size:1.5rem;font-weight:900;color:white }
+  .logo-text p { font-size:0.78rem;color:rgba(255,255,255,0.85);font-weight:600 }
+  .api-zone { margin-left:auto;display:flex;align-items:center;gap:8px }
+  .api-input { padding:8px 14px;border-radius:20px;border:2px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.3);color:white;font-size:0.78rem;width:210px;outline:none;font-family:'Nunito',sans-serif;font-weight:600 }
+  .api-input::placeholder { color:rgba(255,255,255,0.75) }
+  .save-btn { padding:8px 16px;border-radius:20px;border:none;background:white;color:var(--pink-deep);font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:transform 0.15s }
+  .save-btn:hover { transform:scale(1.05) }
+
+  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto }
+  .tab { padding:10px 22px;border-radius:14px 14px 0 0;border:none;background:transparent;color:#999;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap }
+  .tab.active { background:white;color:var(--pink-deep);box-shadow:0 -4px 12px rgba(244,167,185,0.2) }
+  .tab:hover:not(.active) { color:var(--pink-deep);background:#fff5f8 }
+
+  main { max-width:900px;margin:0 auto;padding:28px 24px }
+  .panel { display:none } .panel.active { display:block }
+
+  .card { background:white;border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);margin-bottom:20px;border:1.5px solid #fce4ec }
+  .card-title { font-family:'Nunito',sans-serif;font-size:1.1rem;font-weight:800;color:var(--brown);margin-bottom:16px;display:flex;align-items:center;gap:8px }
+
+  .btn { background:linear-gradient(135deg,var(--pink),var(--pink-deep));color:white;border:none;padding:12px 28px;border-radius:50px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;box-shadow:0 4px 15px rgba(224,122,149,0.35);display:inline-flex;align-items:center;gap:8px }
+  .btn:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(224,122,149,0.45) }
+  .btn:disabled { opacity:0.6;cursor:not-allowed;transform:none }
+  .btn-sm { background:var(--mint);color:#2d6a4f;border:none;padding:8px 18px;border-radius:20px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-right:6px }
+  .btn-sm:hover { background:#95d5b2 }
+
+  textarea, input[type="text"] { width:100%;border:2px solid #f0d8e0;border-radius:14px;padding:14px 16px;font-size:0.95rem;font-family:'Noto Sans TC',sans-serif;outline:none;resize:vertical;transition:border 0.2s;background:#fffbfd;color:var(--brown) }
+  textarea:focus, input[type="text"]:focus { border-color:var(--pink) }
+  select { border:2px solid #f0d8e0;border-radius:14px;padding:10px 14px;font-size:0.9rem;font-family:'Noto Sans TC',sans-serif;outline:none;background:#fffbfd;color:var(--brown);cursor:pointer }
+  select:focus { border-color:var(--pink) }
+
+  .result { background:linear-gradient(135deg,#fff8fc,#f8f4ff);border:2px dashed var(--pink);border-radius:var(--radius);padding:24px;margin-top:16px;white-space:pre-wrap;line-height:1.8;font-size:0.93rem;color:var(--brown);display:none }
+  .result.show { display:block }
+
+  .loading { display:none;align-items:center;gap:8px;color:var(--pink-deep);font-weight:700;font-size:0.88rem;margin-top:12px }
+  .loading.show { display:flex }
+  .dots { display:flex;gap:4px }
+  .dots span { width:7px;height:7px;background:var(--pink-deep);border-radius:50%;animation:pulse 1.2s infinite }
+  .dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes pulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+  .err { color:#e53935;font-size:0.85rem;margin-top:8px;font-weight:600;display:none }
+  .err.show { display:block }
+
+  .hint-box { background:linear-gradient(135deg,#fff9e6,#fff0f5);border-radius:14px;padding:14px 18px;margin-bottom:12px;border:1.5px solid #ffe4b5;font-size:0.85rem;color:#7a4500;display:block }
+  .api-keys-box { margin-top:0; margin-bottom:16px; background:linear-gradient(135deg,#f8f4ff,#fff0f8); border-radius:14px; border:1.5px solid #e8d5f5; overflow:hidden; display:block }
+
+  .topics-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px }
+  .topic-chip { background:linear-gradient(135deg,#fff0f5,#f8f0ff);border:2px solid #f0d8e0;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.2s;font-size:0.88rem;color:var(--brown);font-weight:600;line-height:1.5 }
+  .topic-chip:hover { border-color:var(--pink);transform:translateY(-2px);box-shadow:0 4px 12px rgba(244,167,185,0.25) }
+  .topic-num { font-family:'Nunito',sans-serif;font-weight:900;color:var(--pink-deep);font-size:0.8rem;display:block;margin-bottom:3px }
+
+  .sub-tabs { display:flex;gap:8px;margin:16px 0 }
+  .sub-tab { padding:7px 16px;border-radius:20px;border:2px solid #f0d8e0;background:transparent;color:#999;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
+  .sub-tab.active { background:var(--pink);color:white;border-color:var(--pink) }
+
+  .prompt-box { background:#1e1e2e;border-radius:14px;padding:20px 20px 16px;color:#cdd6f4;font-family:monospace;font-size:0.83rem;line-height:1.7;white-space:pre-wrap;position:relative;margin-top:4px }
+  .prompt-copy { position:absolute;top:10px;right:10px;background:var(--pink);color:white;border:none;padding:5px 12px;border-radius:10px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif }
+  .prompt-copy:hover { background:var(--pink-deep) }
+  .prompt-highlight { color:#f9e2af }
+
+  .task-item { display:flex;align-items:center;gap:14px;padding:14px 18px;background:#fffbfd;border-radius:14px;margin-bottom:10px;border:1.5px solid #f0d8e0 }
+  .task-item.done { background:#f0fff8;border-color:var(--mint);opacity:.75 }
+  .task-check { width:22px;height:22px;border-radius:50%;border:2.5px solid var(--pink);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:white;font-size:0.8rem;font-weight:900;color:#2d6a4f }
+  .task-item.done .task-check { background:var(--mint);border-color:var(--mint) }
+  .task-text { flex:1;font-size:0.92rem;color:var(--brown);font-weight:600 }
+  .task-item.done .task-text { text-decoration:line-through;color:#aaa }
+  .link-btn { padding:5px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;font-family:'Nunito',sans-serif;text-decoration:none;transition:all 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px }
+  .link-ig { background:linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7);color:white;box-shadow:0 2px 8px rgba(238,42,123,0.3) }
+  .link-ig:hover { transform:translateY(-1px);box-shadow:0 4px 12px rgba(238,42,123,0.4) }
+  .link-fb { background:#1877f2;color:white;box-shadow:0 2px 8px rgba(24,119,242,0.3) }
+  .link-fb:hover { transform:translateY(-1px);box-shadow:0 4px 12px rgba(24,119,242,0.4) }
+  .badge { padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;font-family:'Nunito',sans-serif }
+  .b-ig{background:#fce4ec;color:#c2185b} .b-fb{background:#e3f2fd;color:#1565c0} .b-both{background:#f3e5f5;color:#6a1b9a}
+
+  .add-row { display:flex;gap:10px;margin-top:14px }
+  .add-row input { flex:1 }
+
+  .banner { background:linear-gradient(135deg,var(--pink),var(--lavender));border-radius:var(--radius);padding:20px 28px;color:white;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 24px rgba(244,167,185,0.3);flex-wrap:wrap;gap:14px }
+  .banner .date { font-family:'Nunito',sans-serif;font-size:1.4rem;font-weight:900 }
+  .banner .greet { font-size:0.85rem;opacity:.9;margin-top:2px }
+  .banner .stats { display:flex;gap:20px }
+  .banner .stat { text-align:center;font-family:'Nunito',sans-serif }
+  .banner .stat .n { font-size:1.6rem;font-weight:900 }
+  .banner .stat .l { font-size:0.72rem;opacity:.85 }
+
+  .notice { display:none;margin-top:10px;padding:10px 14px;background:#fff9e6;border-radius:10px;font-size:0.83rem;color:#7a4500;font-weight:600 }
+
+  .row { display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap }
+  .row > * { flex:1;min-width:180px }
+
+  /* HISTORY */
+  .history-item { border:1.5px solid #f0d8e0;border-radius:16px;margin-bottom:14px;overflow:hidden }
+  .history-header { display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,#fff8fc,#f8f4ff);cursor:pointer;gap:10px }
+  .history-header:hover { background:linear-gradient(135deg,#ffe4ee,#ede4ff) }
+  .history-meta { flex:1 }
+  .history-title { font-weight:800;font-size:0.92rem;color:var(--brown);margin-bottom:3px }
+  .history-sub { font-size:0.78rem;color:#aaa;display:flex;gap:10px;flex-wrap:wrap }
+  .history-badge { padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif }
+  .hb-1{background:#fff0f5;color:#c2185b}
+  .hb-2{background:#f0f4ff;color:#1565c0}
+  .hb-v{background:#f0fff8;color:#2d6a4f}
+  .history-actions { display:flex;gap:8px;flex-shrink:0 }
+  .history-body { display:none;padding:18px;white-space:pre-wrap;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
+  .history-body.open { display:block }
+  .del-btn { background:#fce4ec;color:#c2185b;border:none;padding:6px 12px;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
+  .del-btn:hover { background:#f8bbd0 }
+
+  /* ── 三AI發想卡片 ── */
+  .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s; position:relative }
+  .inspo-card:hover { border-color:var(--pink-deep); box-shadow:0 4px 20px rgba(224,122,149,0.2); transform:translateY(-2px) }
+  .inspo-card.selected { border-color:var(--pink-deep); background:#fff5f8; box-shadow:0 4px 20px rgba(224,122,149,0.25) }
+  .inspo-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:800; margin-bottom:8px; font-family:'Nunito',sans-serif }
+  .badge-claude { background:#f4e8ff; color:#6b3fa0 }
+  .badge-gemini { background:#e8f4ff; color:#1a73e8 }
+  .badge-gpt { background:#e8fff4; color:#1a7a4a }
+  .inspo-direction { font-size:0.88rem; color:#666; margin-bottom:6px; font-weight:700 }
+  .inspo-reason { font-size:0.82rem; color:#999; line-height:1.5 }
+  .inspo-select-btn { position:absolute; right:14px; top:50%; transform:translateY(-50%); background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:white; border:none; padding:7px 14px; border-radius:20px; font-size:0.78rem; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif; white-space:nowrap }
+  .inspo-loading-row { display:flex; align-items:center; gap:10px; padding:14px 16px; background:#fafafa; border-radius:12px; font-size:0.82rem; color:#aaa; font-weight:700 }
+
+  /* ── API Keys 設定 ── */
+  .api-keys-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; cursor:pointer; user-select:none }
+  .api-keys-header:hover { background:rgba(118,75,162,0.05) }
+  .api-keys-title { display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:800; color:#764ba2; font-family:'Nunito',sans-serif }
+  .api-keys-status { display:flex; gap:6px }
+  .api-status-chip { padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:800; font-family:'Nunito',sans-serif }
+  .api-status-ok { background:#e8fff4; color:#1a7a4a }
+  .api-status-ng { background:#ffe8e8; color:#c0392b }
+  .api-keys-arrow { font-size:0.75rem; color:#aaa; transition:transform 0.2s }
+  .api-keys-arrow.open { transform:rotate(180deg) }
+  .api-keys-body { display:none; padding:0 16px 16px }
+  .api-keys-body.show { display:block }
+  .api-key-row { display:flex; gap:8px; align-items:center; margin-top:12px }
+  .api-key-label { font-size:0.78rem; font-weight:800; color:#888; min-width:80px; width:80px; flex-shrink:0; white-space:nowrap; line-height:1 }
+  .api-key-input { flex:1; padding:8px 12px; border-radius:12px; border:1.5px solid #e8d5f5; font-size:0.78rem; font-family:'Nunito',sans-serif; background:white; color:var(--brown); outline:none }
+  .api-key-input:focus { border-color:#764ba2 }
+  .api-key-save { padding:8px 14px; border-radius:12px; border:none; background:linear-gradient(135deg,#667eea,#764ba2); color:white; font-weight:800; font-size:0.75rem; cursor:pointer; font-family:'Nunito',sans-serif; white-space:nowrap; transition:opacity 0.2s }
+  .api-key-save:hover { opacity:0.85 }
+
+
+    /* Header */
+    header { padding:12px 16px; gap:10px }
+    .logo-icon { width:40px; height:40px; font-size:1.2rem }
+    .logo-text h1 { font-size:1.2rem }
+    .logo-text p { font-size:0.7rem }
+    .api-zone { width:100%; margin-left:0 }
+    .api-input { width:100%; flex:1 }
+
+    /* Nav tabs - scrollable pill style */
+    nav { padding:10px 12px 0; gap:6px }
+    .tab { padding:8px 14px; font-size:0.78rem; border-radius:20px 20px 0 0 }
+
+    /* Main */
+    main { padding:12px 10px }
+    .card { padding:18px 14px; border-radius:16px }
+    .card-title { font-size:1rem }
+
+    /* Buttons */
+    .btn { padding:12px 20px; font-size:0.88rem; width:100%; justify-content:center; margin-top:4px }
+    .btn-sm { padding:8px 14px; font-size:0.78rem }
+
+    /* Forms */
+    textarea { font-size:0.9rem; padding:12px }
+    select { width:100%; padding:10px 12px; font-size:0.88rem; border-radius:12px; border:2px solid #f0d8e0; background:#fffbfd; color:var(--brown); font-family:'Noto Sans TC',sans-serif }
+
+    /* Script panel selects row */
+    .row { flex-direction:column }
+    .row > * { min-width:unset; width:100% }
+
+    /* Topics grid */
+    .topics-grid { grid-template-columns:1fr }
+    .topic-chip { padding:12px 14px }
+
+    /* Task items */
+    .task-item { flex-wrap:wrap; gap:8px; padding:12px }
+    .task-text { font-size:0.88rem; flex:1; min-width:120px }
+    .history-actions { gap:6px }
+    .link-btn { padding:5px 10px; font-size:0.72rem }
+
+    /* Result / prompt boxes */
+    .result { font-size:0.85rem; padding:14px }
+    .prompt-box { padding:14px }
+    .prompt-copy { font-size:0.72rem; padding:5px 10px }
+
+    /* Sub tabs */
+    .sub-tabs { gap:6px }
+    .sub-tab { padding:8px 14px; font-size:0.8rem }
+
+    /* History */
+    .history-header { padding:12px 14px }
+    .history-title { font-size:0.88rem }
+    .del-btn { padding:5px 10px; font-size:0.72rem }
+
+    /* Notice / hint boxes */
+    .hint-box { font-size:0.82rem; padding:10px 12px }
+    .notice { font-size:0.82rem }
+
+    /* Quick replies */
+    .quick-btn { font-size:0.8rem; padding:8px 12px }
+
+    /* News links */
+    #newsLinkArea a { padding:8px 12px }
+
+    /* Loading dots */
+    .loading { font-size:0.82rem }
+  }
+  /* ── 強制手機版 ── */
+  body.force-mobile header { padding:12px 16px; gap:10px }
+  body.force-mobile .logo-icon { width:40px; height:40px; font-size:1.2rem }
+  body.force-mobile .logo-text h1 { font-size:1.2rem }
+  body.force-mobile .logo-text p { font-size:0.7rem }
+  body.force-mobile .api-zone { width:100%; margin-left:0 }
+  body.force-mobile .api-input { width:100%; flex:1 }
+  body.force-mobile nav { padding:10px 12px 0; gap:6px }
+  body.force-mobile .tab { padding:8px 14px; font-size:0.78rem; border-radius:20px 20px 0 0 }
+  body.force-mobile main { padding:12px 10px; max-width:100% }
+  body.force-mobile .card { padding:18px 14px; border-radius:16px }
+  body.force-mobile .card-title { font-size:1rem }
+  body.force-mobile .btn { padding:12px 20px; font-size:0.88rem; width:100%; justify-content:center; margin-top:4px }
+  body.force-mobile .btn-sm { padding:8px 14px; font-size:0.78rem }
+  body.force-mobile textarea { font-size:0.9rem; padding:12px }
+  body.force-mobile select { width:100%; padding:10px 12px; font-size:0.88rem; border-radius:12px; border:2px solid #f0d8e0; background:#fffbfd; color:var(--brown); font-family:'Noto Sans TC',sans-serif }
+  body.force-mobile .row { flex-direction:column }
+  body.force-mobile .row > * { min-width:unset; width:100% }
+  body.force-mobile .topics-grid { grid-template-columns:1fr }
+  body.force-mobile .topic-chip { padding:12px 14px }
+  body.force-mobile .task-item { flex-wrap:wrap; gap:8px; padding:12px }
+  body.force-mobile .task-text { font-size:0.88rem; flex:1; min-width:120px }
+  body.force-mobile .link-btn { padding:5px 10px; font-size:0.72rem }
+  body.force-mobile .result { font-size:0.85rem; padding:14px }
+  body.force-mobile .prompt-box { padding:14px }
+  body.force-mobile .prompt-copy { font-size:0.72rem; padding:5px 10px }
+  body.force-mobile .sub-tabs { gap:6px }
+  body.force-mobile .sub-tab { padding:8px 14px; font-size:0.8rem }
+  body.force-mobile .history-header { padding:12px 14px }
+  body.force-mobile .history-title { font-size:0.88rem }
+  body.force-mobile .del-btn { padding:5px 10px; font-size:0.72rem }
+  body.force-mobile .hint-box { font-size:0.82rem; padding:10px 12px }
+  body.force-mobile .notice { font-size:0.82rem }
+  body.force-mobile #newsLinkArea a { padding:8px 12px }
+
+  /* ── 強制PC版（覆蓋 media query）── */
+  body.force-pc header { padding:18px 32px !important }
+  body.force-pc .logo-icon { width:52px !important; height:52px !important; font-size:1.6rem !important }
+  body.force-pc .logo-text h1 { font-size:1.5rem !important }
+  body.force-pc .api-zone { width:auto !important; margin-left:auto !important }
+  body.force-pc .api-input { width:210px !important }
+  body.force-pc nav { padding:20px 32px 0 !important }
+  body.force-pc main { padding:28px 24px !important; max-width:900px !important }
+  body.force-pc .card { padding:28px !important }
+  body.force-pc .btn { width:auto !important }
+  body.force-pc select { width:auto !important }
+  body.force-pc .row { flex-direction:row !important }
+  body.force-pc .topics-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)) !important }
+  body.force-pc .task-item { flex-wrap:nowrap !important }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🐾</div>
+  <div class="logo-text">
+    <h1>Fumei Studio</h1>
+    <p>AI 梗圖產文系統 ✨ v2</p>
+  </div>
+  <button id="viewToggleBtn" onclick="toggleView()" style="margin-left:auto;margin-right:8px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
+  <div class="api-zone">
+    <input class="api-input" type="password" id="apiKey" placeholder="貼上 Claude API Key...">
+    <button class="save-btn" onclick="saveKey()">儲存</button>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" onclick="switchTab('daily',this)">📅 每日任務</button>
+  <button class="tab" onclick="switchTab('topics',this)">💡 話題掃描</button>
+  <button class="tab" onclick="switchTab('script',this)">✍️ 產腳本</button>
+  <button class="tab" onclick="switchTab('reply',this)">💬 留言回覆</button>
+  <button class="tab" onclick="switchTab('history',this)">📖 歷史紀錄</button>
+</nav>
+
+<main>
+
+<!-- DAILY -->
+<div class="panel active" id="panel-daily">
+  <div class="banner">
+    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！Fumei 今天也要發光發熱 ✨</div></div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="doneCount">0</div><div class="l">已完成</div></div>
+      <div class="stat"><div class="n" id="totalCount">0</div><div class="l">總任務</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 今日發文任務</div>
+    <div id="taskList"></div>
+    <div class="add-row">
+      <input type="text" id="newTask" placeholder="新增任務，例如：發職場梗圖一篇" onkeydown="if(event.key==='Enter')addTask()">
+      <select id="newPlatform"><option value="ig">IG</option><option value="fb">FB</option><option value="both">兩者</option></select>
+      <button class="btn" onclick="addTask()" style="flex:0;white-space:nowrap;padding:10px 20px">＋ 新增</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🎯 今日建議發文時間</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="background:#fff0f5;border-radius:12px;padding:14px 20px;text-align:center;flex:1;min-width:110px"><div style="font-size:1.4rem;font-weight:900;color:var(--pink-deep);font-family:'Nunito',sans-serif">12:00</div><div style="font-size:0.78rem;color:#999;margin-top:2px">午休流量高峰</div></div>
+      <div style="background:#f8f0ff;border-radius:12px;padding:14px 20px;text-align:center;flex:1;min-width:110px"><div style="font-size:1.4rem;font-weight:900;color:#7c5cbf;font-family:'Nunito',sans-serif">19:00</div><div style="font-size:0.78rem;color:#999;margin-top:2px">下班後黃金時段</div></div>
+      <div style="background:#f0fff8;border-radius:12px;padding:14px 20px;text-align:center;flex:1;min-width:110px"><div style="font-size:1.4rem;font-weight:900;color:#2d6a4f;font-family:'Nunito',sans-serif">21:30</div><div style="font-size:0.78rem;color:#999;margin-top:2px">睡前刷手機時段</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOPICS -->
+<div class="panel" id="panel-topics">
+  <div class="card">
+    <div class="card-title">🔍 今日話題掃描</div>
+    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 Fumei 的梗圖靈感</p>
+    <div class="row" style="margin-bottom:14px">
+      <select id="topicCat">
+        <option value="時事">🗞️ 今日時事</option>
+        <option value="職場">💼 職場話題</option>
+        <option value="單身生活">💅 單身生活</option>
+        <option value="日常趣事">😂 日常趣事</option>
+        <option value="旅遊">✈️ 旅遊話題</option>
+      </select>
+      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題</button>
+    </div>
+    <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div>Fumei 正在尋找靈感中...</div>
+    <div class="topics-grid" id="topicsGrid"></div>
+    <div class="err" id="scanErr"></div>
+  </div>
+  <div class="card" id="selectedCard" style="display:none">
+    <div class="card-title">✅ 已選話題</div>
+    <div id="selectedText" style="font-size:0.95rem;color:var(--brown);font-weight:700;margin-bottom:12px"></div>
+    <div id="newsLinkArea" style="margin-bottom:14px">
+      <div id="newsLinkLoading" style="display:none;font-size:0.83rem;color:var(--pink-deep);font-weight:700;display:flex;align-items:center;gap:8px">
+        <div class="dots"><span></span><span></span><span></span></div>正在搜尋相關新聞連結...
+      </div>
+      <div id="newsLinks"></div>
+    </div>
+    <button class="btn" onclick="goToScript()">✍️ 用這個話題產腳本 →</button>
+  </div>
+</div>
+
+<!-- SCRIPT -->
+<div class="panel" id="panel-script">
+  <div class="card">
+    <div class="card-title">✍️ Fumei 腳本生成器</div>
+    <div class="hint-box">💡 <strong>話題框可以留空！</strong> 系統會自動搜尋當日時事，幫 Fumei 找題目 ✨</div>
+    <div class="api-keys-box" id="apiKeysBox">
+      <div class="api-keys-header" onclick="toggleApiKeys()">
+        <div class="api-keys-title">🔑 Gemini / ChatGPT API Keys</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="api-keys-status" id="apiStatusChips"></div>
+          <span class="api-keys-arrow" id="apiKeysArrow">▼</span>
+        </div>
+      </div>
+      <div class="api-keys-body" id="apiKeysPanel">
+        <div class="api-key-row">
+          <span class="api-key-label">🔵 Gemini</span>
+          <input class="api-key-input" type="password" id="geminiKeyInput" placeholder="Gemini API Key...">
+          <button class="api-key-save" onclick="saveGeminiKey()">儲存</button>
+        </div>
+        <div class="api-key-row">
+          <span class="api-key-label">🟢 ChatGPT</span>
+          <input class="api-key-input" type="password" id="gptKeyInput" placeholder="OpenAI API Key...">
+          <button class="api-key-save" onclick="saveGptKey()">儲存</button>
+        </div>
+      </div>
+    </div>
+    <textarea id="scriptTopic" rows="3" placeholder="（可留空，系統自動找話題）&#10;或輸入指定話題，例如：&#10;老闆突然說要開臨時會議&#10;颱風假到底放不放"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center" class="row">
+      <select id="scriptType">
+        <option value="職場梗">💼 職場梗</option>
+        <option value="單身日常">💅 單身日常</option>
+        <option value="時事反應">🗞️ 時事反應</option>
+        <option value="旅遊心得">✈️ 旅遊心得</option>
+        <option value="生活趣事">😂 生活趣事</option>
+      </select>
+      <select id="scriptFormat">
+        <option value="一格">🖼️ 一格梗圖</option>
+        <option value="兩格" selected>🖼️🖼️ 兩格梗圖</option>
+        <option value="影片15">🎬 影片腳本 15秒</option>
+        <option value="影片30">🎬 影片腳本 30秒</option>
+      </select>
+      <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本</button>
+      <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想</button>
+    </div>
+    <!-- 三AI發想區塊 -->
+    <div id="inspoArea" style="display:none;margin-top:20px">
+      <div style="font-size:0.85rem;color:#888;margin-bottom:12px;font-weight:700">💡 三個 AI 的創意方向，點選喜歡的繼續產腳本</div>
+      <div id="inspoCards" style="display:flex;flex-direction:column;gap:12px"></div>
+    </div>
+    <div class="loading" id="inspoLoading" style="display:none"><div class="dots"><span></span><span></span><span></span></div><span>三個 AI 正在腦力激盪中...</span></div>
+    <div class="err" id="inspoErr"></div>
+    <div class="notice" id="autoNotice">🔍 話題框空白，正在自動搜尋今日時事...</div>
+    <div class="loading" id="scriptLoading"><div class="dots"><span></span><span></span><span></span></div><span id="scriptLoadTxt">Fumei 正在組織她的神邏輯...</span></div>
+    <div class="err" id="scriptErr"></div>
+
+    <div id="scriptArea" style="display:none">
+      <div id="autoUsed" style="display:none;margin-top:16px;padding:10px 16px;background:linear-gradient(135deg,#fff9e6,#fff0f5);border-radius:12px;font-size:0.85rem;color:#7a4500;font-weight:700;border:1.5px solid #ffe4b5"></div>
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSub('script',this)">📝 腳本</button>
+        <button class="sub-tab" id="promptTabBtn" onclick="showSub('prompt',this)">🎨 Gemini Prompt</button>
+      </div>
+      <div id="sub-script">
+        <div class="result show" id="scriptResult"></div>
+        <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
+      </div>
+      <div id="sub-prompt" style="display:none">
+        <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 Fumei 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
+        <div class="prompt-box" id="promptBox">
+          <button class="prompt-copy" onclick="cpPrompt()">📋 複製</button>
+          <span id="promptContent"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REPLY -->
+<div class="panel" id="panel-reply">
+  <div class="card">
+    <div class="card-title">💬 留言自動回覆產生器</div>
+    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">貼上粉絲留言，讓 Fumei 用她的風格回覆！</p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.83rem;font-weight:700;color:#888;display:block;margin-bottom:6px">貼文主題（讓回覆更貼切）</label>
+      <input type="text" id="replyCtx" placeholder="例如：週一上班梗圖、加班梗">
+    </div>
+    <label style="font-size:0.83rem;font-weight:700;color:#888;display:block;margin-bottom:6px">粉絲留言（每行一則）</label>
+    <textarea id="replyInput" rows="4" placeholder="哈哈太真實了&#10;我也是這樣！&#10;Fumei 好可愛"></textarea>
+    <button class="btn" onclick="genReply()" id="replyBtn" style="margin-top:12px">💬 產出回覆</button>
+    <div class="loading" id="replyLoading"><div class="dots"><span></span><span></span><span></span></div>Fumei 正在想怎麼回...</div>
+    <div class="err" id="replyErr"></div>
+    <div class="result" id="replyResult"></div>
+    <button class="btn-sm" id="copyReplyBtn" style="display:none;margin-top:10px" onclick="cp('replyResult')">📋 複製回覆</button>
+  </div>
+  <div class="card">
+    <div class="card-title">⚡ 快速回覆模板</div>
+    <p style="font-size:0.83rem;color:#888;margin-bottom:12px">點擊直接複製 Fumei 風格常用回覆</p>
+    <div id="quickReplies"></div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="panel" id="panel-history">
+  <div class="card">
+    <div class="card-title">📖 歷史腳本紀錄</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <p style="font-size:0.88rem;color:#888">所有產出過的腳本都會自動儲存在這裡</p>
+      <button class="btn-sm" onclick="clearAllHistory()" style="background:#fce4ec;color:#c2185b">🗑️ 清除全部</button>
+    </div>
+    <div id="historyEmpty" style="text-align:center;padding:40px;color:#ccc;font-size:0.9rem;display:none">
+      還沒有產出過腳本，去「✍️ 產腳本」試試看吧！
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── STATE ──────────────────────────────────────────
+let KEY = localStorage.getItem('fumei_key') || '';
+let GEMINI_KEY = localStorage.getItem('fumei_gemini_key') || '';
+let GPT_KEY = localStorage.getItem('fumei_gpt_key') || '';
+let tasks = JSON.parse(localStorage.getItem('fumei_tasks') || '[]');
+let scriptHistory = JSON.parse(localStorage.getItem('fumei_history') || '[]');
+let currentTopic = '';
+
+const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
+角色：Fumei（富美）3D卡通狗狗女孩，金色長髮、格紋粉色洋裝+粉色針織外套，大眼睛招牌燦笑。
+個性：上班族、有趣自信聰明、偶爾脫線大神經、白富美單身貴族、愛閱讀旅遊、熱愛時事。
+說話風格：直接自信偶爾自嗨、台灣用語、誇張共鳴、單身驕傲、偶爾神邏輯。
+
+政治立場與內容方向：
+- Fumei 是台派、認同台灣主體意識、支持民主自由
+- 內容以本土台灣人的視角出發，認同台灣是獨立的文化與身份認同
+- 話題篩選與梗圖創作優先考量台派、偏綠支持者的共鳴感
+- 對於威權、親中立場、打壓台灣民主的事件，Fumei 會用幽默方式表達不認同
+- 不製作攻擊特定個人的惡意內容，但可以對政治現象做出有立場的幽默評論
+- 台灣意識、本土文化、民主價值是 Fumei 梗圖的核心精神`;
+
+const GEMINI_FRAME_ONE = (content) =>
+`用這個角色(Fumei)，要換服裝，要換場景
+表情要豐富
+**不要更換提供的原人物的材質**
+**依照提供圖片材質出圖**
+主題：${content.split('\n')[0] || '梗圖'}
+給我梗圖:
+
+${content}
+
+**不要更換提供的原人物的材質**
+輸出尺寸為9:16
+請出圖`;
+
+const GEMINI_FRAME = (content) =>
+`用這個角色(Fumei)，要換服裝，要換場景
+表情要豐富
+**不要更換提供的原人物的材質**
+**依照提供圖片材質出圖**
+主題：${content.split('\n')[0] || '梗圖'}
+給我兩格的梗圖:
+
+${content}
+
+**不要更換提供的原人物的材質**
+輸出尺寸為3:4
+兩格場景跟服裝要一致
+請出圖`;
+
+const GEMINI_FRAME_VIDEO = (content) => {
+  // 把「不要字幕\n中文版」插入到 IG Reels 說明文字的前面
+  const marker = '## 【IG Reels 說明文字】';
+  const injected = content.includes(marker)
+    ? content.replace(marker, `不要字幕\n中文版\n\n${marker}`)
+    : `${content}\n\n不要字幕\n中文版`;
+  return `用這個角色(Fumei)，不要用原本的服裝，要換服裝
+表情要豐富
+
+${injected}`;
+};
+
+let lastGeminiPrompt = '';
+
+window.onload = () => {
+  if (KEY) document.getElementById('apiKey').value = KEY;
+  if (GEMINI_KEY) document.getElementById('geminiKeyInput').value = GEMINI_KEY;
+  if (GPT_KEY) document.getElementById('gptKeyInput').value = GPT_KEY;
+  updateApiStatus();
+  const d = new Date();
+  const days = ['日','一','二','三','四','五','六'];
+  document.getElementById('todayDate').textContent = `${d.getMonth()+1}/${d.getDate()} (週${days[d.getDay()]})`;
+  renderTasks();
+  renderQuick();
+  renderHistory();
+  // 恢復上次的版面偏好
+  const savedView = localStorage.getItem('fumei_view');
+  const btn = document.getElementById('viewToggleBtn');
+  if (savedView === 'mobile') {
+    document.body.classList.add('force-mobile');
+    btn.textContent = '📱 手機版';
+  } else if (savedView === 'pc') {
+    document.body.classList.add('force-pc');
+    btn.textContent = '🖥️ PC版';
+  }
+};
+
+// ── VIEW TOGGLE ──────────────────────────────────
+function toggleView() {
+  const body = document.body;
+  const btn = document.getElementById('viewToggleBtn');
+  if (body.classList.contains('force-mobile')) {
+    body.classList.remove('force-mobile');
+    body.classList.add('force-pc');
+    btn.textContent = '🖥️ PC版';
+    localStorage.setItem('fumei_view', 'pc');
+  } else {
+    body.classList.remove('force-pc');
+    body.classList.add('force-mobile');
+    btn.textContent = '📱 手機版';
+    localStorage.setItem('fumei_view', 'mobile');
+  }
+}
+
+
+function saveKey() {
+  KEY = document.getElementById('apiKey').value.trim();
+  localStorage.setItem('fumei_key', KEY);
+  const b = document.querySelector('.save-btn');
+  b.textContent = '✓ 已儲存'; setTimeout(() => b.textContent = '儲存', 2000);
+}
+
+// ── TABS ─────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+function showSub(name, el) {
+  document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sub-script').style.display = name === 'script' ? 'block' : 'none';
+  document.getElementById('sub-prompt').style.display = name === 'prompt' ? 'block' : 'none';
+}
+
+// ── TASKS ─────────────────────────────────────────
+const PLATFORM_LINKS = {
+  ig: { url: 'https://www.instagram.com/thejiongsrepublic/', label: '開啟 IG', icon: '📸' },
+  fb: { url: 'https://www.facebook.com/The.Jiong.Republic/', label: '開啟 FB 發文', icon: '📘', post: 'https://www.facebook.com/The.Jiong.Republic/' },
+  both: { ig: 'https://www.instagram.com/thejiongsrepublic/', fb: 'https://www.facebook.com/The.Jiong.Republic/' }
+};
+
+const DEF = [
+  {id:1,text:'產出今日圖文腳本',p:'ig',done:false},
+  {id:2,text:'發布 IG 貼文',p:'ig',done:false},
+  {id:3,text:'發布 FB 貼文',p:'fb',done:false},
+  {id:4,text:'回覆粉絲留言',p:'both',done:false},
+];
+function renderTasks() {
+  if (!tasks.length) tasks = [...DEF];
+  const bl = {ig:'b-ig',fb:'b-fb',both:'b-both'};
+  const ll = {ig:'IG',fb:'FB',both:'IG+FB'};
+
+  function getLinkBtn(p) {
+    if (p === 'ig') {
+      return `<a href="${PLATFORM_LINKS.ig.url}" target="_blank" class="link-btn link-ig">📸 開啟 IG</a>`;
+    } else if (p === 'fb') {
+      return `<a href="${PLATFORM_LINKS.fb.url}" target="_blank" class="link-btn link-fb">📘 開啟 FB</a>`;
+    } else {
+      return `<a href="${PLATFORM_LINKS.ig.url}" target="_blank" class="link-btn link-ig">📸 IG</a>
+              <a href="${PLATFORM_LINKS.fb.url}" target="_blank" class="link-btn link-fb">📘 FB</a>`;
+    }
+  }
+
+  document.getElementById('taskList').innerHTML = tasks.map(t => `
+    <div class="task-item ${t.done?'done':''}">
+      <div class="task-check" onclick="toggle(${t.id})">${t.done?'✓':''}</div>
+      <div class="task-text">${t.text}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        ${getLinkBtn(t.p)}
+        <span class="badge ${bl[t.p]}">${ll[t.p]}</span>
+        <span style="cursor:pointer;color:#ddd" onclick="del(${t.id})">✕</span>
+      </div>
+    </div>`).join('');
+  document.getElementById('doneCount').textContent = tasks.filter(t=>t.done).length;
+  document.getElementById('totalCount').textContent = tasks.length;
+  localStorage.setItem('fumei_tasks', JSON.stringify(tasks));
+}
+function toggle(id) { tasks = tasks.map(t => t.id===id?{...t,done:!t.done}:t); renderTasks(); }
+function del(id) { tasks = tasks.filter(t => t.id!==id); renderTasks(); }
+function addTask() {
+  const v = document.getElementById('newTask').value.trim(); if (!v) return;
+  tasks.push({id:Date.now(),text:v,p:document.getElementById('newPlatform').value,done:false});
+  document.getElementById('newTask').value = ''; renderTasks();
+}
+
+// ── CLAUDE API ────────────────────────────────────
+async function claude(sys, msg, search=false, creative=false) {
+  if (!KEY) throw new Error('請先輸入並儲存 Claude API Key！');
+  const headers = {'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01'};
+  if (search) headers['anthropic-beta'] = 'web-search-2025-03-05';
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: creative ? 3000 : 1500,
+    temperature: creative ? 1.0 : 0.7,
+    system: sys,
+    messages: [{role:'user', content:msg}]
+  };
+  if (search) body.tools = [{type:'web_search_20250305', name:'web_search'}];
+  const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers, body: JSON.stringify(body)});
+  if (!r.ok) { const e = await r.json(); throw new Error(`[${r.status}] ${e.error?.message||JSON.stringify(e)}`); }
+  const d = await r.json();
+  return d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
+}
+
+// ── RANDOM STYLE ──────────────────────────────────
+const FUMEI_STYLES = [
+  '這次走「超級誇張自嗨」路線，Fumei 要把事情渲染到極致，反應要大到誇張好笑',
+  '這次走「自嘲苦笑」路線，Fumei 知道自己慘但還是笑著接受，有種哭笑不得的幽默',
+  '這次走「知識型反差梗」路線，Fumei 先說一個看起來很認真的道理，再用神邏輯自打臉',
+  '這次走「社會觀察家」路線，Fumei 像個冷靜的旁觀者，用一句話精準戳破現實',
+  '這次走「單身驕傲宣言」路線，Fumei 把所有事情都跟單身自由扯上關係，而且覺得單身完勝',
+  '這次走「職場生存哲學」路線，Fumei 分享上班族的生存智慧，聽起來很有道理但其實很廢',
+  '這次走「突然脫線」路線，Fumei 開頭很正常，結尾突然神邏輯大爆發，讓人沒料到',
+  '這次走「共鳴爆棚」路線，Fumei 說出所有人心裡有口難言的話，讓人看完大喊「就是這樣！」',
+];
+
+// ── SCAN TOPICS ───────────────────────────────────
+
+// 輕量版 claude 專門給話題掃描用（低 token、按需開啟搜尋）
+async function claudeScan(msg, useSearch=false) {
+  if (!KEY) throw new Error('請先輸入並儲存 Claude API Key！');
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: useSearch ? 2000 : 400,
+    temperature: 0.9,
+    system: FUMEI,
+    messages: [{role:'user', content:msg}]
+  };
+  const scanHeaders = {'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01'};
+  if (useSearch) {
+    scanHeaders['anthropic-beta'] = 'web-search-2025-03-05';
+    body.tools = [{type:'web_search_20250305', name:'web_search'}];
+  }
+  const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers: scanHeaders, body: JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) throw new Error(`[${r.status}] ${d.error?.message || JSON.stringify(d)}`);
+  const texts = d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
+  if (!texts) throw new Error(`回傳空白｜stop:${d.stop_reason}｜${d.content.map(b=>b.type).join(',')}`);
+  return texts;
+}
+
+async function scanTopics() {
+  const cat = document.getElementById('topicCat').value;
+  const btn = document.getElementById('scanBtn');
+  const load = document.getElementById('scanLoading');
+  const grid = document.getElementById('topicsGrid');
+  const err = document.getElementById('scanErr');
+  btn.disabled=true; load.classList.add('show'); grid.innerHTML=''; err.classList.remove('show');
+  document.getElementById('selectedCard').style.display='none';
+  try {
+    const isNews = cat === '時事';
+    const today = new Date();
+    const threeDaysAgo = new Date(today - 3 * 24 * 60 * 60 * 1000);
+    const dateRange = `${threeDaysAgo.toLocaleDateString('zh-TW')} 到 ${today.toLocaleDateString('zh-TW')}`;
+    const diversityRules = {
+      '時事': '真實時事3個＋熱門討論3個，涵蓋不同面向',
+      '職場': '涵蓋開會、主管、薪水、同事、下班、求職、升遷、加班等不同面向',
+      '單身生活': '涵蓋節日、約會、家人催婚、戀愛觀、生活品質等不同面向',
+      '日常趣事': '涵蓋飲食、交通、天氣、購物、手機、睡眠等不同場景',
+      '旅遊': '涵蓋訂房、交通、景點、美食、行李、旅伴等不同情境',
+    };
+    const rule = diversityRules[cat] || '每個話題切角完全不同';
+
+    const prompt = isNews
+      ? `今天是 ${today.toLocaleDateString('zh-TW')}，搜尋 ${dateRange} 的最新台灣時事。來源：ETtoday、三立、中時、聯合、自由時報 + Twitter/X 台灣趨勢，各佔一半。找6個適合 Fumei 梗圖的話題，${rule}，切角各不同。每行格式：話題標題｜Fumei一句反應台詞。只輸出6行。`
+      : `針對「${cat}」提供6個適合 Fumei 梗圖的台灣生活話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。每行格式：話題標題｜Fumei一句反應台詞。只輸出6行不要編號。`;
+
+    const txt = await claudeScan(prompt, isNews);
+    const lines = txt.split('\n').filter(l=>l.includes('｜'));
+    grid.innerHTML = lines.map((l,i)=>{
+      const [t,s]=l.split('｜');
+      return `<div class="topic-chip" onclick="pickTopic('${t.trim().replace(/'/g,"\\'")}')">
+        <span class="topic-num">話題 ${i+1}</span>
+        <strong>${t.trim()}</strong><br>
+        <span style="color:var(--pink-deep);font-size:0.81rem">${s?s.trim():''}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
+  finally { btn.disabled=false; load.classList.remove('show'); }
+}
+function pickTopic(t) {
+  currentTopic = t;
+  document.getElementById('selectedText').textContent = '📌 ' + t;
+  document.getElementById('selectedCard').style.display = 'block';
+  document.getElementById('newsLinks').innerHTML = '';
+  searchNewsLinks(t);
+}
+
+async function searchNewsLinks(topic) {
+  const loadEl = document.getElementById('newsLinkLoading');
+  const linksEl = document.getElementById('newsLinks');
+  loadEl.style.display = 'flex';
+  linksEl.innerHTML = '';
+  try {
+    const result = await claude('你是一個新聞搜尋助手，只負責找新聞連結，不要產出任何創作內容。',
+      `請搜尋台灣最近3天內關於「${topic}」的新聞或討論，找出3則最相關的真實文章。
+
+每行輸出格式：新聞標題｜完整網址
+只輸出3行，網址必須是真實可點擊的完整連結（https://開頭），不要捏造網址。
+如果找不到相關新聞，輸出：找不到相關新聞｜none`, true, false);
+
+    const lines = result.trim().split('\n').filter(l => l.includes('｜'));
+    if (!lines.length || lines[0].includes('找不到')) {
+      linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
+    } else {
+      linksEl.innerHTML = `
+        <div style="font-size:0.8rem;color:#aaa;font-weight:700;margin-bottom:8px">📰 相關新聞來源</div>
+        ${lines.map(l => {
+          const [title, url] = l.split('｜');
+          if (!url || url === 'none' || !url.startsWith('http')) return '';
+          return `<a href="${url.trim()}" target="_blank" rel="noopener"
+            style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:#fff8fc;border:1.5px solid #f0d8e0;border-radius:12px;margin-bottom:8px;text-decoration:none;transition:all 0.2s"
+            onmouseover="this.style.borderColor='#F4A7B9';this.style.background='#fff0f5'"
+            onmouseout="this.style.borderColor='#f0d8e0';this.style.background='#fff8fc'">
+            <span style="font-size:1rem;flex-shrink:0">🔗</span>
+            <span style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${title.trim()}</span>
+          </a>`;
+        }).join('')}`;
+    }
+  } catch(e) {
+    linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">搜尋新聞連結時發生錯誤</div>`;
+  } finally {
+    loadEl.style.display = 'none';
+  }
+}
+function goToScript() {
+  document.getElementById('scriptTopic').value = currentTopic;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab')[2].classList.add('active');
+  document.getElementById('panel-script').classList.add('active');
+}
+
+
+
+// ── API KEY MANAGEMENT ───────────────────────────
+function updateApiStatus() {
+  const chips = document.getElementById('apiStatusChips');
+  if (!chips) return;
+  chips.innerHTML = [
+    {label:'Gemini', ok:!!GEMINI_KEY},
+    {label:'GPT', ok:!!GPT_KEY}
+  ].map(({label,ok}) =>
+    `<span class="api-status-chip ${ok?'api-status-ok':'api-status-ng'}">${label} ${ok?'✓':'✗'}</span>`
+  ).join('');
+}
+function toggleApiKeys() {
+  const body = document.getElementById('apiKeysPanel');
+  const arrow = document.getElementById('apiKeysArrow');
+  body.classList.toggle('show');
+  arrow.classList.toggle('open');
+}
+
+function saveGeminiKey() {
+  GEMINI_KEY = document.getElementById('geminiKeyInput').value.trim();
+  localStorage.setItem('fumei_gemini_key', GEMINI_KEY);
+  updateApiStatus();
+  const b = document.querySelector('[onclick="saveGeminiKey()"]');
+  b.textContent = '✓'; setTimeout(() => b.textContent = '儲存', 1500);
+}
+function saveGptKey() {
+  GPT_KEY = document.getElementById('gptKeyInput').value.trim();
+  localStorage.setItem('fumei_gpt_key', GPT_KEY);
+  updateApiStatus();
+  const b = document.querySelector('[onclick="saveGptKey()"]');
+  b.textContent = '✓'; setTimeout(() => b.textContent = '儲存', 1500);
+}
+
+// ── GEMINI API ───────────────────────────────────
+async function callGemini(prompt) {
+  if (!GEMINI_KEY) throw new Error('請先設定 Gemini API Key');
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contents:[{parts:[{text: prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:400}})
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error?.message || 'Gemini 錯誤');
+  return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+}
+
+// ── GPT API ──────────────────────────────────────
+async function callGPT(prompt) {
+  if (!GPT_KEY) throw new Error('請先設定 ChatGPT API Key');
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${GPT_KEY}`},
+    body: JSON.stringify({model:'gpt-4o-mini', temperature:1.0, max_tokens:400, messages:[{role:'user', content:prompt}]})
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error?.message || 'ChatGPT 錯誤');
+  return d.choices?.[0]?.message?.content?.trim() || '';
+}
+
+// ── THREE AI INSPO ───────────────────────────────
+async function genInspo() {
+  const topic = document.getElementById('scriptTopic').value.trim();
+  const type = document.getElementById('scriptType').value;
+  if (!topic) {
+    const e = document.getElementById('inspoErr');
+    e.textContent = '❌ 請先輸入話題再發想';
+    e.classList.add('show');
+    return;
+  }
+  document.getElementById('inspoErr').classList.remove('show');
+
+  const btn = document.getElementById('inspoBtn');
+  const area = document.getElementById('inspoArea');
+  const cards = document.getElementById('inspoCards');
+  btn.disabled = true;
+
+  // 先顯示 loading 占位卡片
+  cards.innerHTML = ['🟣 Claude','🔵 Gemini','🟢 ChatGPT'].map(label => `
+    <div class="inspo-loading-row">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span>${label} 發想中...</span>
+    </div>`).join('');
+  area.style.display = 'block';
+
+  const inspoPrompt = (style) => `你是 Fumei 梗圖創意顧問。
+話題：${topic}
+類型：${type}
+請用${style}提出一個梗圖創意方向。
+格式（只輸出以下兩行，不要其他說明）：
+方向：（一句話說明切入點，15字內）
+原因：（為什麼有共鳴或好笑，30字內）`;
+
+  const results = await Promise.allSettled([
+    claude(FUMEI, inspoPrompt('邏輯清晰、反差感強的角度'), false, true),
+    callGemini(inspoPrompt('創意跳躍、視覺感強的角度')),
+    callGPT(inspoPrompt('生活共鳴、情緒到位的角度'))
+  ]);
+
+  const aiMeta = [
+    {label:'Claude', badge:'badge-claude', emoji:'🟣'},
+    {label:'Gemini', badge:'badge-gemini', emoji:'🔵'},
+    {label:'ChatGPT', badge:'badge-gpt', emoji:'🟢'},
+  ];
+
+  cards.innerHTML = results.map((res, i) => {
+    const {label, badge, emoji} = aiMeta[i];
+    if (res.status === 'rejected') {
+      return `<div class="inspo-card" style="opacity:0.6">
+        <span class="inspo-badge ${badge}">${emoji} ${label}</span>
+        <div class="inspo-reason">⚠️ ${res.reason?.message || '呼叫失敗'}</div>
+      </div>`;
+    }
+    const text = res.value || '';
+    const dir = (text.match(/方向[：:]\s*(.+)/)||['','（無）'])[1].trim();
+    const why = (text.match(/原因[：:]\s*(.+)/)||['',''])[1].trim();
+    const safeDir = dir.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+    return `<div class="inspo-card" onclick="pickInspo(this, \`${safeDir}\`)">
+      <span class="inspo-badge ${badge}">${emoji} ${label}</span>
+      <div class="inspo-direction">${dir}</div>
+      <div class="inspo-reason">${why}</div>
+      <button class="inspo-select-btn" onclick="event.stopPropagation();pickInspo(this.closest('.inspo-card'), \`${safeDir}\`)">用這個 →</button>
+    </div>`;
+  }).join('');
+
+  btn.disabled = false;
+}
+
+function pickInspo(el, direction) {
+  document.querySelectorAll('.inspo-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const topicEl = document.getElementById('scriptTopic');
+  const current = topicEl.value.trim().replace(/\n方向：.*/s,'').trim();
+  topicEl.value = current ? `${current}\n方向：${direction}` : `方向：${direction}`;
+  document.getElementById('scriptBtn').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+async function genScript() {
+  let topic = document.getElementById('scriptTopic').value.trim();
+  const type = document.getElementById('scriptType').value;
+  const btn = document.getElementById('scriptBtn');
+  const load = document.getElementById('scriptLoading');
+  const loadTxt = document.getElementById('scriptLoadTxt');
+  const err = document.getElementById('scriptErr');
+  const area = document.getElementById('scriptArea');
+  const notice = document.getElementById('autoNotice');
+  const used = document.getElementById('autoUsed');
+  const isAuto = !topic;
+
+  btn.disabled=true; load.classList.add('show'); area.style.display='none';
+  err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
+
+  try {
+    if (isAuto) {
+      notice.style.display='block';
+      loadTxt.textContent='正在搜尋今日時事...';
+      const res = await claude(FUMEI,
+        `今天是 ${new Date().toLocaleDateString('zh-TW')}。
+搜尋台灣今日最熱門時事，選最適合 Fumei 做梗圖的一個。
+只輸出話題名稱，一行，不要其他說明。`, true);
+      topic = res.split('\n')[0].trim();
+      notice.style.display='none';
+      used.textContent = `🔍 自動找到今日話題：「${topic}」`;
+    }
+
+    // 隨機選一個風格
+    const randomStyle = FUMEI_STYLES[Math.floor(Math.random() * FUMEI_STYLES.length)];
+    const styleNote = `\n\n【本次風格指令】${randomStyle}`;
+
+    const format = document.getElementById('scriptFormat').value;
+    let scriptPrompt = '';
+
+    if (format === '一格') {
+      scriptPrompt = `話題：${topic}
+類型：${type}
+
+產出 Fumei 一格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+
+【情境】
+（一句話描述畫面）
+
+【台詞】
+（Fumei 的精華一句話，要有笑點或共鳴感）
+
+【場景說明】
+（背景場景描述，服裝由 AI 自由發揮選擇符合情境的造型，表情要生動有戲劇張力）
+
+【IG 說明文字】
+（文案 + hashtag）
+
+【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+【互動問句】
+（一句開放性問題讓粉絲留言，要符合 Fumei 語氣，輕鬆有趣，例如「你們公司也有這種人嗎？」）${styleNote}`;
+
+    } else if (format === '兩格') {
+      scriptPrompt = `話題：${topic}
+類型：${type}
+
+產出 Fumei 兩格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+
+【情境】
+（一句話描述主題）
+
+【上格】
+（第一格的情境或台詞，可以是獨自一人的心理狀態、動作、或對話，自然描述就好）
+
+【下格】
+（第二格的反轉或結果，要有笑點或共鳴，跟上格形成對比）
+
+【IG 說明文字】
+（文案 + hashtag）
+
+【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+【互動問句】
+（一句開放性問題讓粉絲留言，要符合 Fumei 語氣，輕鬆有趣）${styleNote}`;
+
+    } else {
+      const is15 = format === '影片15';
+      const secLabel = is15 ? '15秒' : '30秒';
+
+      if (is15) {
+        scriptPrompt = `話題：${topic}
+類型：${type}
+
+產出 Fumei 15秒短影片腳本（精準控制在15秒內，每個鏡頭要非常精簡有力）：
+
+## 【影片主題】
+（一句話，要讓人一看就想點進來）
+
+## 【開場鉤子（0-3秒）】
+鏡頭說明：（畫面描述）
+台詞：（一句話，必須在3秒內抓住注意力）
+
+## 【中段（3-12秒）】
+鏡頭1（3-7秒）：
+- 畫面：（描述）
+- 台詞：（簡短有力）
+
+鏡頭2（7-12秒）：
+- 畫面：（描述）
+- 台詞：（簡短有力）
+
+## 【結尾反轉（12-15秒）】
+鏡頭說明：（畫面描述）
+台詞：（一句話神結尾，讓人想截圖或分享）
+
+## 【畫面說明（給 AI 影片工具）】
+場景：（背景環境）
+Fumei 造型：（服裝描述，要換一套不同的服裝）
+表情變化：（從XXX→XXX→XXX）
+動作：（列出關鍵動作）
+
+## 【配樂建議】
+（曲風 + 情緒節奏說明）
+
+## 【IG Reels 說明文字】
+（15秒版吸睛文案 + hashtag）
+
+## 【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+## 【互動問句】
+（一句讓粉絲留言的問題，Fumei 語氣）${styleNote}`;
+      } else {
+        scriptPrompt = `話題：${topic}
+類型：${type}
+
+產出 Fumei 30秒短影片腳本（完整節奏，有起承轉合）：
+
+## 【影片主題】
+（一句話說明這支影片在講什麼）
+
+## 【開場鉤子（0-3秒）】
+鏡頭說明：（畫面描述）
+台詞：（讓人停止滑動的第一句話）
+
+## 【中段內容（3-22秒）】
+鏡頭1（3-8秒）：
+- 畫面：（描述）
+- 台詞：（Fumei 的表演或旁白）
+
+鏡頭2（8-13秒）：
+- 畫面：（描述）
+- 台詞：
+
+鏡頭3（13-18秒）：
+- 畫面：（描述）
+- 台詞：
+
+鏡頭4（18-22秒）：
+- 畫面：（描述）
+- 台詞：
+
+## 【結尾反轉（22-30秒）】
+鏡頭說明：（畫面描述）
+台詞：（神回覆或意外反轉，讓人笑出來或想分享）
+定格畫面：（最後一幕的定格說明）
+
+## 【畫面說明（給 AI 影片工具）】
+場景：（背景環境）
+Fumei 造型：（服裝描述，要換一套不同的服裝）
+表情變化：（從XXX→XXX→XXX）
+道具：（需要的道具）
+動作：（列出所有關鍵動作）
+
+## 【配樂建議】
+前半段：（曲風）
+後半段：（曲風轉變）
+推薦曲風：（具體建議）
+
+## 【IG Reels 說明文字】
+（吸引人的文案 + hashtag）
+
+## 【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+## 【互動問句】
+（一句讓粉絲留言的問題，Fumei 語氣）${styleNote}`;
+      }
+    }
+
+    const script = await claude(FUMEI, scriptPrompt, false, true);
+
+    // Show which style was used
+    used.textContent = isAuto
+      ? `🔍 自動找到今日話題：「${topic}」　🎲 本次風格：${randomStyle.replace('這次走','').split('路線')[0].trim()}`
+      : `🎲 本次風格：${randomStyle.replace('這次走','').split('路線')[0].trim()}`;
+
+    // Build Gemini prompt based on format
+    const isVideo = format === '影片15' || format === '影片30';
+
+    // Update tab label and description
+    const promptTabBtn = document.getElementById('promptTabBtn');
+    const promptDesc = document.getElementById('promptDesc');
+    if (isVideo) {
+      promptTabBtn.textContent = '🎬 影片 Prompt 複製';
+      promptDesc.textContent = '複製以下 Prompt 到 Sora2 即可生成影片 👇';
+    } else {
+      promptTabBtn.textContent = '🎨 Gemini Prompt';
+      promptDesc.textContent = '上傳 Fumei 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇';
+    }
+
+    let geminiContent = '';
+    if (format === '一格') {
+      const line1 = (script.match(/(?:##\s*)?【台詞】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      const situation = (script.match(/(?:##\s*)?【情境】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      geminiContent = `${situation}\nfumei:${line1}`;
+    } else if (format === '兩格') {
+      const upper = (script.match(/(?:##\s*)?【上格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      const lower = (script.match(/(?:##\s*)?【下格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      const situation = (script.match(/(?:##\s*)?【情境】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      geminiContent = `${situation}\n${upper}\n\n${lower}`;
+    } else {
+      // 影片腳本：直接用完整腳本內容給影片模型
+      geminiContent = script;
+    }
+
+    // Build final Gemini prompt per format
+    const geminiPrompt = format === '一格'
+      ? GEMINI_FRAME_ONE(geminiContent)
+      : format === '兩格'
+      ? GEMINI_FRAME(geminiContent)
+      : GEMINI_FRAME_VIDEO(geminiContent);
+
+    document.getElementById('scriptResult').textContent = script;
+    document.getElementById('promptContent').textContent = geminiPrompt;
+    lastGeminiPrompt = geminiPrompt;
+    area.style.display='block';
+
+    // ── SAVE TO HISTORY ──
+    const formatLabels = {'一格':'一格梗圖','兩格':'兩格梗圖','影片':'影片腳本'};
+    scriptHistory.unshift({
+      id: Date.now(),
+      topic: topic,
+      type: type,
+      format: formatLabels[format] || format,
+      script: script,
+      prompt: geminiPrompt,
+      date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+    });
+    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50); // keep last 50
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    renderHistory();
+
+  } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
+  finally { btn.disabled=false; load.classList.remove('show'); }
+}
+
+// ── GEN REPLY ─────────────────────────────────────
+async function genReply() {
+  const comments = document.getElementById('replyInput').value.trim();
+  const ctx = document.getElementById('replyCtx').value.trim();
+  if (!comments) { alert('請貼上粉絲留言！'); return; }
+  const btn = document.getElementById('replyBtn');
+  const load = document.getElementById('replyLoading');
+  const result = document.getElementById('replyResult');
+  const err = document.getElementById('replyErr');
+  const cpBtn = document.getElementById('copyReplyBtn');
+  btn.disabled=true; load.classList.add('show'); result.classList.remove('show');
+  err.classList.remove('show'); cpBtn.style.display='none';
+  try {
+    const txt = await claude(FUMEI,
+      `貼文主題：${ctx||'未指定'}
+粉絲留言：
+${comments}
+
+用 Fumei 語氣回覆每則留言，格式：
+留言：[原文]
+Fumei 回覆：[1～2句，親切有趣]
+---`);
+    result.textContent=txt; result.classList.add('show'); cpBtn.style.display='inline-block';
+  } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
+  finally { btn.disabled=false; load.classList.remove('show'); }
+}
+
+// ── QUICK REPLIES ─────────────────────────────────
+const QR = [
+  {t:'哈哈哈太真實', r:'對吧！我就知道我不孤單 😂 找到同類了！'},
+  {t:'我也是這樣！', r:'歡迎加入苦命俱樂部 🤝 會費是一杯咖啡的眼淚'},
+  {t:'好可愛喔', r:'謝謝你發現我的美 💅 你眼光很好！'},
+  {t:'怎麼辦到的', r:'努力 + 才華 + 一點點神經質，就這樣 😄'},
+  {t:'繼續加油！', r:'感謝你的能量補給！我又可以再撐一個禮拜了 🚀'},
+  {t:'太有共鳴了', r:'我們的靈魂深處是同一個人 🫂'},
+];
+function renderQuick() {
+  document.getElementById('quickReplies').innerHTML = QR.map(q=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fffbfd;border-radius:12px;border:1.5px solid #f0d8e0;margin-bottom:8px">
+      <div style="flex:1">
+        <div style="font-size:0.77rem;color:#bbb;margin-bottom:2px">當粉絲說：「${q.t}」</div>
+        <div style="font-size:0.88rem;font-weight:600;color:var(--brown)">${q.r}</div>
+      </div>
+      <button class="btn-sm" style="margin:0;white-space:nowrap" onclick="navigator.clipboard.writeText('${q.r.replace(/'/g,"\\'")}');this.textContent='✓ 已複製';setTimeout(()=>this.textContent='📋 複製',1500)">📋 複製</button>
+    </div>`).join('');
+}
+
+// ── COPY ─────────────────────────────────────────
+function cp(id) {
+  const el = document.getElementById(id);
+  const text = el.textContent || el.innerText;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text, null));
+  } else {
+    fallbackCopy(text, null);
+  }
+  el.style.outline='3px solid #B5EAD7';
+  setTimeout(()=>el.style.outline='none',700);
+}
+function cpPrompt() {
+  const btn = document.querySelector('.prompt-copy');
+  if (!lastGeminiPrompt) {
+    btn.textContent='❌ 無內容';
+    setTimeout(()=>btn.textContent='📋 複製',2000);
+    return;
+  }
+  // Try clipboard API first, fallback to textarea method
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(lastGeminiPrompt).then(() => {
+      btn.textContent='✓ 已複製';
+      setTimeout(()=>btn.textContent='📋 複製',2000);
+    }).catch(() => fallbackCopy(lastGeminiPrompt, btn));
+  } else {
+    fallbackCopy(lastGeminiPrompt, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    if (btn) { btn.textContent='✓ 已複製'; setTimeout(()=>btn.textContent='📋 複製',2000); }
+  } catch(e) {
+    if (btn) { btn.textContent='❌ 失敗'; setTimeout(()=>btn.textContent='📋 複製',2000); }
+  }
+  document.body.removeChild(ta);
+}
+// ── HISTORY ──────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  if (!scriptHistory.length) {
+    empty.style.display = 'block';
+    list.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v'};
+  list.innerHTML = scriptHistory.map((h,i) => `
+    <div class="history-item" id="hi-${h.id}">
+      <div class="history-header" onclick="toggleHistory(${h.id})">
+        <div class="history-meta">
+          <div class="history-title">💬 ${h.topic}</div>
+          <div class="history-sub">
+            <span>${h.date}</span>
+            <span class="history-badge ${fmtBadge[h.format]||'hb-1'}">${h.format}</span>
+            <span style="color:#bbb">${h.type}</span>
+          </div>
+        </div>
+        <div class="history-actions">
+          <button class="btn-sm" style="margin:0" onclick="event.stopPropagation();cpHistory(${h.id})">📋 複製</button>
+          <button class="del-btn" onclick="event.stopPropagation();delHistory(${h.id})">🗑️ 刪除</button>
+        </div>
+      </div>
+      <div class="history-body" id="hb-${h.id}">${h.script}</div>
+    </div>`).join('');
+}
+
+function toggleHistory(id) {
+  const body = document.getElementById('hb-' + id);
+  body.classList.toggle('open');
+}
+
+function cpHistory(id) {
+  const item = scriptHistory.find(h => h.id === id);
+  if (!item) return;
+  navigator.clipboard.writeText(item.script);
+  const btn = document.querySelector(`#hi-${id} .btn-sm`);
+  if (btn) { btn.textContent='✓ 已複製'; setTimeout(()=>btn.textContent='📋 複製',1500); }
+}
+
+function delHistory(id) {
+  scriptHistory = scriptHistory.filter(h => h.id !== id);
+  localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+  renderHistory();
+}
+
+function clearAllHistory() {
+  if (!confirm('確定要清除所有歷史紀錄嗎？')) return;
+  scriptHistory = [];
+  localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+  renderHistory();
+}
+</script>
+</body>
+</html>
