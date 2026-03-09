@@ -341,9 +341,9 @@ onAuthStateChanged(auth, async (user) => {
       if (data.fumei_key) { window.KEY = data.fumei_key; localStorage.setItem('fumei_key', data.fumei_key); document.getElementById('apiKey').value = data.fumei_key; }
       if (data.fumei_gemini_key) { window.GEMINI_KEY = data.fumei_gemini_key; localStorage.setItem('fumei_gemini_key', data.fumei_gemini_key); document.getElementById('geminiKeyInput').value = data.fumei_gemini_key; }
       if (data.fumei_gpt_key) { window.GPT_KEY = data.fumei_gpt_key; localStorage.setItem('fumei_gpt_key', data.fumei_gpt_key); document.getElementById('gptKeyInput').value = data.fumei_gpt_key; }
-      if (data.fumei_tasks) { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window.renderTasks(); }
-      if (data.fumei_history) { localStorage.setItem('fumei_history', data.fumei_history); window.scriptHistory = JSON.parse(data.fumei_history); window.renderHistory(); }
-      window.updateApiStatus();
+      if (data.fumei_tasks) { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window._renderTasks(); }
+      if (data.fumei_history) { localStorage.setItem('fumei_history', data.fumei_history); window.scriptHistory = JSON.parse(data.fumei_history); window._renderHistory(); }
+      window._updateApiStatus();
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
   } else {
@@ -389,9 +389,15 @@ window.syncToCloud = async () => {
     </div>
     <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
   </div>
-  <div class="api-zone">
-    <input class="api-input" type="password" id="apiKey" placeholder="貼上 Claude API Key...">
-    <button class="save-btn" onclick="saveKey()">儲存</button>
+  <div class="api-zone" id="apiZone">
+    <div id="apiKeyRow" style="display:flex;align-items:center;gap:8px">
+      <input class="api-input" type="password" id="apiKey" placeholder="貼上 Claude API Key...">
+      <button class="save-btn" onclick="saveKey(this)">儲存</button>
+    </div>
+    <div id="apiSavedBadge" style="display:none;align-items:center;gap:6px;cursor:pointer" onclick="showApiInput()">
+      <span style="font-size:0.78rem;color:white;font-weight:800">🔑 Claude ✓</span>
+      <span style="font-size:0.7rem;color:rgba(255,255,255,0.7)">點擊修改</span>
+    </div>
   </div>
 </header>
 
@@ -648,12 +654,16 @@ ${injected}`;
 let lastGeminiPrompt = '';
 
 // expose globals for Firebase module
-window.renderTasks = () => renderTasks();
-window.renderHistory = () => renderHistory();
-window.updateApiStatus = () => updateApiStatus();
+window._renderTasks = function() { renderTasks(); };
+window._renderHistory = function() { renderHistory(); };
+window._updateApiStatus = function() { updateApiStatus(); };
 
 window.onload = () => {
-  if (KEY) document.getElementById('apiKey').value = KEY;
+  if (KEY) {
+    document.getElementById('apiKey').value = KEY;
+    document.getElementById('apiKeyRow').style.display = 'none';
+    document.getElementById('apiSavedBadge').style.display = 'flex';
+  }
   if (GEMINI_KEY) document.getElementById('geminiKeyInput').value = GEMINI_KEY;
   if (GPT_KEY) document.getElementById('gptKeyInput').value = GPT_KEY;
   updateApiStatus();
@@ -693,12 +703,20 @@ function toggleView() {
 }
 
 
-function saveKey() {
+function saveKey(btn) {
   KEY = document.getElementById('apiKey').value.trim();
   localStorage.setItem('fumei_key', KEY);
   if(window.syncToCloud) window.syncToCloud();
-  const b = document.querySelector('.save-btn');
-  b.textContent = '✓ 已儲存'; setTimeout(() => b.textContent = '儲存', 2000);
+  if (KEY) {
+    document.getElementById('apiKeyRow').style.display = 'none';
+    document.getElementById('apiSavedBadge').style.display = 'flex';
+  } else {
+    if(btn) { btn.textContent = '✓'; setTimeout(() => btn.textContent = '儲存', 1500); }
+  }
+}
+function showApiInput() {
+  document.getElementById('apiKeyRow').style.display = 'flex';
+  document.getElementById('apiSavedBadge').style.display = 'none';
 }
 
 // ── TABS ─────────────────────────────────────────
