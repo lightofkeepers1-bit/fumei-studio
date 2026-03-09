@@ -377,7 +377,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ v2.1</p>
+    <p>AI 梗圖產文系統 ✨ v2.3</p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -611,7 +611,7 @@ const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
 - 台灣意識、本土文化、民主價值是 Fumei 梗圖的核心精神`;
 
 const GEMINI_FRAME_ONE = (content) =>
-`用這個角色(Fumei)，要換服裝，要換場景
+`用這個角色(Fumei)，不要用同一套服裝，要換服裝，要換場景
 表情要豐富
 **不要更換提供的原人物的材質**
 **依照提供圖片材質出圖**
@@ -625,7 +625,7 @@ ${content}
 請出圖`;
 
 const GEMINI_FRAME = (content) =>
-`用這個角色(Fumei)，要換服裝，要換場景
+`用這個角色(Fumei)，不要用同一套服裝，要換服裝，要換場景
 表情要豐富
 **不要更換提供的原人物的材質**
 **依照提供圖片材質出圖**
@@ -976,7 +976,7 @@ function saveGptKey(btn) {
 // ── GEMINI API ───────────────────────────────────
 async function callGemini(prompt) {
   if (!GEMINI_KEY) throw new Error('請先設定 Gemini API Key');
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({contents:[{parts:[{text: prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:400}})
