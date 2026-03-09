@@ -279,6 +279,97 @@
   body.force-pc .task-item { flex-wrap:nowrap !important }
 
 </style>
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY",
+  authDomain: "fumei-3e684.firebaseapp.com",
+  projectId: "fumei-3e684",
+  storageBucket: "fumei-3e684.firebasestorage.app",
+  messagingSenderId: "466383145292",
+  appId: "1:466383145292:web:706971d30fda915bc2e7e9",
+  measurementId: "G-9F0XXZ1RRY"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+// ── 登入 / 登出 ──
+window.loginGoogle = async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch(e) { console.error(e); }
+};
+window.logoutUser = async () => {
+  await signOut(auth);
+};
+
+// ── 儲存資料到 Firestore ──
+window.saveToCloud = async (uid, data) => {
+  try {
+    await setDoc(doc(db, 'users', uid), data, { merge: true });
+  } catch(e) { console.error('儲存失敗', e); }
+};
+
+// ── 從 Firestore 讀取資料 ──
+window.loadFromCloud = async (uid) => {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    return snap.exists() ? snap.data() : null;
+  } catch(e) { console.error('讀取失敗', e); return null; }
+};
+
+// ── 監聽登入狀態 ──
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // 已登入
+    document.getElementById('loginBtn').style.display = 'none';
+    document.getElementById('userInfo').style.display = 'flex';
+    document.getElementById('userAvatar').src = user.photoURL || '';
+    document.getElementById('userName').textContent = user.displayName || user.email;
+    window._currentUid = user.uid;
+
+    // 從雲端載入資料
+    const data = await window.loadFromCloud(user.uid);
+    if (data) {
+      if (data.fumei_key) { window.KEY = data.fumei_key; localStorage.setItem('fumei_key', data.fumei_key); document.getElementById('apiKey').value = data.fumei_key; }
+      if (data.fumei_gemini_key) { window.GEMINI_KEY = data.fumei_gemini_key; localStorage.setItem('fumei_gemini_key', data.fumei_gemini_key); document.getElementById('geminiKeyInput').value = data.fumei_gemini_key; }
+      if (data.fumei_gpt_key) { window.GPT_KEY = data.fumei_gpt_key; localStorage.setItem('fumei_gpt_key', data.fumei_gpt_key); document.getElementById('gptKeyInput').value = data.fumei_gpt_key; }
+      if (data.fumei_tasks) { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window.renderTasks(); }
+      if (data.fumei_history) { localStorage.setItem('fumei_history', data.fumei_history); window.scriptHistory = JSON.parse(data.fumei_history); window.renderHistory(); }
+      window.updateApiStatus();
+    }
+    document.getElementById('syncStatus').textContent = '☁️ 已同步';
+  } else {
+    // 未登入
+    document.getElementById('loginBtn').style.display = 'flex';
+    document.getElementById('userInfo').style.display = 'none';
+    window._currentUid = null;
+    document.getElementById('syncStatus').textContent = '';
+  }
+});
+
+// ── 自動雲端同步（每次 localStorage 更新後呼叫）──
+window.syncToCloud = async () => {
+  if (!window._currentUid) return;
+  const el = document.getElementById('syncStatus');
+  el.textContent = '☁️ 同步中...';
+  await window.saveToCloud(window._currentUid, {
+    fumei_key: localStorage.getItem('fumei_key') || '',
+    fumei_gemini_key: localStorage.getItem('fumei_gemini_key') || '',
+    fumei_gpt_key: localStorage.getItem('fumei_gpt_key') || '',
+    fumei_tasks: localStorage.getItem('fumei_tasks') || '[]',
+    fumei_history: localStorage.getItem('fumei_history') || '[]',
+  });
+  el.textContent = '☁️ 已同步';
+};
+</script>
 </head>
 <body>
 
@@ -288,7 +379,16 @@
     <h1>Fumei Studio</h1>
     <p>AI 梗圖產文系統 ✨ v2</p>
   </div>
-  <button id="viewToggleBtn" onclick="toggleView()" style="margin-left:auto;margin-right:8px;background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
+    <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:6px;background:white;border:none;color:#764ba2;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">🔑 Google 登入</button>
+    <div id="userInfo" style="display:none;align-items:center;gap:6px">
+      <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
+      <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
+    </div>
+    <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
+  </div>
   <div class="api-zone">
     <input class="api-input" type="password" id="apiKey" placeholder="貼上 Claude API Key...">
     <button class="save-btn" onclick="saveKey()">儲存</button>
@@ -547,6 +647,11 @@ ${injected}`;
 
 let lastGeminiPrompt = '';
 
+// expose globals for Firebase module
+window.renderTasks = () => renderTasks();
+window.renderHistory = () => renderHistory();
+window.updateApiStatus = () => updateApiStatus();
+
 window.onload = () => {
   if (KEY) document.getElementById('apiKey').value = KEY;
   if (GEMINI_KEY) document.getElementById('geminiKeyInput').value = GEMINI_KEY;
@@ -591,6 +696,7 @@ function toggleView() {
 function saveKey() {
   KEY = document.getElementById('apiKey').value.trim();
   localStorage.setItem('fumei_key', KEY);
+  if(window.syncToCloud) window.syncToCloud();
   const b = document.querySelector('.save-btn');
   b.textContent = '✓ 已儲存'; setTimeout(() => b.textContent = '儲存', 2000);
 }
@@ -651,6 +757,7 @@ function renderTasks() {
   document.getElementById('doneCount').textContent = tasks.filter(t=>t.done).length;
   document.getElementById('totalCount').textContent = tasks.length;
   localStorage.setItem('fumei_tasks', JSON.stringify(tasks));
+  if(window.syncToCloud) window.syncToCloud();
 }
 function toggle(id) { tasks = tasks.map(t => t.id===id?{...t,done:!t.done}:t); renderTasks(); }
 function del(id) { tasks = tasks.filter(t => t.id!==id); renderTasks(); }
@@ -663,7 +770,12 @@ function addTask() {
 // ── CLAUDE API ────────────────────────────────────
 async function claude(sys, msg, search=false, creative=false) {
   if (!KEY) throw new Error('請先輸入並儲存 Claude API Key！');
-  const headers = {'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01'};
+  const headers = {
+    'Content-Type':'application/json',
+    'x-api-key':KEY,
+    'anthropic-version':'2023-06-01',
+    'anthropic-dangerous-direct-browser-access':'true'
+  };
   if (search) headers['anthropic-beta'] = 'web-search-2025-03-05';
   const body = {
     model: 'claude-sonnet-4-20250514',
@@ -703,7 +815,7 @@ async function claudeScan(msg, useSearch=false) {
     system: FUMEI,
     messages: [{role:'user', content:msg}]
   };
-  const scanHeaders = {'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01'};
+  const scanHeaders = {'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
   if (useSearch) {
     scanHeaders['anthropic-beta'] = 'web-search-2025-03-05';
     body.tools = [{type:'web_search_20250305', name:'web_search'}];
@@ -832,6 +944,7 @@ function saveGeminiKey() {
   GEMINI_KEY = document.getElementById('geminiKeyInput').value.trim();
   localStorage.setItem('fumei_gemini_key', GEMINI_KEY);
   updateApiStatus();
+  if(window.syncToCloud) window.syncToCloud();
   const b = document.querySelector('[onclick="saveGeminiKey()"]');
   b.textContent = '✓'; setTimeout(() => b.textContent = '儲存', 1500);
 }
@@ -839,6 +952,7 @@ function saveGptKey() {
   GPT_KEY = document.getElementById('gptKeyInput').value.trim();
   localStorage.setItem('fumei_gpt_key', GPT_KEY);
   updateApiStatus();
+  if(window.syncToCloud) window.syncToCloud();
   const b = document.querySelector('[onclick="saveGptKey()"]');
   b.textContent = '✓'; setTimeout(() => b.textContent = '儲存', 1500);
 }
@@ -846,7 +960,7 @@ function saveGptKey() {
 // ── GEMINI API ───────────────────────────────────
 async function callGemini(prompt) {
   if (!GEMINI_KEY) throw new Error('請先設定 Gemini API Key');
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({contents:[{parts:[{text: prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:400}})
@@ -1195,6 +1309,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
     });
     if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50); // keep last 50
     localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if(window.syncToCloud) window.syncToCloud();
     renderHistory();
 
   } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
@@ -1340,6 +1455,7 @@ function cpHistory(id) {
 function delHistory(id) {
   scriptHistory = scriptHistory.filter(h => h.id !== id);
   localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if(window.syncToCloud) window.syncToCloud();
   renderHistory();
 }
 
@@ -1347,6 +1463,7 @@ function clearAllHistory() {
   if (!confirm('確定要清除所有歷史紀錄嗎？')) return;
   scriptHistory = [];
   localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if(window.syncToCloud) window.syncToCloud();
   renderHistory();
 }
 </script>
