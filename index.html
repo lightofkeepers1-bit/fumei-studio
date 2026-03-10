@@ -828,7 +828,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.2';
+const APP_VERSION = '4.2.1';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1402,7 +1402,7 @@ function goToScript() {
 
 // ── API KEY MANAGEMENT ───────────────────────────
 // ── GEMINI API ───────────────────────────────────
-async function callGemini(prompt, feature='script') {
+async function callGemini(prompt, feature='script', systemPrompt='') {
   const uid = window._currentUid;
   const headers = { 'Content-Type': 'application/json' };
   if (uid) {
@@ -1412,10 +1412,15 @@ async function callGemini(prompt, feature='script') {
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
   }
-  const r = await fetch('/api/gemini', {
-    method: 'POST', headers,
-    body: JSON.stringify({ model:'gemini-2.5-flash', contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:400} })
-  });
+  const body = {
+    model: 'gemini-2.5-flash',
+    generationConfig: { temperature: 1.0, maxOutputTokens: 800 },
+    contents: [{ parts: [{ text: prompt }] }]
+  };
+  // Gemini 原生支援 systemInstruction，角色設定分離才穩定
+  if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
+
+  const r = await fetch('/api/gemini', { method: 'POST', headers, body: JSON.stringify(body) });
   const remaining = r.headers.get('x-guest-remaining');
   if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
@@ -1493,9 +1498,21 @@ async function genInspo() {
 方向：把老闆的晨會當成求生節目來拍
 原因：台灣上班族對無意義會議的共同痛苦，一看就懂`;
 
+  const geminiSystem = `你是台灣社群梗圖創意顧問，專門為一個叫 Fumei（富美）的卡通狗狗女孩角色發想內容。Fumei 是有趣自信的台灣上班族，熱愛時事，語氣幽默犀利。你的回覆必須嚴格遵守格式，不能有任何多餘文字。`;
+
+  const geminiPrompt = (style) => `請針對話題「${topic}」（類型：${type}），用「${style}」的角度提出一個梗圖創意方向。
+
+你的回覆只能有以下兩行，格式如下：
+方向：（梗圖切入點一句話，20字以內）
+原因：（為什麼台灣人會有共鳴或覺得好笑，30字以內）
+
+範例：
+方向：把老闆的晨會當成求生節目來拍
+原因：台灣上班族對無意義會議的共同痛苦，一看就懂`;
+
   const results = await Promise.allSettled([
     claude(charCtx, claudePrompt('邏輯清晰、反差感強，找出意想不到的對比角度'), false, true),
-    callGemini(geminiGptPrompt('創意跳躍、視覺感強，找出畫面感十足的場景')),
+    callGemini(geminiPrompt('創意跳躍、視覺感強，找出畫面感十足的場景'), 'inspo', geminiSystem),
     callGPT(geminiGptPrompt('生活共鳴、情緒到位，說出大家心裡有口難言的話'))
   ]);
 
