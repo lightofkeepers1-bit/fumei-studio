@@ -884,7 +884,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.2';
+const APP_VERSION = '4.3.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1390,19 +1390,23 @@ async function scanTopics() {
 
     const txt = await claudeScan(prompt, isNews);
     const lines = txt.split('\n').filter(l=>l.includes('｜'));
-    grid.innerHTML = lines.map((l,i)=>{
-      const [t,s]=l.split('｜');
-      const title = t.trim();
-      const sub   = s ? s.trim() : '';
-      return `<div class="topic-chip" data-topic="${title.replace(/"/g,'&quot;')}" style="cursor:pointer">
+    // 用 JS 陣列儲存話題，完全不依賴 HTML attribute 傳遞
+    const topicList = lines.map(l => {
+      const parts = l.split('｜');
+      const t = parts[0].trim();
+      const s = parts[1] ? parts[1].trim() : '';
+      return { title: t, sub: s };
+    });
+    grid.innerHTML = topicList.map((item, i) =>
+      `<div class="topic-chip" data-idx="${i}" style="cursor:pointer">
         <span class="topic-num">話題 ${i+1}</span>
-        <strong>${title}</strong><br>
-        <span style="color:var(--pink-deep);font-size:0.81rem">${sub}</span>
-      </div>`;
-    }).join('');
-    // 用 event delegation 避免特殊字元造成 onclick 斷裂
+        <strong>${item.title}</strong><br>
+        <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+      </div>`
+    ).join('');
     grid.querySelectorAll('.topic-chip').forEach(el => {
-      el.addEventListener('click', () => pickTopic(el.dataset.topic));
+      const idx = parseInt(el.dataset.idx);
+      el.addEventListener('click', () => pickTopic(topicList[idx].title));
     });
   } catch(e) { if (window.handleGuestApiError && window.handleGuestApiError(e)) return; err.textContent='❌ '+e.message; err.classList.add('show'); }
   finally { btn.disabled=false; load.classList.remove('show'); }
@@ -1426,7 +1430,7 @@ async function searchNewsLinks(topic) {
 
 每行輸出格式：新聞標題｜完整網址
 只輸出3行，網址必須是真實可點擊的完整連結（https://開頭），不要捏造網址。
-如果找不到相關新聞，輸出：找不到相關新聞｜none`, true, false);
+如果找不到相關新聞，輸出：找不到相關新聞｜none`, true, false, 'scan');
 
     const lines = result.trim().split('\n').filter(l => l.includes('｜'));
     if (!lines.length || lines[0].includes('找不到')) {
