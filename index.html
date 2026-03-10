@@ -884,7 +884,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.3';
+const APP_VERSION = '4.3.6';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1385,18 +1385,26 @@ async function scanTopics() {
     const rule = topic.rule || '自行判斷最適合的多樣化切角，確保6個話題方向完全不同';
 
     const prompt = isNews
-      ? `今天是 ${today.toLocaleDateString('zh-TW')}，搜尋 ${dateRange} 的最新台灣時事。來源：ETtoday、三立、中時、聯合、自由時報 + Twitter/X 台灣趨勢，各佔一半。找6個適合梗圖的話題，${rule}，切角各不同。每行格式：話題標題｜角色一句反應台詞。只輸出6行。`
-      : `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。每行格式：話題標題｜角色一句反應台詞。只輸出6行不要編號。`;
+      ? `今天是 ${today.toLocaleDateString('zh-TW')}，搜尋 ${dateRange} 的最新台灣時事。來源：ETtoday、三立、中時、聯合、自由時報 + Twitter/X 台灣趨勢，各佔一半。找6個適合梗圖的話題，${rule}，切角各不同。
+
+嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
+範例：股市大跌上班族哀嚎｜「帳面虧損跟薪水一樣，都很難看」
+只輸出6行，不要編號、不要額外說明。`
+      : `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。
+
+嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
+範例：上班族週一症候群大爆發｜「星期一是人類最大的發明錯誤」
+只輸出6行，不要編號、不要額外說明。`;
 
     const txt = await claudeScan(prompt, isNews);
-    const lines = txt.split('\n').filter(l=>l.includes('｜'));
+    const lines = txt.split('\n').filter(l => l.includes('｜'));
     // 用 JS 陣列儲存話題，完全不依賴 HTML attribute 傳遞
     const topicList = lines.map(l => {
-      const parts = l.split('｜');
-      const t = parts[0].trim();
-      const s = parts[1] ? parts[1].trim() : '';
+      const idx = l.indexOf('｜');
+      const t = l.slice(0, idx).trim();
+      const s = l.slice(idx + 1).trim();
       return { title: t, sub: s };
-    });
+    }).filter(item => item.title.length > 0); // 過濾掉標題是空的
     grid.innerHTML = topicList.map((item, i) =>
       `<div class="topic-chip" data-idx="${i}" style="cursor:pointer">
         <span class="topic-num">話題 ${i+1}</span>
@@ -1425,33 +1433,60 @@ async function searchNewsLinks(topic) {
   loadEl.style.display = 'flex';
   linksEl.innerHTML = '';
   try {
-    const result = await claude('你是一個新聞搜尋助手，只負責找新聞連結，不要產出任何創作內容。',
-      `請搜尋台灣最近3天內關於「${topic}」的新聞或討論，找出3則最相關的真實文章。
+    const uid = window._currentUid;
+    if (!uid) {
+      linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">登入後可查看相關新聞連結</div>`;
+      return;
+    }
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2500,
+      temperature: 0.3,
+      system: '你是新聞搜尋助手，專門搜尋台灣新聞網站的真實文章連結。',
+      messages: [{ role: 'user', content:
+        `請用網路搜尋，找出台灣最近3天內關於「${topic}」的新聞報導，列出3則真實連結。
 
-每行輸出格式：新聞標題｜完整網址
-只輸出3行，網址必須是真實可點擊的完整連結（https://開頭），不要捏造網址。
-如果找不到相關新聞，輸出：找不到相關新聞｜none`, true, false, 'scan');
+每行格式：標題｜完整網址
+優先來源：ETtoday、三立、自由時報、聯合、中時、Line今日新聞
+網址必須是完整的 https:// 開頭，找不到就輸出：暫無相關報導｜none
+只輸出3行，不要任何說明。`
+      }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+    };
+    const r = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || '搜尋失敗');
+    const text = (d.content || []).map(i => i.type === 'text' ? i.text : '').join('\n').trim();
+    const lines = text.split('\n').filter(l => l.includes('｜'));
+    const validLines = lines.filter(l => {
+      const url = l.split('｜').slice(1).join('｜').trim();
+      return url && url !== 'none' && url.startsWith('http');
+    });
 
-    const lines = result.trim().split('\n').filter(l => l.includes('｜'));
-    if (!lines.length || lines[0].includes('找不到')) {
+    if (!validLines.length) {
       linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
     } else {
       linksEl.innerHTML = `
         <div style="font-size:0.8rem;color:#aaa;font-weight:700;margin-bottom:8px">📰 相關新聞來源</div>
-        ${lines.map(l => {
-          const [title, url] = l.split('｜');
-          if (!url || url === 'none' || !url.startsWith('http')) return '';
-          return `<a href="${url.trim()}" target="_blank" rel="noopener"
+        ${validLines.map(l => {
+          const sepIdx = l.indexOf('｜');
+          const title = l.slice(0, sepIdx).trim();
+          const url   = l.slice(sepIdx + 1).trim();
+          return `<a href="${url}" target="_blank" rel="noopener"
             style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:#fff8fc;border:1.5px solid #f0d8e0;border-radius:12px;margin-bottom:8px;text-decoration:none;transition:all 0.2s"
             onmouseover="this.style.borderColor='#F4A7B9';this.style.background='#fff0f5'"
             onmouseout="this.style.borderColor='#f0d8e0';this.style.background='#fff8fc'">
             <span style="font-size:1rem;flex-shrink:0">🔗</span>
-            <span style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${title.trim()}</span>
+            <span style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${title}</span>
           </a>`;
         }).join('')}`;
     }
   } catch(e) {
-    linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">搜尋新聞連結時發生錯誤</div>`;
+    linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
   } finally {
     loadEl.style.display = 'none';
   }
