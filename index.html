@@ -884,7 +884,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.7';
+const APP_VERSION = '4.3.8';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1385,7 +1385,7 @@ async function scanTopics() {
     const rule = topic.rule || '自行判斷最適合的多樣化切角，確保6個話題方向完全不同';
 
     const prompt = isNews
-      ? `今天是 ${today.toLocaleDateString('zh-TW')}，搜尋 ${dateRange} 的最新台灣時事。來源：ETtoday、三立、中時、聯合、自由時報 + Twitter/X 台灣趨勢，各佔一半。找6個適合梗圖的話題，${rule}，切角各不同。
+      ? `今天是 ${today.toLocaleDateString('zh-TW')}（台灣時間）。請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
 範例：股市大跌上班族哀嚎｜「帳面虧損跟薪水一樣，都很難看」
@@ -1396,7 +1396,8 @@ async function scanTopics() {
 範例：上班族週一症候群大爆發｜「星期一是人類最大的發明錯誤」
 只輸出6行，不要編號、不要額外說明。`;
 
-    const txt = await claudeScan(prompt, isNews);
+    // 話題掃描不使用 web_search 避免 rate limit，新聞連結另外搜尋
+    const txt = await claudeScan(prompt, false);
     const lines = txt.split('\n').filter(l => l.includes('｜'));
     // 用 JS 陣列儲存話題，完全不依賴 HTML attribute 傳遞
     const topicList = lines.map(l => {
