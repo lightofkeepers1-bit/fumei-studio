@@ -93,8 +93,10 @@
   .link-ig:hover { transform:translateY(-1px);box-shadow:0 4px 12px rgba(238,42,123,0.4) }
   .link-fb { background:#1877f2;color:white;box-shadow:0 2px 8px rgba(24,119,242,0.3) }
   .link-fb:hover { transform:translateY(-1px);box-shadow:0 4px 12px rgba(24,119,242,0.4) }
+  .link-threads { background:#000;color:white;box-shadow:0 2px 8px rgba(0,0,0,0.2) }
+  .link-threads:hover { transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.3) }
   .badge { padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;font-family:'Nunito',sans-serif }
-  .b-ig{background:#fce4ec;color:#c2185b} .b-fb{background:#e3f2fd;color:#1565c0} .b-both{background:#f3e5f5;color:#6a1b9a}
+  .b-ig{background:#fce4ec;color:#c2185b} .b-fb{background:#e3f2fd;color:#1565c0} .b-both{background:#f3e5f5;color:#6a1b9a} .b-threads{background:#f0f0f0;color:#000}
 
   .add-row { display:flex;gap:10px;margin-top:14px }
   .add-row input { flex:1 }
@@ -285,6 +287,18 @@
   .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center;padding:16px }
   .modal-overlay.show { display:flex }
   .modal-box { background:white;border-radius:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2) }
+  /* Image Editor */
+  .img-editor-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1100;align-items:center;justify-content:center;flex-direction:column;gap:16px }
+  .img-editor-overlay.show { display:flex }
+  .img-editor-wrap { position:relative;width:260px;height:260px;border-radius:50%;overflow:hidden;border:4px solid white;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:grab;touch-action:none;background:#222 }
+  .img-editor-wrap:active { cursor:grabbing }
+  .img-editor-wrap img { position:absolute;transform-origin:center center;user-select:none;pointer-events:none }
+  .img-editor-hint { color:rgba(255,255,255,0.75);font-size:0.8rem;font-family:'Nunito',sans-serif;font-weight:700;text-align:center }
+  .img-editor-slider { width:240px;accent-color:#C9B8E8 }
+  .img-editor-btns { display:flex;gap:12px }
+  .img-editor-btn { padding:10px 24px;border-radius:20px;border:none;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif }
+  .img-editor-btn-ok { background:linear-gradient(135deg,#F4A7B9,#C9B8E8);color:white }
+  .img-editor-btn-cancel { background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.4) }
   .modal-header { padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between }
   .modal-title { font-family:'Nunito',sans-serif;font-size:1.15rem;font-weight:900;color:#5C3D2E }
   .modal-close { background:none;border:none;font-size:1.4rem;cursor:pointer;color:#aaa;line-height:1;padding:4px }
@@ -303,6 +317,15 @@
   .color-swatches { display:flex;gap:8px;flex-wrap:wrap }
   .color-swatch { width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;flex-shrink:0 }
   .color-swatch.active, .color-swatch:hover { border-color:#5C3D2E;transform:scale(1.15) }
+  .char-preset-chips { display:flex;flex-wrap:wrap;gap:6px }
+  .char-chip { padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;font-family:'Nunito',sans-serif;background:#f5f0ff;color:#764ba2;border:1.5px solid #e8d5f5;cursor:pointer;transition:all 0.15s;user-select:none }
+  .char-chip.active { background:#764ba2;color:white;border-color:#764ba2 }
+  .char-chip:hover { background:#ede0ff }
+  .char-card { display:flex;flex-direction:row;align-items:center;gap:8px;padding:7px 12px;border-radius:24px;border:1.5px solid #e8d5f5;background:#f8f4ff;cursor:pointer;transition:all 0.15s;white-space:nowrap }
+  .char-card span { font-size:0.78rem;font-weight:800;color:#aaa;font-family:'Nunito',sans-serif }
+  .char-card.active { border-color:#764ba2;background:linear-gradient(135deg,#ede0ff,#fce4f0);box-shadow:0 2px 8px rgba(118,75,162,0.2) }
+  .char-card.active span { color:#764ba2 }
+  .char-card:hover:not(.active) { border-color:#C9B8E8;background:#f0e8ff }
   .settings-divider { border:none;border-top:1.5px solid #f5e6ea;margin:16px 0 }
 </style>
 <!-- Firebase -->
@@ -403,7 +426,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ v2.5</p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -685,6 +708,13 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 window._updateApiStatus = function() { updateApiStatus(); };
 
+// ── VERSION ───────────────────────────────────────
+const APP_VERSION = '3.9';
+function renderVersion() {
+  const el = document.getElementById('appVersion');
+  if (el) el.textContent = 'v' + APP_VERSION;
+}
+
 window.onload = () => {
   if (KEY) {
     document.getElementById('apiKey').value = KEY;
@@ -700,6 +730,8 @@ window.onload = () => {
   renderTasks();
   renderQuick();
   renderHistory();
+  rebuildTopicSelects();
+  renderVersion();
   // 恢復上次的版面偏好
   const savedView = localStorage.getItem('fumei_view');
   const btn = document.getElementById('viewToggleBtn');
@@ -761,11 +793,13 @@ function showSub(name, el) {
 }
 
 // ── TASKS ─────────────────────────────────────────
-const PLATFORM_LINKS = {
-  ig: { url: 'https://www.instagram.com/thejiongsrepublic/', label: '開啟 IG', icon: '📸' },
-  fb: { url: 'https://www.facebook.com/The.Jiong.Republic/', label: '開啟 FB 發文', icon: '📘', post: 'https://www.facebook.com/The.Jiong.Republic/' },
-  both: { ig: 'https://www.instagram.com/thejiongsrepublic/', fb: 'https://www.facebook.com/The.Jiong.Republic/' }
-};
+function getPlatformLinks() {
+  return {
+    ig:      localStorage.getItem('fumei_social_ig')      || 'https://www.instagram.com/thejiongsrepublic/',
+    fb:      localStorage.getItem('fumei_social_fb')      || 'https://www.facebook.com/The.Jiong.Republic/',
+    threads: localStorage.getItem('fumei_social_threads') || '',
+  };
+}
 
 const DEF = [
   {id:1,text:'產出今日圖文腳本',p:'ig',done:false},
@@ -773,19 +807,32 @@ const DEF = [
   {id:3,text:'發布 FB 貼文',p:'fb',done:false},
   {id:4,text:'回覆粉絲留言',p:'both',done:false},
 ];
+
+function getDEF() {
+  const def = [...DEF];
+  if (localStorage.getItem('fumei_social_threads')) {
+    def.splice(3, 0, {id:5, text:'發布 Threads 貼文', p:'threads', done:false});
+  }
+  return def;
+}
 function renderTasks() {
-  if (!tasks.length) tasks = [...DEF];
-  const bl = {ig:'b-ig',fb:'b-fb',both:'b-both'};
-  const ll = {ig:'IG',fb:'FB',both:'IG+FB'};
+  if (!tasks.length) tasks = [...getDEF()];
+  const links = getPlatformLinks();
+  const bl = {ig:'b-ig', fb:'b-fb', both:'b-both', threads:'b-threads'};
+  const ll = {ig:'IG', fb:'FB', both:'IG+FB', threads:'Threads'};
 
   function getLinkBtn(p) {
     if (p === 'ig') {
-      return `<a href="${PLATFORM_LINKS.ig.url}" target="_blank" class="link-btn link-ig">📸 開啟 IG</a>`;
+      return `<a href="${links.ig}" target="_blank" class="link-btn link-ig">📸 開啟 IG</a>`;
     } else if (p === 'fb') {
-      return `<a href="${PLATFORM_LINKS.fb.url}" target="_blank" class="link-btn link-fb">📘 開啟 FB</a>`;
+      return `<a href="${links.fb}" target="_blank" class="link-btn link-fb">📘 開啟 FB</a>`;
+    } else if (p === 'threads') {
+      return links.threads ? `<a href="${links.threads}" target="_blank" class="link-btn link-threads">🧵 開啟 Threads</a>` : '';
     } else {
-      return `<a href="${PLATFORM_LINKS.ig.url}" target="_blank" class="link-btn link-ig">📸 IG</a>
-              <a href="${PLATFORM_LINKS.fb.url}" target="_blank" class="link-btn link-fb">📘 FB</a>`;
+      let btns = `<a href="${links.ig}" target="_blank" class="link-btn link-ig">📸 IG</a>
+              <a href="${links.fb}" target="_blank" class="link-btn link-fb">📘 FB</a>`;
+      if (links.threads) btns += `<a href="${links.threads}" target="_blank" class="link-btn link-threads">🧵</a>`;
+      return btns;
     }
   }
 
@@ -795,7 +842,7 @@ function renderTasks() {
       <div class="task-text">${t.text}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         ${getLinkBtn(t.p)}
-        <span class="badge ${bl[t.p]}">${ll[t.p]}</span>
+        <span class="badge ${bl[t.p]||'b-ig'}">${ll[t.p]||t.p}</span>
         <span style="cursor:pointer;color:#ddd" onclick="del(${t.id})">✕</span>
       </div>
     </div>`).join('');
@@ -814,14 +861,8 @@ function addTask() {
 
 // ── CLAUDE API ────────────────────────────────────
 async function claude(sys, msg, search=false, creative=false) {
-  if (!KEY) throw new Error('請先輸入並儲存 Claude API Key！');
-  const headers = {
-    'Content-Type':'application/json',
-    'x-api-key':KEY,
-    'anthropic-version':'2023-06-01',
-    'anthropic-dangerous-direct-browser-access':'true'
-  };
-  if (search) headers['anthropic-beta'] = 'web-search-2025-03-05';
+  const uid = window._currentUid;
+  if (!uid) throw new Error('請先登入才能使用 AI 功能');
   const body = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: creative ? 3000 : 1500,
@@ -830,7 +871,14 @@ async function claude(sys, msg, search=false, creative=false) {
     messages: [{role:'user', content:msg}]
   };
   if (search) body.tools = [{type:'web_search_20250305', name:'web_search'}];
-  const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers, body: JSON.stringify(body)});
+  const r = await fetch('/api/claude', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-firebase-uid': uid
+    },
+    body: JSON.stringify(body)
+  });
   if (!r.ok) { const e = await r.json(); throw new Error(`[${r.status}] ${e.error?.message||JSON.stringify(e)}`); }
   const d = await r.json();
   return d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
@@ -848,24 +896,299 @@ const FUMEI_STYLES = [
   '這次走「共鳴爆棚」路線，Fumei 說出所有人心裡有口難言的話，讓人看完大喊「就是這樣！」',
 ];
 
+// ── TOPIC SYSTEM ──────────────────────────────────
+const BUILTIN_TOPICS = [
+  { key:'時事',    emoji:'🗞️', name:'今日時事',  rule:'真實時事3個＋熱門討論3個，涵蓋不同面向', isNews:true, timeRange:3 },
+  { key:'職場',    emoji:'💼', name:'職場話題',  rule:'涵蓋開會、主管、薪水、同事、下班、求職、升遷、加班等不同面向', timeRange:14 },
+  { key:'單身生活',emoji:'💅', name:'單身生活',  rule:'涵蓋節日、約會、家人催婚、戀愛觀、生活品質等不同面向', timeRange:14 },
+  { key:'日常趣事',emoji:'😂', name:'日常趣事',  rule:'涵蓋飲食、交通、天氣、購物、手機、睡眠等不同場景', timeRange:14 },
+  { key:'旅遊',    emoji:'✈️', name:'旅遊話題',  rule:'涵蓋訂房、交通、景點、美食、行李、旅伴等不同情境', timeRange:14 },
+];
+
+// script panel label mapping (builtin keys → scriptType value)
+const BUILTIN_SCRIPT_LABELS = {
+  '職場':    { value:'職場梗',  label:'💼 職場梗' },
+  '單身生活':{ value:'單身日常',label:'💅 單身日常' },
+  '時事':    { value:'時事反應',label:'🗞️ 時事反應' },
+  '旅遊':    { value:'旅遊心得',label:'✈️ 旅遊心得' },
+  '日常趣事':{ value:'生活趣事',label:'😂 生活趣事' },
+};
+
+function loadCustomTopics() {
+  try { return JSON.parse(localStorage.getItem('fumei_custom_topics') || '[]'); }
+  catch { return []; }
+}
+function saveCustomTopics(arr) { localStorage.setItem('fumei_custom_topics', JSON.stringify(arr)); }
+
+function getAllTopics() {
+  return [...BUILTIN_TOPICS, ...loadCustomTopics()];
+}
+
+// render topic tag list in settings
+function renderTopicTagList() {
+  const custom = loadCustomTopics();
+  const el = document.getElementById('topicTagList');
+  if (!el) return;
+  const builtinHTML = BUILTIN_TOPICS.map(t => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:10px;background:#f5f5f5">
+      <span style="font-size:0.83rem;font-weight:700;color:#888">${t.emoji} ${t.name}</span>
+      <span style="font-size:0.7rem;color:#ccc;font-style:italic">內建</span>
+    </div>`).join('');
+  const customHTML = custom.length ? custom.map((t, i) => {
+    const trMap = { 0:'不限', 7:'近一週', 14:'近兩週', 30:'近一個月' };
+    const trLabel = trMap[t.timeRange] || (t.timeRange ? `近${t.timeRange}天` : '不限');
+    return `
+    <div onclick="editCustomTopic(${i})" style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:10px;background:#f0e8ff;border:1.5px solid #e8d5f5;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#e8d5f5'" onmouseout="this.style.background='#f0e8ff'">
+      <div>
+        <span style="font-size:0.83rem;font-weight:700;color:#764ba2">${t.emoji} ${t.name}</span>
+        <span style="font-size:0.68rem;color:#b39ddb;margin-left:6px">⏱ ${trLabel}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:0.7rem;color:#b39ddb">點擊編輯</span>
+        <button onclick="event.stopPropagation();deleteCustomTopic(${i})" style="font-size:0.72rem;padding:2px 8px;border-radius:10px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑️</button>
+      </div>
+    </div>`}).join('') : '';
+  el.innerHTML = builtinHTML + customHTML;
+}
+
+let _editTopicIdx = -1; // -1 = new, >=0 = editing index
+
+function editCustomTopic(i) {
+  const custom = loadCustomTopics();
+  const t = custom[i];
+  _editTopicIdx = i;
+  _selectedEmoji = t.emoji || '🏷️';
+  const form = document.getElementById('addTopicForm');
+  form.style.display = 'flex';
+  document.getElementById('addTopicBtn').style.display = 'none';
+  document.getElementById('topicFormTitle').textContent = '編輯主題';
+  document.getElementById('confirmAddTopicBtn').textContent = '💾 儲存變更';
+  document.getElementById('newTopicName').value = t.name || '';
+  document.getElementById('newTopicRule').value = t.rule || '';
+  document.getElementById('newTopicTimeRange').value = String(t.timeRange || 14);
+  document.getElementById('topicValidMsg').style.display = 'none';
+  document.getElementById('selectedEmojiPreview').textContent = _selectedEmoji;
+  renderEmojiPicker();
+}
+
+const TOPIC_EMOJIS = ['🏷️','🌟','🔥','💡','🎯','🎨','🌈','🍀','🌺','🎪','🏆','💎','🚀','🌙','⚡','🎭','🌸','🍜','🏋️','🧘','📚','🎵','🐾','🌿','🏠','👗','💰','🧠','❤️','🌍'];
+let _selectedEmoji = '🏷️';
+
+function renderEmojiPicker() {
+  const grid = document.getElementById('emojiPickerGrid');
+  if (!grid) return;
+  grid.innerHTML = TOPIC_EMOJIS.map(e => `
+    <span onclick="selectEmoji('${e}')" style="font-size:1.3rem;padding:4px 6px;border-radius:8px;cursor:pointer;transition:background 0.1s;${e===_selectedEmoji?'background:#e8d5f5;':''}hover:background:#f0e8ff">${e}</span>
+  `).join('');
+}
+function selectEmoji(e) {
+  _selectedEmoji = e;
+  document.getElementById('selectedEmojiPreview').textContent = e;
+  renderEmojiPicker();
+}
+
+function showAddTopicForm() {
+  _editTopicIdx = -1;
+  _selectedEmoji = '🏷️';
+  const form = document.getElementById('addTopicForm');
+  form.style.display = 'flex';
+  document.getElementById('addTopicBtn').style.display = 'none';
+  document.getElementById('topicFormTitle').textContent = '新增自訂主題';
+  document.getElementById('confirmAddTopicBtn').textContent = '✓ 新增';
+  document.getElementById('newTopicName').value = '';
+  document.getElementById('newTopicRule').value = '';
+  document.getElementById('newTopicTimeRange').value = '14';
+  document.getElementById('topicValidMsg').style.display = 'none';
+  document.getElementById('selectedEmojiPreview').textContent = '🏷️';
+  const chips = document.getElementById('aspectChips');
+  if (chips) { chips.innerHTML = ''; chips.style.display = 'none'; }
+  renderEmojiPicker();
+}
+function cancelAddTopic() {
+  const form = document.getElementById('addTopicForm');
+  if (form) form.style.display = 'none';
+  const btn = document.getElementById('addTopicBtn');
+  if (btn) btn.style.display = '';
+  const name = document.getElementById('newTopicName');
+  if (name) name.value = '';
+  const rule = document.getElementById('newTopicRule');
+  if (rule) rule.value = '';
+  const msg = document.getElementById('topicValidMsg');
+  if (msg) msg.style.display = 'none';
+  const chips = document.getElementById('aspectChips');
+  if (chips) { chips.innerHTML = ''; chips.style.display = 'none'; }
+  _selectedEmoji = '🏷️';
+  _editTopicIdx = -1;
+}
+async function suggestTopicRule() {
+  const name = document.getElementById('newTopicName').value.trim();
+  if (!name) {
+    document.getElementById('topicValidMsg').textContent = '⚠️ 請先輸入主題名稱再建議面向';
+    document.getElementById('topicValidMsg').style.display = 'block';
+    return;
+  }
+  document.getElementById('topicValidMsg').style.display = 'none';
+  const btn = document.getElementById('suggestRuleBtn');
+  btn.textContent = '⏳ 建議中...';
+  btn.disabled = true;
+  try {
+    const res = await claudeScan(
+      `針對「${name}」這個台灣社群梗圖主題，列出3到4個適合的內容面向（例如：節日、心情、日常情境等）。
+每個面向用2到5個字描述，只輸出一行，用「、」分隔，不要編號不要其他說明。`, false);
+    const aspects = res.trim().split(/[、,，]/).map(s => s.trim()).filter(Boolean).slice(0, 4);
+    const chips = document.getElementById('aspectChips');
+    chips.style.display = 'flex';
+    chips.innerHTML = aspects.map(a => `
+      <span onclick="toggleAspectChip(this)" style="padding:4px 12px;border-radius:20px;border:1.5px solid #C9B8E8;background:#f8f4ff;font-size:0.78rem;font-weight:800;color:#764ba2;cursor:pointer;transition:all 0.15s">${a}</span>
+      <span onclick="removeAspectChip(this)" style="padding:4px 8px;border-radius:20px;border:1.5px solid #eee;background:#fff;font-size:0.72rem;color:#ccc;cursor:pointer;margin-left:-4px">✕</span>
+    `).join('');
+    // auto-fill rule input with all aspects
+    document.getElementById('newTopicRule').value = `涵蓋${aspects.join('、')}等不同面向`;
+  } catch(e) {
+    document.getElementById('topicValidMsg').textContent = '⚠️ AI 建議失敗，請手動填寫';
+    document.getElementById('topicValidMsg').style.display = 'block';
+  }
+  btn.textContent = '✨ AI 建議面向';
+  btn.disabled = false;
+}
+
+function toggleAspectChip(el) {
+  const active = el.style.background === 'linear-gradient(135deg, rgb(201, 184, 232), rgb(118, 75, 162))';
+  el.style.background = active ? '#f8f4ff' : 'linear-gradient(135deg,#C9B8E8,#764ba2)';
+  el.style.color = active ? '#764ba2' : 'white';
+  el.style.borderColor = active ? '#C9B8E8' : '#764ba2';
+  // rebuild rule text from remaining chips
+  rebuildRuleFromChips();
+}
+
+function removeAspectChip(closeBtn) {
+  // remove the chip span and the ✕ span
+  const chip = closeBtn.previousElementSibling;
+  closeBtn.remove();
+  chip.remove();
+  rebuildRuleFromChips();
+}
+
+function rebuildRuleFromChips() {
+  const chips = document.getElementById('aspectChips');
+  const labels = [...chips.querySelectorAll('span:not([onclick*="removeAspect"])')].map(s => s.textContent.trim()).filter(Boolean);
+  document.getElementById('newTopicRule').value = labels.length ? `涵蓋${labels.join('、')}等不同面向` : '';
+}
+
+async function confirmAddTopic() {
+  const name  = document.getElementById('newTopicName').value.trim();
+  const rule  = document.getElementById('newTopicRule').value.trim();
+  const msgEl = document.getElementById('topicValidMsg');
+  const btn   = document.getElementById('confirmAddTopicBtn');
+  if (!name) { msgEl.textContent = '⚠️ 請輸入主題名稱！'; msgEl.style.display = 'block'; return; }
+
+  const isEdit = _editTopicIdx >= 0;
+
+  // AI validation (only on new topics)
+  if (!isEdit) {
+    btn.disabled = true;
+    btn.textContent = '🔍 驗證中...';
+    msgEl.style.display = 'none';
+    try {
+      const check = await claudeScan(
+        `請判斷「${name}」是否適合作為台灣社群媒體梗圖的主題。
+判斷標準（寬鬆）：只要是一般人能理解的生活、社會、文化相關主題就算通過，包括政治、時事、社會現象等都可以。
+只有以下情況才 NG：完全無意義的隨機字串、明顯仇恨煽動、或根本無法聯想到任何梗圖內容。
+只輸出一行：
+OK｜（一句話說明適合的理由，15字內）
+或
+NG｜（一句話說明問題，15字內）`, false);
+      const line = check.split('\n').find(l => l.includes('｜')) || check;
+      const [verdict, reason] = line.split('｜');
+      if (verdict.trim().toUpperCase().startsWith('NG')) {
+        msgEl.innerHTML = `⚠️ 主題不夠明確：${reason ? reason.trim() : '請修改後再試'}`;
+        msgEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '✓ 新增';
+        return;
+      }
+    } catch(e) { /* skip validation if API fails */ }
+  }
+
+  const custom = loadCustomTopics();
+  const entry = { key: name, emoji: _selectedEmoji, name, rule: rule || '', timeRange: parseInt(document.getElementById('newTopicTimeRange').value) || 0, isCustom: true };
+  if (isEdit) {
+    custom[_editTopicIdx] = entry;
+  } else {
+    custom.push(entry);
+  }
+  saveCustomTopics(custom);
+  cancelAddTopic();
+  renderTopicTagList();
+  rebuildTopicSelects();
+  btn.disabled = false;
+  btn.textContent = isEdit ? '💾 儲存變更' : '✓ 新增';
+}
+function deleteCustomTopic(i) {
+  if (!confirm('確定刪除這個主題嗎？')) return;
+  const custom = loadCustomTopics();
+  custom.splice(i, 1);
+  saveCustomTopics(custom);
+  renderTopicTagList();
+  rebuildTopicSelects();
+}
+
+// rebuild both <select> elements dynamically
+function rebuildTopicSelects() {
+  const all = getAllTopics();
+  // scan select
+  const scanSel = document.getElementById('topicCat');
+  if (scanSel) {
+    const cur = scanSel.value;
+    scanSel.innerHTML = all.map(t =>
+      `<option value="${t.key}">${t.emoji} ${t.name}</option>`).join('');
+    if ([...scanSel.options].some(o => o.value === cur)) scanSel.value = cur;
+  }
+  // script select
+  const scriptSel = document.getElementById('scriptType');
+  if (scriptSel) {
+    const cur2 = scriptSel.value;
+    scriptSel.innerHTML = all.map(t => {
+      const bl = BUILTIN_SCRIPT_LABELS[t.key];
+      return `<option value="${bl ? bl.value : t.key}">${t.emoji} ${bl ? bl.label.replace(/^[^\s]+\s/,'') : t.name}</option>`;
+    }).join('');
+    if ([...scriptSel.options].some(o => o.value === cur2)) scriptSel.value = cur2;
+  }
+}
+
+function getTopicRule(typeValue) {
+  // typeValue is the scriptType select value (could be builtin mapped value or custom key)
+  const all = getAllTopics();
+  // check by key direct match first
+  const direct = all.find(t => t.key === typeValue);
+  if (direct) return direct.rule || '';
+  // check by mapped value
+  const mapped = all.find(t => {
+    const bl = BUILTIN_SCRIPT_LABELS[t.key];
+    return bl && bl.value === typeValue;
+  });
+  return mapped ? mapped.rule || '' : '';
+}
+
 // ── SCAN TOPICS ───────────────────────────────────
 
 // 輕量版 claude 專門給話題掃描用（低 token、按需開啟搜尋）
 async function claudeScan(msg, useSearch=false) {
-  if (!KEY) throw new Error('請先輸入並儲存 Claude API Key！');
+  const uid = window._currentUid;
+  if (!uid) throw new Error('請先登入才能使用 AI 功能');
   const body = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: useSearch ? 2000 : 400,
     temperature: 0.9,
-    system: FUMEI,
+    system: buildCharPrompt(),
     messages: [{role:'user', content:msg}]
   };
-  const scanHeaders = {'Content-Type':'application/json','x-api-key':KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
-  if (useSearch) {
-    scanHeaders['anthropic-beta'] = 'web-search-2025-03-05';
-    body.tools = [{type:'web_search_20250305', name:'web_search'}];
-  }
-  const r = await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers: scanHeaders, body: JSON.stringify(body)});
+  if (useSearch) body.tools = [{type:'web_search_20250305', name:'web_search'}];
+  const r = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+    body: JSON.stringify(body)
+  });
   const d = await r.json();
   if (!r.ok) throw new Error(`[${r.status}] ${d.error?.message || JSON.stringify(d)}`);
   const texts = d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
@@ -874,7 +1197,9 @@ async function claudeScan(msg, useSearch=false) {
 }
 
 async function scanTopics() {
-  const cat = document.getElementById('topicCat').value;
+  const catKey = document.getElementById('topicCat').value;
+  const allTopics = getAllTopics();
+  const topic = allTopics.find(t => t.key === catKey) || allTopics[0];
   const btn = document.getElementById('scanBtn');
   const load = document.getElementById('scanLoading');
   const grid = document.getElementById('topicsGrid');
@@ -882,22 +1207,18 @@ async function scanTopics() {
   btn.disabled=true; load.classList.add('show'); grid.innerHTML=''; err.classList.remove('show');
   document.getElementById('selectedCard').style.display='none';
   try {
-    const isNews = cat === '時事';
+    const isNews = !!topic.isNews;
     const today = new Date();
-    const threeDaysAgo = new Date(today - 3 * 24 * 60 * 60 * 1000);
-    const dateRange = `${threeDaysAgo.toLocaleDateString('zh-TW')} 到 ${today.toLocaleDateString('zh-TW')}`;
-    const diversityRules = {
-      '時事': '真實時事3個＋熱門討論3個，涵蓋不同面向',
-      '職場': '涵蓋開會、主管、薪水、同事、下班、求職、升遷、加班等不同面向',
-      '單身生活': '涵蓋節日、約會、家人催婚、戀愛觀、生活品質等不同面向',
-      '日常趣事': '涵蓋飲食、交通、天氣、購物、手機、睡眠等不同場景',
-      '旅遊': '涵蓋訂房、交通、景點、美食、行李、旅伴等不同情境',
-    };
-    const rule = diversityRules[cat] || '每個話題切角完全不同';
+    const days = topic.timeRange || (isNews ? 3 : 14);
+    const rangeStart = new Date(today - days * 24 * 60 * 60 * 1000);
+    const dateRange = `${rangeStart.toLocaleDateString('zh-TW')} 到 ${today.toLocaleDateString('zh-TW')}`;
+    const rangeLabelMap = { 3:'近3天', 7:'近一週', 14:'近兩週', 30:'近一個月' };
+    const rangeLabel = rangeLabelMap[days] || `近${days}天`;
+    const rule = topic.rule || '自行判斷最適合的多樣化切角，確保6個話題方向完全不同';
 
     const prompt = isNews
-      ? `今天是 ${today.toLocaleDateString('zh-TW')}，搜尋 ${dateRange} 的最新台灣時事。來源：ETtoday、三立、中時、聯合、自由時報 + Twitter/X 台灣趨勢，各佔一半。找6個適合 Fumei 梗圖的話題，${rule}，切角各不同。每行格式：話題標題｜Fumei一句反應台詞。只輸出6行。`
-      : `針對「${cat}」提供6個適合 Fumei 梗圖的台灣生活話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。每行格式：話題標題｜Fumei一句反應台詞。只輸出6行不要編號。`;
+      ? `今天是 ${today.toLocaleDateString('zh-TW')}，搜尋 ${dateRange} 的最新台灣時事。來源：ETtoday、三立、中時、聯合、自由時報 + Twitter/X 台灣趨勢，各佔一半。找6個適合梗圖的話題，${rule}，切角各不同。每行格式：話題標題｜角色一句反應台詞。只輸出6行。`
+      : `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。每行格式：話題標題｜角色一句反應台詞。只輸出6行不要編號。`;
 
     const txt = await claudeScan(prompt, isNews);
     const lines = txt.split('\n').filter(l=>l.includes('｜'));
@@ -1002,11 +1323,16 @@ function saveGptKey(btn) {
 
 // ── GEMINI API ───────────────────────────────────
 async function callGemini(prompt) {
-  if (!GEMINI_KEY) throw new Error('請先設定 Gemini API Key');
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
+  const uid = window._currentUid;
+  if (!uid) throw new Error('請先登入才能使用 AI 功能');
+  const r = await fetch('/api/gemini', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({contents:[{parts:[{text: prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:400}})
+    headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+    body: JSON.stringify({
+      model: 'gemini-2.5-flash',
+      contents: [{parts:[{text: prompt}]}],
+      generationConfig: {temperature:1.0, maxOutputTokens:400}
+    })
   });
   const d = await r.json();
   if (!r.ok) throw new Error(d.error?.message || 'Gemini 錯誤');
@@ -1015,10 +1341,11 @@ async function callGemini(prompt) {
 
 // ── GPT API ──────────────────────────────────────
 async function callGPT(prompt) {
-  if (!GPT_KEY) throw new Error('請先設定 ChatGPT API Key');
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+  const uid = window._currentUid;
+  if (!uid) throw new Error('請先登入才能使用 AI 功能');
+  const r = await fetch('/api/gpt', {
     method: 'POST',
-    headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${GPT_KEY}`},
+    headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
     body: JSON.stringify({model:'gpt-4o-mini', temperature:1.0, max_tokens:400, messages:[{role:'user', content:prompt}]})
   });
   const d = await r.json();
@@ -1060,7 +1387,7 @@ async function genInspo() {
 原因：（為什麼有共鳴或好笑，30字內）`;
 
   const results = await Promise.allSettled([
-    claude(FUMEI, inspoPrompt('邏輯清晰、反差感強的角度'), false, true),
+    claude(buildCharPrompt(), inspoPrompt('邏輯清晰、反差感強的角度'), false, true),
     callGemini(inspoPrompt('創意跳躍、視覺感強的角度')),
     callGPT(inspoPrompt('生活共鳴、情緒到位的角度'))
   ]);
@@ -1122,7 +1449,7 @@ async function genScript() {
     if (isAuto) {
       notice.style.display='block';
       loadTxt.textContent='正在搜尋今日時事...';
-      const res = await claude(FUMEI,
+      const res = await claude(buildCharPrompt(),
         `今天是 ${new Date().toLocaleDateString('zh-TW')}。
 搜尋台灣今日最熱門時事，選最適合 Fumei 做梗圖的一個。
 只輸出話題名稱，一行，不要其他說明。`, true);
@@ -1134,13 +1461,15 @@ async function genScript() {
     // 隨機選一個風格
     const randomStyle = FUMEI_STYLES[Math.floor(Math.random() * FUMEI_STYLES.length)];
     const styleNote = `\n\n【本次風格指令】${randomStyle}`;
+    const topicRule = getTopicRule(type);
+    const topicRuleNote = topicRule ? `\n主題方向補充：${topicRule}` : '\n主題方向補充：自行判斷最適合的切入角度，確保內容有台灣生活共鳴';
 
     const format = document.getElementById('scriptFormat').value;
     let scriptPrompt = '';
 
     if (format === '一格') {
       scriptPrompt = `話題：${topic}
-類型：${type}
+類型：${type}${topicRuleNote}
 
 產出 Fumei 一格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
@@ -1164,7 +1493,7 @@ async function genScript() {
 
     } else if (format === '兩格') {
       scriptPrompt = `話題：${topic}
-類型：${type}
+類型：${type}${topicRuleNote}
 
 產出 Fumei 兩格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
@@ -1192,7 +1521,7 @@ async function genScript() {
 
       if (is15) {
         scriptPrompt = `話題：${topic}
-類型：${type}
+類型：${type}${topicRuleNote}
 
 產出 Fumei 15秒短影片腳本（精準控制在15秒內，每個鏡頭要非常精簡有力）：
 
@@ -1235,7 +1564,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
 （一句讓粉絲留言的問題，Fumei 語氣）${styleNote}`;
       } else {
         scriptPrompt = `話題：${topic}
-類型：${type}
+類型：${type}${topicRuleNote}
 
 產出 Fumei 30秒短影片腳本（完整節奏，有起承轉合）：
 
@@ -1291,7 +1620,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
       }
     }
 
-    const script = await claude(FUMEI, scriptPrompt, false, true);
+    const script = await claude(buildCharPrompt(), scriptPrompt, false, true);
 
     // Show which style was used
     used.textContent = isAuto
@@ -1372,7 +1701,7 @@ async function genReply() {
   btn.disabled=true; load.classList.add('show'); result.classList.remove('show');
   err.classList.remove('show'); cpBtn.style.display='none';
   try {
-    const txt = await claude(FUMEI,
+    const txt = await claude(buildCharPrompt(),
       `貼文主題：${ctx||'未指定'}
 粉絲留言：
 ${comments}
@@ -1531,9 +1860,13 @@ function clearAllHistory() {
         <div class="settings-label">Logo 頭像</div>
         <div class="settings-row">
           <div class="settings-avatar-preview" id="avatarPreview">🐾</div>
-          <div style="flex:1">
-            <input class="settings-input" id="avatarEmojiInput" placeholder="輸入 emoji，例如 🐾 🌸 🦊" maxlength="4" style="margin-bottom:8px">
-            <input class="settings-input" id="avatarUrlInput" placeholder="或貼上圖片網址 (https://...)">
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <input class="settings-input" id="avatarEmojiInput" placeholder="輸入 emoji，例如 🐾 🌸 🦊" maxlength="4">
+            <div id="avatarDropZone" style="border:2px dashed #f0d8e0;border-radius:12px;padding:14px;text-align:center;cursor:pointer;font-size:0.82rem;color:#aaa;transition:all 0.2s;background:#fffbfd">
+              📁 點擊或拖拉圖片上傳
+              <input type="file" id="avatarFileInput" accept="image/*" style="display:none">
+            </div>
+            <button id="avatarClearBtn" onclick="clearAvatar()" style="display:none;background:#fff0f0;border:1.5px solid #ffb3b3;color:#c0392b;border-radius:10px;padding:6px 12px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑️ 移除圖片</button>
           </div>
         </div>
       </div>
@@ -1552,6 +1885,155 @@ function clearAllHistory() {
         </div>
       </div>
 
+      <hr class="settings-divider">
+
+      <!-- 角色設定 -->
+      <div class="settings-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="settings-label" style="margin-bottom:0">🎭 角色設定</div>
+          <button onclick="addNewChar()" style="font-size:0.75rem;padding:4px 12px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">＋ 新增角色</button>
+        </div>
+
+        <!-- 角色卡片橫排 -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="charCards"></div>
+
+        <!-- 編輯區（點卡片才展開） -->
+        <div id="charEditPanel" style="display:none;flex-direction:column;gap:10px;background:#faf7ff;border-radius:14px;padding:14px;border:1.5px solid #e8d5f5">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:0.8rem;font-weight:800;color:#764ba2" id="charEditTitle">編輯角色</span>
+            <button onclick="deleteCurrentChar()" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑️ 刪除</button>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">角色名稱</div>
+            <input class="settings-input" id="charName" placeholder="例如：Fumei、小明、咖哩貓">
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">外觀描述</div>
+            <input class="settings-input" id="charAppearance" placeholder="例如：3D卡通狗狗女孩，金色長髮、格紋粉色洋裝">
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">個性</div>
+            <div class="char-preset-chips">
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">上班族</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">自信聰明</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">偶爾脫線</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">白富美</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">單身驕傲</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">愛旅遊</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">愛美食</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">宅宅</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">毒舌</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPersonality')">正能量</span>
+            </div>
+            <input class="settings-input" id="charPersonality" placeholder="或自由輸入個性描述..." style="margin-top:6px">
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">說話風格</div>
+            <div class="char-preset-chips">
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">台灣用語</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">直接自嗨</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">誇張共鳴</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">神邏輯</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">冷笑話</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">知識型</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">溫柔親切</span>
+              <span class="char-chip" onclick="toggleChip(this,'charStyle')">毒舌犀利</span>
+            </div>
+            <input class="settings-input" id="charStyle" placeholder="或自由輸入說話風格..." style="margin-top:6px">
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">政治立場 / 內容方向</div>
+            <div class="char-preset-chips">
+              <span class="char-chip" onclick="toggleChip(this,'charPolitics')">台派本土</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPolitics')">支持民主自由</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPolitics')">中立不表態</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPolitics')">純生活內容</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPolitics')">環保永續</span>
+              <span class="char-chip" onclick="toggleChip(this,'charPolitics')">女力平權</span>
+            </div>
+            <input class="settings-input" id="charPolitics" placeholder="或自由輸入立場方向..." style="margin-top:6px">
+          </div>
+          <button id="saveCharBtn" onclick="saveCurrentChar()" style="padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s">💾 儲存角色</button>
+        </div>
+      </div>
+
+      <!-- 社群帳號 -->
+      <div class="settings-section">
+        <div class="settings-label">🔗 社群帳號連結</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem;width:24px;text-align:center">📸</span>
+            <input class="settings-input" id="socialIG" placeholder="Instagram 帳號網址" style="flex:1;margin:0">
+            <button onclick="clearSocial('socialIG')" style="flex-shrink:0;padding:6px 10px;border-radius:10px;border:1.5px solid #eee;background:#fff;color:#bbb;font-size:0.8rem;cursor:pointer;font-family:'Nunito',sans-serif">✕</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem;width:24px;text-align:center">👥</span>
+            <input class="settings-input" id="socialFB" placeholder="Facebook 粉專網址" style="flex:1;margin:0">
+            <button onclick="clearSocial('socialFB')" style="flex-shrink:0;padding:6px 10px;border-radius:10px;border:1.5px solid #eee;background:#fff;color:#bbb;font-size:0.8rem;cursor:pointer;font-family:'Nunito',sans-serif">✕</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem;width:24px;text-align:center">🧵</span>
+            <input class="settings-input" id="socialThreads" placeholder="Threads 帳號網址" style="flex:1;margin:0">
+            <button onclick="clearSocial('socialThreads')" style="flex-shrink:0;padding:6px 10px;border-radius:10px;border:1.5px solid #eee;background:#fff;color:#bbb;font-size:0.8rem;cursor:pointer;font-family:'Nunito',sans-serif">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 主題管理 -->
+      <div class="settings-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="settings-label" style="margin-bottom:0">🏷️ 話題主題管理</div>
+          <button onclick="showAddTopicForm()" id="addTopicBtn" style="font-size:0.75rem;padding:4px 12px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">＋ 新增主題</button>
+        </div>
+        <div id="topicTagList" style="display:flex;flex-direction:column;gap:6px"></div>
+        <!-- 新增表單（預設隱藏） -->
+        <div id="addTopicForm" style="display:none;margin-top:10px;background:#faf7ff;border-radius:14px;padding:14px;border:1.5px solid #e8d5f5;flex-direction:column;gap:10px">
+          <div style="font-size:0.78rem;font-weight:800;color:#764ba2;margin-bottom:2px" id="topicFormTitle">新增自訂主題</div>
+          <!-- emoji picker -->
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:6px">選擇圖示</div>
+            <div id="emojiPickerGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:0.72rem;color:#bbb;font-weight:700">已選：</span>
+              <span id="selectedEmojiPreview" style="font-size:1.4rem;line-height:1">🏷️</span>
+            </div>
+          </div>
+          <!-- name -->
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">主題名稱</div>
+            <input id="newTopicName" class="settings-input" placeholder="例如：健康養生、親子育兒、科技新知" style="margin:0">
+          </div>
+          <!-- time range -->
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">話題時間範圍</div>
+            <select id="newTopicTimeRange" class="settings-input" style="margin:0">
+              <option value="0">無限制（純生活梗，不限時間）</option>
+              <option value="7">近一週</option>
+              <option value="14" selected>近兩週（預設）</option>
+              <option value="30">近一個月</option>
+            </select>
+          </div>
+          <!-- rule -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:0.72rem;font-weight:800;color:#bbb">多樣化規則</div>
+              <button id="suggestRuleBtn" onclick="suggestTopicRule()" style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">✨ AI 建議面向</button>
+            </div>
+            <!-- AI suggested chips -->
+            <div id="aspectChips" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+            <input id="newTopicRule" class="settings-input" placeholder="例如：涵蓋飲食、運動、睡眠、心理健康等不同面向" style="margin:0">
+            <div style="font-size:0.7rem;color:#bbb;margin-top:4px;font-style:italic">留空則 AI 產腳本時自行判斷</div>
+          </div>
+          <!-- feedback -->
+          <div id="topicValidMsg" style="display:none;font-size:0.8rem;font-weight:800;padding:8px 12px;border-radius:10px;background:#fff3cd;color:#856404;border:1.5px solid #ffc107"></div>
+          <div style="display:flex;gap:8px">
+            <button id="confirmAddTopicBtn" onclick="confirmAddTopic()" style="flex:1;padding:9px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.83rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s" id="confirmAddTopicBtn">✓ 新增</button>
+            <button onclick="cancelAddTopic()" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #eee;background:white;color:#aaa;font-weight:800;font-size:0.83rem;cursor:pointer;font-family:'Nunito',sans-serif">取消</button>
+          </div>
+        </div>
+      </div>
+
       <button class="settings-save-btn" onclick="saveSettings()">💾 儲存設定</button>
 
       <hr class="settings-divider">
@@ -1560,6 +2042,7 @@ function clearAllHistory() {
       <div class="settings-section" id="accountSection" style="display:none">
         <div class="settings-label">帳號</div>
         <div id="accountInfo" style="font-size:0.85rem;color:#888;margin-bottom:10px"></div>
+        <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
 
@@ -1568,7 +2051,128 @@ function clearAllHistory() {
 </div>
 
 <script>
-// ── SETTINGS ──────────────────────────────────────
+// ── CHARACTER PRESETS ─────────────────────────────
+// ── CHARACTER SYSTEM ──────────────────────────────
+// chars stored as array in localStorage: fumei_chars
+// active char index: fumei_char_active
+
+const DEFAULT_CHAR = { name:'Fumei（富美）', emoji:'🐾', appearance:'3D卡通狗狗女孩，金色長髮、格紋粉色洋裝+粉色針織外套，大眼睛招牌燦笑', personality:'上班族、有趣自信聰明、偶爾脫線大神經、白富美單身貴族、愛閱讀旅遊、熱愛時事', style:'直接自信偶爾自嗨、台灣用語、誇張共鳴、單身驕傲、偶爾神邏輯', politics:'台派本土、認同台灣主體意識、支持民主自由' };
+
+function loadChars() {
+  try { return JSON.parse(localStorage.getItem('fumei_chars')) || [DEFAULT_CHAR]; }
+  catch { return [DEFAULT_CHAR]; }
+}
+function saveChars(chars) { localStorage.setItem('fumei_chars', JSON.stringify(chars)); }
+function getActiveIdx() { return parseInt(localStorage.getItem('fumei_char_active') || '0'); }
+function setActiveIdx(i) { localStorage.setItem('fumei_char_active', String(i)); }
+
+function renderCharCards() {
+  const chars = loadChars();
+  const active = getActiveIdx();
+  const wrap = document.getElementById('charCards');
+  if (!wrap) return;
+  const logoImg = localStorage.getItem('fumei_avatar_img') || '';
+  wrap.innerHTML = chars.map((ch, i) => {
+    const isFirst = i === 0;
+    const thumb = (isFirst && logoImg)
+      ? `<img src="${logoImg}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+      : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0">${ch.emoji||'🐾'}</span>`;
+    return `<div class="char-card ${i===active?'active':''}" onclick="selectChar(${i})">
+      ${thumb}
+      <span>${ch.name||'角色'}</span>
+    </div>`;
+  }).join('');
+}
+
+function selectChar(i) {
+  setActiveIdx(i);
+  renderCharCards();
+  const chars = loadChars();
+  const ch = chars[i];
+  document.getElementById('charName').value        = ch.name || '';
+  document.getElementById('charAppearance').value  = ch.appearance || '';
+  document.getElementById('charPersonality').value = ch.personality || '';
+  document.getElementById('charStyle').value       = ch.style || '';
+  document.getElementById('charPolitics').value    = ch.politics || '';
+  document.getElementById('charEditTitle').textContent = '✏️ 編輯：' + (ch.name || '角色');
+  document.getElementById('charEditPanel').style.display = 'flex';
+  document.querySelectorAll('.char-chip').forEach(c => c.classList.remove('active'));
+}
+
+function addNewChar() {
+  const chars = loadChars();
+  const newChar = { name:'新角色', emoji:'✨', appearance:'', personality:'', style:'', politics:'' };
+  chars.push(newChar);
+  saveChars(chars);
+  setActiveIdx(chars.length - 1);
+  renderCharCards();
+  selectChar(chars.length - 1);
+}
+
+function saveCurrentChar() {
+  const chars = loadChars();
+  const i = getActiveIdx();
+  chars[i] = {
+    ...chars[i],
+    name:        document.getElementById('charName').value.trim() || '新角色',
+    appearance:  document.getElementById('charAppearance').value.trim(),
+    personality: document.getElementById('charPersonality').value.trim(),
+    style:       document.getElementById('charStyle').value.trim(),
+    politics:    document.getElementById('charPolitics').value.trim(),
+  };
+  saveChars(chars);
+  renderCharCards();
+  const btn = document.getElementById('saveCharBtn');
+  btn.textContent = '✓ 已儲存';
+  btn.style.background = 'linear-gradient(135deg,#81C784,#388E3C)';
+  setTimeout(() => {
+    btn.textContent = '💾 儲存角色';
+    btn.style.background = 'linear-gradient(135deg,#C9B8E8,#764ba2)';
+  }, 1400);
+}
+
+function deleteCurrentChar() {
+  const chars = loadChars();
+  if (chars.length <= 1) { alert('至少需要保留一個角色！'); return; }
+  if (!confirm('確定刪除這個角色嗎？')) return;
+  const i = getActiveIdx();
+  chars.splice(i, 1);
+  saveChars(chars);
+  setActiveIdx(Math.max(0, i - 1));
+  renderCharCards();
+  document.getElementById('charEditPanel').style.display = 'none';
+}
+
+function buildCharPrompt() {
+  const chars = loadChars();
+  const ch = chars[getActiveIdx()] || DEFAULT_CHAR;
+  const name        = ch.name || 'Fumei（富美）';
+  const appearance  = ch.appearance || DEFAULT_CHAR.appearance;
+  const personality = ch.personality || DEFAULT_CHAR.personality;
+  const style       = ch.style || DEFAULT_CHAR.style;
+  const politics    = ch.politics || DEFAULT_CHAR.politics;
+  return `你現在是「${name} 梗圖腳本創作師」。
+角色：${name}，${appearance}。
+個性：${personality}。
+說話風格：${style}。
+
+內容方向與立場：
+- ${politics}`;
+}
+
+
+function clearSocial(id) {
+  document.getElementById(id).value = '';
+}
+
+function toggleChip(el, targetId) {
+  el.classList.toggle('active');
+  const group = el.closest('.char-preset-chips');
+  const active = [...group.querySelectorAll('.char-chip.active')].map(c => c.textContent);
+  const input = document.getElementById(targetId);
+  input.value = active.join('、');
+}
+
 const THEMES = {
   pink:   { header:'linear-gradient(135deg,#F4A7B9 0%,#C9B8E8 100%)', '--pink':'#F4A7B9','--pink-deep':'#E07A95','--cream':'#FFF8F0','--lavender':'#C9B8E8','tab':'#E07A95' },
   peach:  { header:'linear-gradient(135deg,#FFCBA4 0%,#FFB347 100%)', '--pink':'#FFCBA4','--pink-deep':'#E8900A','--cream':'#FFFAF5','--lavender':'#FFD9A0','tab':'#E8900A' },
@@ -1598,20 +2202,33 @@ function applyTheme(name) {
 function openSettings() {
   document.getElementById('studioNameInput').value = localStorage.getItem('fumei_studio_name') || 'Fumei Studio';
   const emoji = localStorage.getItem('fumei_avatar_emoji') || '🐾';
-  const url   = localStorage.getItem('fumei_avatar_url') || '';
+  const img   = localStorage.getItem('fumei_avatar_img') || '';
   document.getElementById('avatarEmojiInput').value = emoji;
-  document.getElementById('avatarUrlInput').value   = url;
   updateAvatarPreview();
+  document.getElementById('avatarClearBtn').style.display = img ? 'block' : 'none';
+  // topic management
+  renderTopicTagList();
+  cancelAddTopic();
+  // social accounts
+  document.getElementById('socialIG').value      = localStorage.getItem('fumei_social_ig') || '';
+  document.getElementById('socialFB').value      = localStorage.getItem('fumei_social_fb') || '';
+  document.getElementById('socialThreads').value = localStorage.getItem('fumei_social_threads') || '';
+  // reset chips
+  document.querySelectorAll('.char-chip').forEach(c => c.classList.remove('active'));
+  // render char cards
+  renderCharCards();
+  document.getElementById('charEditPanel').style.display = 'none';
   document.querySelectorAll('.color-swatch').forEach(s => {
     s.classList.toggle('active', s.dataset.theme === currentTheme);
   });
+  document.getElementById('accountSection').style.display = 'block';
   if (window._currentUid) {
-    document.getElementById('accountSection').style.display = 'block';
     document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
   } else {
-    document.getElementById('accountSection').style.display = 'none';
+    document.getElementById('accountInfo').textContent = '尚未登入 Google 帳號';
   }
   document.getElementById('settingsModal').classList.add('show');
+  initDropZone();
 }
 
 function closeSettings() {
@@ -1623,36 +2240,168 @@ function closeSettingsOutside(e) {
 }
 
 function updateAvatarPreview() {
-  const url   = document.getElementById('avatarUrlInput').value.trim();
+  const img   = localStorage.getItem('fumei_avatar_img') || '';
   const emoji = document.getElementById('avatarEmojiInput').value.trim() || '🐾';
   const prev  = document.getElementById('avatarPreview');
-  if (url) {
-    prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  if (img) {
+    prev.innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
   } else {
     prev.textContent = emoji;
   }
 }
 
+// ── IMAGE EDITOR ──────────────────────────────────
+let _editorOrigSrc = '';
+let _editorX = 0, _editorY = 0, _editorScale = 1;
+let _dragStart = null;
+
+function handleAvatarFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => openImgEditor(e.target.result);
+  reader.readAsDataURL(file);
+}
+
+function openImgEditor(src) {
+  _editorOrigSrc = src;
+  _editorX = 0; _editorY = 0; _editorScale = 1;
+  const img = document.getElementById('imgEditorImg');
+  const wrap = document.getElementById('imgEditorWrap');
+  const slider = document.getElementById('imgEditorScale');
+  img.src = src;
+  slider.value = 100;
+  img.onload = () => {
+    // fit image inside wrap initially
+    const ratio = Math.max(260 / img.naturalWidth, 260 / img.naturalHeight);
+    _editorScale = ratio;
+    slider.min = Math.round(ratio * 50);
+    slider.max = Math.round(ratio * 300);
+    slider.value = Math.round(ratio * 100);
+    applyEditorTransform();
+  };
+  document.getElementById('imgEditorOverlay').classList.add('show');
+  // drag
+  wrap.onmousedown = startDrag;
+  wrap.ontouchstart = startDrag;
+  slider.oninput = () => { _editorScale = parseFloat(slider.value) / 100; applyEditorTransform(); };
+}
+
+function applyEditorTransform() {
+  const img = document.getElementById('imgEditorImg');
+  const wrap = document.getElementById('imgEditorWrap');
+  const w = wrap.offsetWidth, h = wrap.offsetHeight;
+  const iw = img.naturalWidth * _editorScale;
+  const ih = img.naturalHeight * _editorScale;
+  // clamp so image always covers circle
+  _editorX = Math.min(0, Math.max(_editorX, w - iw));
+  _editorY = Math.min(0, Math.max(_editorY, h - ih));
+  img.style.width  = iw + 'px';
+  img.style.height = ih + 'px';
+  img.style.left   = _editorX + 'px';
+  img.style.top    = _editorY + 'px';
+}
+
+function startDrag(e) {
+  e.preventDefault();
+  const pt = e.touches ? e.touches[0] : e;
+  _dragStart = { x: pt.clientX - _editorX, y: pt.clientY - _editorY };
+  document.onmousemove = document.ontouchmove = onDrag;
+  document.onmouseup = document.ontouchend = endDrag;
+}
+function onDrag(e) {
+  if (!_dragStart) return;
+  const pt = e.touches ? e.touches[0] : e;
+  _editorX = pt.clientX - _dragStart.x;
+  _editorY = pt.clientY - _dragStart.y;
+  applyEditorTransform();
+}
+function endDrag() {
+  _dragStart = null;
+  document.onmousemove = document.ontouchmove = null;
+  document.onmouseup = document.ontouchend = null;
+}
+
+function confirmImgEditor() {
+  const img = document.getElementById('imgEditorImg');
+  const wrap = document.getElementById('imgEditorWrap');
+  const size = 260;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // clip to circle
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size/2, 0, Math.PI*2);
+  ctx.clip();
+  const iw = img.naturalWidth * _editorScale;
+  const ih = img.naturalHeight * _editorScale;
+  ctx.drawImage(img, _editorX, _editorY, iw, ih);
+  const result = canvas.toDataURL('image/png');
+  localStorage.setItem('fumei_avatar_img', result);
+  document.getElementById('avatarClearBtn').style.display = 'block';
+  document.getElementById('avatarDropZone').style.borderColor = '#B5EAD7';
+  document.getElementById('avatarDropZone').innerHTML = '✅ 圖片已上傳<input type="file" id="avatarFileInput" accept="image/*" style="display:none">';
+  updateAvatarPreview();
+  initDropZone();
+  cancelImgEditor();
+  renderCharCards();
+}
+
+function cancelImgEditor() {
+  document.getElementById('imgEditorOverlay').classList.remove('show');
+}
+
+function clearAvatar() {
+  localStorage.removeItem('fumei_avatar_img');
+  document.getElementById('avatarClearBtn').style.display = 'none';
+  document.getElementById('avatarDropZone').style.borderColor = '#f0d8e0';
+  document.getElementById('avatarDropZone').innerHTML = '📁 點擊或拖拉圖片上傳<input type="file" id="avatarFileInput" accept="image/*" style="display:none">';
+  updateAvatarPreview();
+  initDropZone();
+  renderCharCards();
+}
+
+function initDropZone() {
+  const zone = document.getElementById('avatarDropZone');
+  const fileInput = document.getElementById('avatarFileInput');
+  if (!zone || !fileInput) return;
+  zone.onclick = () => fileInput.click();
+  zone.ondragover = e => { e.preventDefault(); zone.style.borderColor='#C9B8E8'; zone.style.background='#f8f4ff'; };
+  zone.ondragleave = () => { zone.style.borderColor='#f0d8e0'; zone.style.background='#fffbfd'; };
+  zone.ondrop = e => { e.preventDefault(); zone.style.borderColor='#f0d8e0'; zone.style.background='#fffbfd'; handleAvatarFile(e.dataTransfer.files[0]); };
+  fileInput.onchange = e => handleAvatarFile(e.target.files[0]);
+}
+
 function saveSettings() {
   const name  = document.getElementById('studioNameInput').value.trim() || 'Fumei Studio';
   const emoji = document.getElementById('avatarEmojiInput').value.trim() || '🐾';
-  const url   = document.getElementById('avatarUrlInput').value.trim();
+  const img   = localStorage.getItem('fumei_avatar_img') || '';
   localStorage.setItem('fumei_studio_name', name);
   localStorage.setItem('fumei_avatar_emoji', emoji);
-  localStorage.setItem('fumei_avatar_url', url);
   localStorage.setItem('fumei_theme', currentTheme);
+  // char data is saved per-card via saveCurrentChar(), nothing to do here
+  // social accounts
+  localStorage.setItem('fumei_social_ig',      document.getElementById('socialIG').value.trim());
+  localStorage.setItem('fumei_social_fb',      document.getElementById('socialFB').value.trim());
+  localStorage.setItem('fumei_social_threads', document.getElementById('socialThreads').value.trim());
   document.querySelector('.logo-text h1').textContent = name;
   document.title = name + ' ✨';
   const logoIcon = document.querySelector('.logo-icon');
-  if (url) {
-    logoIcon.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  if (img) {
+    logoIcon.innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
   } else {
     logoIcon.textContent = emoji;
   }
   if (window.syncToCloud) window.syncToCloud();
   const btn = document.querySelector('.settings-save-btn');
   btn.textContent = '✓ 已儲存！';
-  setTimeout(() => { btn.textContent = '💾 儲存設定'; closeSettings(); }, 1200);
+  setTimeout(() => { btn.textContent = '💾 儲存設定'; renderTasks(); closeSettings(); }, 1200);
+}
+
+async function switchAccount() {
+  if (!confirm('確定要切換帳號嗎？目前資料已儲存在雲端，登入新帳號後會載入新帳號的資料。')) return;
+  await window.logoutUser();
+  closeSettings();
+  setTimeout(() => window.loginGoogle(), 300);
 }
 
 function confirmDeleteAccount() {
@@ -1664,7 +2413,7 @@ async function deleteAccount() {
   if (!window._currentUid) return;
   try {
     await window.saveToCloud(window._currentUid, { fumei_key:'',fumei_gemini_key:'',fumei_gpt_key:'',fumei_tasks:'[]',fumei_history:'[]' });
-    ['fumei_key','fumei_gemini_key','fumei_gpt_key','fumei_tasks','fumei_history','fumei_studio_name','fumei_avatar_emoji','fumei_avatar_url','fumei_theme','fumei_view'].forEach(k => localStorage.removeItem(k));
+    ['fumei_key','fumei_gemini_key','fumei_gpt_key','fumei_tasks','fumei_history','fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img','fumei_theme','fumei_view','fumei_char_name','fumei_char_appearance','fumei_char_personality','fumei_char_style','fumei_char_politics'].forEach(k => localStorage.removeItem(k));
     await window.logoutUser();
     closeSettings();
     alert('帳號資料已刪除，已登出。');
@@ -1677,10 +2426,10 @@ window.addEventListener('load', () => {
   applyTheme(currentTheme);
   const savedName = localStorage.getItem('fumei_studio_name');
   if (savedName) { document.querySelector('.logo-text h1').textContent = savedName; document.title = savedName + ' ✨'; }
-  const savedUrl   = localStorage.getItem('fumei_avatar_url');
+  const savedImg   = localStorage.getItem('fumei_avatar_img');
   const savedEmoji = localStorage.getItem('fumei_avatar_emoji') || '🐾';
   const logoIcon   = document.querySelector('.logo-icon');
-  if (savedUrl) { logoIcon.innerHTML = `<img src="${savedUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
+  if (savedImg) { logoIcon.innerHTML = `<img src="${savedImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
   else { logoIcon.textContent = savedEmoji; }
   // swatch listeners
   document.querySelectorAll('.color-swatch').forEach(s => {
@@ -1692,9 +2441,25 @@ window.addEventListener('load', () => {
   });
   // avatar input listeners
   document.getElementById('avatarEmojiInput').addEventListener('input', updateAvatarPreview);
-  document.getElementById('avatarUrlInput').addEventListener('input', updateAvatarPreview);
+  initDropZone();
 });
 </script>
+
+<!-- Image Editor Modal -->
+<div class="img-editor-overlay" id="imgEditorOverlay">
+  <div class="img-editor-hint">拖移調整位置</div>
+  <div class="img-editor-wrap" id="imgEditorWrap">
+    <img id="imgEditorImg" src="" draggable="false">
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div class="img-editor-hint">🔍 縮放</div>
+    <input class="img-editor-slider" type="range" id="imgEditorScale" min="50" max="300" value="100">
+  </div>
+  <div class="img-editor-btns">
+    <button class="img-editor-btn img-editor-btn-cancel" onclick="cancelImgEditor()">取消</button>
+    <button class="img-editor-btn img-editor-btn-ok" onclick="confirmImgEditor()">✓ 套用</button>
+  </div>
+</div>
 
 </body>
 </html>
