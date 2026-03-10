@@ -333,6 +333,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY",
@@ -385,6 +386,12 @@ onAuthStateChanged(auth, async (user) => {
     window._currentUid = user.uid;
 
     // 從雲端載入資料
+    const wasGuest = window._guestMode;
+    const guestChars = wasGuest ? localStorage.getItem('fumei_chars') : null; // 先備份訪客設定
+    window._guestMode = false;
+    document.getElementById('guestBtn').style.display = 'none';
+    document.getElementById('guestInfo').style.display = 'none';
+
     const data = await window.loadFromCloud(user.uid);
     if (data) {
       if (data.fumei_tasks)         { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window._renderTasks(); }
@@ -399,17 +406,145 @@ onAuthStateChanged(auth, async (user) => {
       if (data.fumei_studio_name)   { localStorage.setItem('fumei_studio_name', data.fumei_studio_name); }
       if (data.fumei_theme)         { localStorage.setItem('fumei_theme', data.fumei_theme); }
     }
+
+    // 訪客轉登入：如果雲端沒有角色設定，繼承訪客填的角色
+    if (wasGuest && guestChars && !data?.fumei_chars) {
+      localStorage.setItem('fumei_chars', guestChars);
+      localStorage.setItem('fumei_onboarded', '1');
+    }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
     // 檢查是否為新用戶
     setTimeout(checkOnboarding, 300);
   } else {
-    // 未登入
+    // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
+    document.getElementById('guestBtn').style.display = 'flex';
     document.getElementById('userInfo').style.display = 'none';
+    document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
     document.getElementById('syncStatus').textContent = '';
+    // 如果已在訪客模式，直接還原
+    if (window._guestMode) showGuestUI();
   }
 });
+
+// ── Fingerprint 初始化 ─────────────────────────────
+window._fingerprint = '';
+(async () => {
+  try {
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    window._fingerprint = result.visitorId;
+  } catch(e) { window._fingerprint = 'fallback-' + Math.random().toString(36).slice(2); }
+})();
+
+// ── 訪客模式 ──────────────────────────────────────
+window._guestMode = false;
+window._guestRemaining = 5;
+
+window.enterGuestMode = function() {
+  // 先顯示說明 modal
+  showGuestIntro();
+};
+
+function showGuestIntro() {
+  let modal = document.getElementById('guestIntroModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'guestIntroModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:white;border-radius:24px;padding:28px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:2.5rem;margin-bottom:8px">👀</div>
+          <h3 style="font-size:1.15rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:6px">訪客體驗模式</h3>
+          <p style="font-size:0.83rem;color:#aaa;line-height:1.6">先試試看，喜歡再登入！</p>
+        </div>
+        <div style="background:#faf4ff;border-radius:14px;padding:14px 16px;margin-bottom:20px">
+          <div style="font-size:0.82rem;font-weight:800;color:#764ba2;margin-bottom:10px">✅ 訪客可以使用</div>
+          <div style="font-size:0.82rem;color:#666;line-height:2">
+            📰 話題掃描（今日台灣時事）<br>
+            ✍️ 腳本生成（基本格式）
+          </div>
+          <div style="height:1px;background:#eee;margin:10px 0"></div>
+          <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
+          <div style="font-size:0.82rem;color:#bbb;line-height:2">
+            🤖 三AI發想<br>
+            💬 留言回覆<br>
+            📖 歷史紀錄、角色設定
+          </div>
+        </div>
+        <div style="background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:0.8rem;color:#b8860b;font-weight:700;text-align:center">
+          ⚡ 每日體驗上限 5 次，登入後無限使用
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif">👀 以訪客身份進入</button>
+          <button onclick="document.getElementById('guestIntroModal').remove();loginGoogle()" style="width:100%;padding:12px;border-radius:14px;border:1.5px solid #e0d0f0;background:white;color:#764ba2;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif">🔑 直接 Google 登入</button>
+          <button onclick="document.getElementById('guestIntroModal').remove()" style="width:100%;padding:8px;border:none;background:none;color:#ccc;font-size:0.8rem;cursor:pointer">取消</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  } else {
+    modal.style.display = 'flex';
+  }
+}
+
+window.confirmGuestMode = function() {
+  document.getElementById('guestIntroModal')?.remove();
+  window._guestMode = true;
+  showGuestUI();
+  applyGuestRestrictions();
+};
+
+function showGuestUI() {
+  document.getElementById('loginBtn').style.display = 'none';
+  document.getElementById('guestBtn').style.display = 'none';
+  document.getElementById('guestInfo').style.display = 'flex';
+  updateGuestRemaining(window._guestRemaining);
+}
+
+window.updateGuestRemaining = function(n) {
+  window._guestRemaining = n;
+  const el = document.getElementById('guestRemaining');
+  if (el) el.textContent = `👀 訪客體驗 ${n} 次剩餘`;
+};
+
+function applyGuestRestrictions() {
+  // 鎖定三AI發想、留言回覆、歷史紀錄 tab
+  document.querySelectorAll('.tab').forEach(btn => {
+    const txt = btn.textContent;
+    if (txt.includes('留言') || txt.includes('歷史')) {
+      btn.style.opacity = '0.4';
+      btn.style.cursor = 'not-allowed';
+      btn.onclick = () => showLoginPrompt('此功能需要登入才能使用 🔒');
+    }
+  });
+  // 鎖定三AI發想按鈕
+  const inspoBtn = document.getElementById('inspoBtn');
+  if (inspoBtn) {
+    inspoBtn.style.opacity = '0.4';
+    inspoBtn.title = '登入後可使用';
+    inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
+  }
+}
+
+window.showLoginPrompt = function(msg) {
+  if (confirm(`${msg}\n\n要現在登入嗎？`)) loginGoogle();
+};
+
+// ── 訪客 API 錯誤處理 ─────────────────────────────
+window.handleGuestApiError = function(err) {
+  const msg = err.message || '';
+  if (msg.includes('needLogin') || msg.includes('今日訪客') || msg.includes('登入')) {
+    if (confirm('🌟 今日訪客體驗次數已用完！\n登入後可無限使用，要現在登入嗎？')) loginGoogle();
+    return true;
+  }
+  if (msg.includes('🔒')) {
+    showLoginPrompt(msg);
+    return true;
+  }
+  return false;
+};
 
 // ── 自動雲端同步（每次 localStorage 更新後呼叫）──
 window.syncToCloud = async () => {
@@ -444,6 +579,11 @@ window.syncToCloud = async () => {
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
     <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:6px;background:white;border:none;color:#764ba2;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">🔑 Google 登入</button>
+    <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
+    <div id="guestInfo" style="display:none;align-items:center;gap:6px">
+      <span id="guestRemaining" style="font-size:0.72rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:20px"></span>
+      <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
+    </div>
     <div id="userInfo" style="display:none;align-items:center;gap:6px">
       <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
       <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
@@ -688,7 +828,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0';
+const APP_VERSION = '4.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -815,9 +955,16 @@ function addTask() {
 }
 
 // ── CLAUDE API ────────────────────────────────────
-async function claude(sys, msg, search=false, creative=false) {
+async function claude(sys, msg, search=false, creative=false, feature='') {
   const uid = window._currentUid;
-  if (!uid) throw new Error('請先登入才能使用 AI 功能');
+  const headers = { 'Content-Type': 'application/json' };
+  if (uid) {
+    headers['x-firebase-uid'] = uid;
+  } else {
+    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    headers['x-fingerprint'] = window._fingerprint || '';
+    if (feature) headers['x-guest-feature'] = feature;
+  }
   const body = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: creative ? 3000 : 1500,
@@ -826,15 +973,16 @@ async function claude(sys, msg, search=false, creative=false) {
     messages: [{role:'user', content:msg}]
   };
   if (search) body.tools = [{type:'web_search_20250305', name:'web_search'}];
-  const r = await fetch('/api/claude', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-firebase-uid': uid
-    },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) { const e = await r.json(); throw new Error(`[${r.status}] ${e.error?.message||JSON.stringify(e)}`); }
+  const r = await fetch('/api/claude', { method:'POST', headers, body: JSON.stringify(body) });
+  // 更新訪客剩餘次數
+  const remaining = r.headers.get('x-guest-remaining');
+  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
+  if (!r.ok) {
+    const e = await r.json();
+    const err = new Error(`[${r.status}] ${e.error||e.error?.message||JSON.stringify(e)}`);
+    if (e.needLogin) err.needLogin = true;
+    throw err;
+  }
   const d = await r.json();
   return d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
 }
@@ -1128,9 +1276,16 @@ function getTopicRule(typeValue) {
 // ── SCAN TOPICS ───────────────────────────────────
 
 // 輕量版 claude 專門給話題掃描用（低 token、按需開啟搜尋）
-async function claudeScan(msg, useSearch=false) {
+async function claudeScan(msg, useSearch=false, feature='scan') {
   const uid = window._currentUid;
-  if (!uid) throw new Error('請先登入才能使用 AI 功能');
+  const headers = { 'Content-Type': 'application/json' };
+  if (uid) {
+    headers['x-firebase-uid'] = uid;
+  } else {
+    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    headers['x-fingerprint'] = window._fingerprint || '';
+    headers['x-guest-feature'] = feature;
+  }
   const body = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: useSearch ? 2000 : 400,
@@ -1139,13 +1294,15 @@ async function claudeScan(msg, useSearch=false) {
     messages: [{role:'user', content:msg}]
   };
   if (useSearch) body.tools = [{type:'web_search_20250305', name:'web_search'}];
-  const r = await fetch('/api/claude', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
-    body: JSON.stringify(body)
-  });
+  const r = await fetch('/api/claude', { method:'POST', headers, body: JSON.stringify(body) });
+  const remaining = r.headers.get('x-guest-remaining');
+  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
-  if (!r.ok) throw new Error(`[${r.status}] ${d.error?.message || JSON.stringify(d)}`);
+  if (!r.ok) {
+    const err = new Error(`[${r.status}] ${d.error?.message || JSON.stringify(d)}`);
+    if (d.needLogin) err.needLogin = true;
+    throw err;
+  }
   const texts = d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
   if (!texts) throw new Error(`回傳空白｜stop:${d.stop_reason}｜${d.content.map(b=>b.type).join(',')}`);
   return texts;
@@ -1185,7 +1342,7 @@ async function scanTopics() {
         <span style="color:var(--pink-deep);font-size:0.81rem">${s?s.trim():''}</span>
       </div>`;
     }).join('');
-  } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
+  } catch(e) { if (window.handleGuestApiError && window.handleGuestApiError(e)) return; err.textContent='❌ '+e.message; err.classList.add('show'); }
   finally { btn.disabled=false; load.classList.remove('show'); }
 }
 function pickTopic(t) {
@@ -1245,34 +1402,46 @@ function goToScript() {
 
 // ── API KEY MANAGEMENT ───────────────────────────
 // ── GEMINI API ───────────────────────────────────
-async function callGemini(prompt) {
+async function callGemini(prompt, feature='script') {
   const uid = window._currentUid;
-  if (!uid) throw new Error('請先登入才能使用 AI 功能');
+  const headers = { 'Content-Type': 'application/json' };
+  if (uid) {
+    headers['x-firebase-uid'] = uid;
+  } else {
+    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    headers['x-fingerprint'] = window._fingerprint || '';
+    headers['x-guest-feature'] = feature;
+  }
   const r = await fetch('/api/gemini', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
-    body: JSON.stringify({
-      model: 'gemini-2.5-flash',
-      contents: [{parts:[{text: prompt}]}],
-      generationConfig: {temperature:1.0, maxOutputTokens:400}
-    })
+    method: 'POST', headers,
+    body: JSON.stringify({ model:'gemini-2.5-flash', contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:1.0, maxOutputTokens:400} })
   });
+  const remaining = r.headers.get('x-guest-remaining');
+  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
-  if (!r.ok) throw new Error(d.error?.message || 'Gemini 錯誤');
+  if (!r.ok) { const err = new Error(d.error?.message || 'Gemini 錯誤'); if (d.needLogin) err.needLogin = true; throw err; }
   return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 }
 
 // ── GPT API ──────────────────────────────────────
-async function callGPT(prompt) {
+async function callGPT(prompt, feature='script') {
   const uid = window._currentUid;
-  if (!uid) throw new Error('請先登入才能使用 AI 功能');
+  const headers = { 'Content-Type': 'application/json' };
+  if (uid) {
+    headers['x-firebase-uid'] = uid;
+  } else {
+    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    headers['x-fingerprint'] = window._fingerprint || '';
+    headers['x-guest-feature'] = feature;
+  }
   const r = await fetch('/api/gpt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+    method: 'POST', headers,
     body: JSON.stringify({model:'gpt-4o-mini', temperature:1.0, max_tokens:400, messages:[{role:'user', content:prompt}]})
   });
+  const remaining = r.headers.get('x-guest-remaining');
+  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
-  if (!r.ok) throw new Error(d.error?.message || 'ChatGPT 錯誤');
+  if (!r.ok) { const err = new Error(d.error?.message || 'ChatGPT 錯誤'); if (d.needLogin) err.needLogin = true; throw err; }
   return d.choices?.[0]?.message?.content?.trim() || '';
 }
 
@@ -1622,7 +1791,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
     if(window.syncToCloud) window.syncToCloud();
     renderHistory();
 
-  } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
+  } catch(e) { if (window.handleGuestApiError && window.handleGuestApiError(e)) return; err.textContent='❌ '+e.message; err.classList.add('show'); }
   finally { btn.disabled=false; load.classList.remove('show'); }
 }
 
@@ -2332,12 +2501,65 @@ function obGoTo(step) {
   });
 }
 
-function obNext(step) {
-  if (step === 3) {
-    const name = document.getElementById('ob-name').value.trim();
-    if (!name) { alert('請輸入角色名稱！'); return; }
+function obShowError(msg) {
+  let el = document.getElementById('ob-error');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'ob-error';
+    el.style.cssText = 'margin-top:10px;padding:10px 14px;background:#fff0f0;border-radius:10px;border:1.5px solid #ffcccc;font-size:0.82rem;color:#e05555;font-weight:700;display:none';
+    document.getElementById('onboardingModal').querySelector('[style*="max-width"]').appendChild(el);
   }
-  if (step === 4) obStartAnalysis();
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function obIsJunk(text) {
+  if (!text) return false;
+  // 純數字、純符號、重複字元、太短無意義
+  if (/^[\d\s!@#$%^&*()_+\-=\[\]{}|;:,.<>?\/\\`~'"]+$/.test(text)) return true;
+  if (/^(.)\1{3,}$/.test(text.replace(/\s/g,''))) return true; // aaaa bbbb
+  if (text.replace(/\s/g,'').length < 2) return true;
+  return false;
+}
+
+async function obNext(step) {
+  obShowError('');
+
+  if (step === 3) {
+    // Step 2 → 3 驗證
+    const name = document.getElementById('ob-name').value.trim();
+    if (!name) { obShowError('❌ 請輸入角色名稱'); return; }
+    if (name.length > 20) { obShowError('❌ 角色名稱請在 20 字以內'); return; }
+    if (obIsJunk(name)) { obShowError('❌ 角色名稱看起來不太對，請重新輸入'); return; }
+    const appearance = document.getElementById('ob-appearance').value.trim();
+    if (appearance && obIsJunk(appearance)) { obShowError('❌ 外貌描述看起來不太對，請重新輸入'); return; }
+  }
+
+  if (step === 4) {
+    // Step 3 → 4：需要至少填個性或選一個 chip
+    const personality = document.getElementById('ob-personality').value.trim();
+    const style = document.getElementById('ob-style').value.trim();
+    if (!personality && !style) { obShowError('❌ 請至少選一個個性標籤或說話風格'); return; }
+    if (obIsJunk(personality) || obIsJunk(style)) { obShowError('❌ 內容看起來不太對，請重新輸入'); return; }
+
+    // 進入 Step 4 前先顯示預覽確認
+    const name = document.getElementById('ob-name').value.trim();
+    const emoji = document.getElementById('ob-emoji').value.trim() || '✨';
+    const appearance = document.getElementById('ob-appearance').value.trim() || '（未填）';
+    const confirmed = confirm(
+`📋 確認角色設定：
+
+${emoji} 名稱：${name}
+👤 外貌：${appearance}
+💬 個性：${personality || '（未填）'}
+🗣️ 風格：${style || '（未填）'}
+
+確定送出，讓 AI 分析嗎？`
+    );
+    if (!confirmed) return;
+    obStartAnalysis();
+  }
+
   obGoTo(step);
 }
 
@@ -2360,35 +2582,48 @@ async function obStartAnalysis() {
   const personality= document.getElementById('ob-personality').value.trim();
   const style      = document.getElementById('ob-style').value.trim();
 
-  let tone = '', focus = '', boldness = '';
+  let tone = '', focus = '', boldness = '', aiValid = true;
 
   try {
     const uid = window._currentUid;
     if (uid) {
-      const prompt = `根據以下角色設定，分析這個角色適合的發文風格。
+      // AI 驗證 + 分析一次完成
+      const prompt = `請分析以下角色設定是否合理，並判斷發文風格。
 
 角色名稱：${name}
-外貌：${appearance}
-個性：${personality}
-說話風格：${style}
+外貌：${appearance || '（未填）'}
+個性：${personality || '（未填）'}
+說話風格：${style || '（未填）'}
 
-請用以下格式輸出，只輸出這三行：
-語氣：（從「輕鬆日常／幽默誇張／知識理性／毒舌犀利／溫柔親切」選一個最符合的，或自行描述10字內）
-方向：（列出2到3個最適合的內容主題，用頓號分隔，例如：職場、單身生活、時事）
+先判斷這個角色設定是否有意義（不是亂填的），再分析風格。
+請用以下格式輸出，只輸出這四行：
+驗證：OK 或 NG（如果名稱或個性明顯是亂填、無意義請回 NG，否則回 OK）
+語氣：（從「輕鬆日常／幽默誇張／知識理性／毒舌犀利／溫柔親切」選一個，或自行描述10字內）
+方向：（2到3個最適合的內容主題，用頓號分隔）
 尺度：（從「保守溫和／正常適中／大膽直接」選一個）`;
 
       const r = await fetch('/api/claude', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
-        body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:200, temperature:0.3, messages:[{role:'user',content:prompt}] })
+        body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:250, temperature:0.3, messages:[{role:'user',content:prompt}] })
       });
       const d = await r.json();
       const text = d.content?.map(c => c.text||'').join('') || '';
+      const valid = (text.match(/驗證[：:]\s*(\S+)/) || [])[1]?.trim() || 'OK';
+      aiValid  = !valid.startsWith('NG');
       tone     = (text.match(/語氣[：:]\s*(.+)/) || [])[1]?.trim() || '';
       focus    = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
       boldness = (text.match(/尺度[：:]\s*(.+)/) || [])[1]?.trim() || '';
     }
-  } catch(e) { /* 失敗不影響流程 */ }
+  } catch(e) { /* 分析失敗不影響流程 */ }
+
+  if (!aiValid) {
+    // AI 判定亂填，退回 Step 2
+    document.getElementById('ob-analyzing').style.display = 'none';
+    obGoTo(2);
+    obShowError('❌ AI 偵測到角色設定不太合理，請重新填寫');
+    return;
+  }
 
   // 儲存角色
   const charData = { name, emoji, appearance, personality, style, politics:'', tone, focus, boldness };
