@@ -828,7 +828,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.2.2';
+const APP_VERSION = '4.2.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1575,6 +1575,8 @@ async function genScript() {
 
   btn.disabled=true; load.classList.add('show'); area.style.display='none';
   err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
+  // 產腳本時收起三AI發想區塊，結果顯示在上方
+  document.getElementById('inspoArea').style.display = 'none';
 
   try {
     if (isAuto) {
@@ -1798,6 +1800,8 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
     document.getElementById('promptContent').textContent = geminiPrompt;
     lastGeminiPrompt = geminiPrompt;
     area.style.display='block';
+    // 捲動到腳本結果頂部
+    setTimeout(() => area.scrollIntoView({ behavior:'smooth', block:'start' }), 100);
 
     // ── SAVE TO HISTORY ──
     const formatLabels = {'一格':'一格梗圖','兩格':'兩格梗圖','影片':'影片腳本'};
