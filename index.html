@@ -403,8 +403,10 @@ onAuthStateChanged(auth, async (user) => {
       if (data.fumei_social_ig)     { localStorage.setItem('fumei_social_ig', data.fumei_social_ig); }
       if (data.fumei_social_fb)     { localStorage.setItem('fumei_social_fb', data.fumei_social_fb); }
       if (data.fumei_social_threads){ localStorage.setItem('fumei_social_threads', data.fumei_social_threads); }
-      if (data.fumei_studio_name)   { localStorage.setItem('fumei_studio_name', data.fumei_studio_name); }
-      if (data.fumei_theme)         { localStorage.setItem('fumei_theme', data.fumei_theme); }
+      if (data.fumei_studio_name)      { localStorage.setItem('fumei_studio_name', data.fumei_studio_name); }
+      if (data.fumei_theme)            { localStorage.setItem('fumei_theme', data.fumei_theme); }
+      if (data.fumei_img_prompt_still) { localStorage.setItem('fumei_img_prompt_still', data.fumei_img_prompt_still); }
+      if (data.fumei_img_prompt_video) { localStorage.setItem('fumei_img_prompt_video', data.fumei_img_prompt_video); }
     }
 
     // 訪客轉登入：如果雲端沒有角色設定，繼承訪客填的角色
@@ -552,17 +554,19 @@ window.syncToCloud = async () => {
   const el = document.getElementById('syncStatus');
   el.textContent = '☁️ 同步中...';
   await window.saveToCloud(window._currentUid, {
-    fumei_tasks:          localStorage.getItem('fumei_tasks') || '[]',
-    fumei_history:        localStorage.getItem('fumei_history') || '[]',
-    fumei_chars:          localStorage.getItem('fumei_chars') || '',
-    fumei_char_active:    localStorage.getItem('fumei_char_active') || '0',
-    fumei_onboarded:      localStorage.getItem('fumei_onboarded') || '',
-    fumei_custom_topics:  localStorage.getItem('fumei_custom_topics') || '[]',
-    fumei_social_ig:      localStorage.getItem('fumei_social_ig') || '',
-    fumei_social_fb:      localStorage.getItem('fumei_social_fb') || '',
-    fumei_social_threads: localStorage.getItem('fumei_social_threads') || '',
-    fumei_studio_name:    localStorage.getItem('fumei_studio_name') || '',
-    fumei_theme:          localStorage.getItem('fumei_theme') || '',
+    fumei_tasks:            localStorage.getItem('fumei_tasks') || '[]',
+    fumei_history:          localStorage.getItem('fumei_history') || '[]',
+    fumei_chars:            localStorage.getItem('fumei_chars') || '',
+    fumei_char_active:      localStorage.getItem('fumei_char_active') || '0',
+    fumei_onboarded:        localStorage.getItem('fumei_onboarded') || '',
+    fumei_custom_topics:    localStorage.getItem('fumei_custom_topics') || '[]',
+    fumei_social_ig:        localStorage.getItem('fumei_social_ig') || '',
+    fumei_social_fb:        localStorage.getItem('fumei_social_fb') || '',
+    fumei_social_threads:   localStorage.getItem('fumei_social_threads') || '',
+    fumei_studio_name:      localStorage.getItem('fumei_studio_name') || '',
+    fumei_theme:            localStorage.getItem('fumei_theme') || '',
+    fumei_img_prompt_still: localStorage.getItem('fumei_img_prompt_still') || '',
+    fumei_img_prompt_video: localStorage.getItem('fumei_img_prompt_video') || '',
   });
   el.textContent = '☁️ 已同步';
 };
@@ -780,11 +784,27 @@ const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
 - 不製作攻擊特定個人的惡意內容，但可以對政治現象做出有立場的幽默評論
 - 台灣意識、本土文化、民主價值是 Fumei 梗圖的核心精神`;
 
-const GEMINI_FRAME_ONE = (content) =>
-`用這個角色(Fumei)，不要用同一套服裝，要換服裝，要換場景
-表情要豐富
-**不要更換提供的原人物的材質**
-**依照提供圖片材質出圖**
+function getImgPromptStill() {
+  const custom = localStorage.getItem('fumei_img_prompt_still') || '';
+  const charName = (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
+  return custom.trim() || `換服裝換場景，表情要豐富
+不要更換提供的原人物的材質
+依照提供圖片材質出圖`;
+}
+
+function getImgPromptVideo() {
+  const custom = localStorage.getItem('fumei_img_prompt_video') || '';
+  return custom.trim() || `不要字幕\n中文版`;
+}
+
+function getCharName() {
+  return (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
+}
+
+const GEMINI_FRAME_ONE = (content) => {
+  const name = getCharName();
+  const basePrompt = getImgPromptStill();
+  return `用這個角色(${name})，${basePrompt}
 主題：${content.split('\n')[0] || '梗圖'}
 給我梗圖:
 
@@ -793,12 +813,12 @@ ${content}
 **不要更換提供的原人物的材質**
 輸出尺寸為9:16
 請出圖`;
+};
 
-const GEMINI_FRAME = (content) =>
-`用這個角色(Fumei)，不要用同一套服裝，要換服裝，要換場景
-表情要豐富
-**不要更換提供的原人物的材質**
-**依照提供圖片材質出圖**
+const GEMINI_FRAME = (content) => {
+  const name = getCharName();
+  const basePrompt = getImgPromptStill();
+  return `用這個角色(${name})，${basePrompt}
 主題：${content.split('\n')[0] || '梗圖'}
 給我兩格的梗圖:
 
@@ -808,18 +828,54 @@ ${content}
 輸出尺寸為3:4
 兩格場景跟服裝要一致
 請出圖`;
+};
 
 const GEMINI_FRAME_VIDEO = (content) => {
-  // 把「不要字幕\n中文版」插入到 IG Reels 說明文字的前面
+  const name = getCharName();
+  const videoPrompt = getImgPromptVideo();
   const marker = '## 【IG Reels 說明文字】';
   const injected = content.includes(marker)
-    ? content.replace(marker, `不要字幕\n中文版\n\n${marker}`)
-    : `${content}\n\n不要字幕\n中文版`;
-  return `用這個角色(Fumei)，不要用原本的服裝，要換服裝
+    ? content.replace(marker, `${videoPrompt}\n\n${marker}`)
+    : `${content}\n\n${videoPrompt}`;
+  return `用這個角色(${name})，不要用原本的服裝，要換服裝
 表情要豐富
 
 ${injected}`;
 };
+
+function showImgPromptHelp() {
+  let modal = document.getElementById('imgPromptHelpModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'imgPromptHelpModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:white;border-radius:24px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:80vh;overflow-y:auto">
+        <h3 style="font-size:1.1rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:16px">🖼️ 生圖指令說明</h3>
+        <div style="font-size:0.85rem;color:#666;line-height:1.9">
+          <p style="margin-bottom:12px">產出腳本後，系統會自動幫你組出一段 <strong>生圖 Prompt</strong>，你可以直接複製貼到 Gemini 或其他 AI 生圖工具。</p>
+          <div style="background:#f8f4ff;border-radius:12px;padding:14px;margin-bottom:12px">
+            <div style="font-weight:800;color:#764ba2;margin-bottom:8px">✏️ 這裡可以設定什麼？</div>
+            <div>• <strong>大方向指令</strong>：角色風格、畫風、材質要求等</div>
+            <div style="margin-top:4px">• <strong>角色名稱</strong>：自動帶入角色設定的名稱</div>
+            <div style="margin-top:4px">• 腳本內容（情境/台詞）會自動附加在後面</div>
+          </div>
+          <div style="background:#fff8e1;border-radius:12px;padding:14px;margin-bottom:12px">
+            <div style="font-weight:800;color:#b8860b;margin-bottom:8px">💡 填寫建議</div>
+            <div>• 描述角色材質：<code style="background:#f5f5f5;padding:2px 6px;border-radius:4px">3D卡通風格、柔軟毛茸茸材質</code></div>
+            <div style="margin-top:4px">• 畫面要求：<code style="background:#f5f5f5;padding:2px 6px;border-radius:4px">表情誇張、色彩鮮豔</code></div>
+            <div style="margin-top:4px">• 禁止事項：<code style="background:#f5f5f5;padding:2px 6px;border-radius:4px">不要改變角色外貌</code></div>
+          </div>
+          <div style="font-size:0.78rem;color:#aaa">留空則使用系統預設指令</div>
+        </div>
+        <button onclick="document.getElementById('imgPromptHelpModal').style.display='none'" style="width:100%;margin-top:16px;padding:11px;border-radius:14px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">了解了 ✓</button>
+      </div>`;
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    document.body.appendChild(modal);
+  } else {
+    modal.style.display = 'flex';
+  }
+}
 
 let lastGeminiPrompt = '';
 
@@ -828,7 +884,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.2.3';
+const APP_VERSION = '4.3.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1336,12 +1392,18 @@ async function scanTopics() {
     const lines = txt.split('\n').filter(l=>l.includes('｜'));
     grid.innerHTML = lines.map((l,i)=>{
       const [t,s]=l.split('｜');
-      return `<div class="topic-chip" onclick="pickTopic('${t.trim().replace(/'/g,"\\'")}')">
+      const title = t.trim();
+      const sub   = s ? s.trim() : '';
+      return `<div class="topic-chip" data-topic="${title.replace(/"/g,'&quot;')}" style="cursor:pointer">
         <span class="topic-num">話題 ${i+1}</span>
-        <strong>${t.trim()}</strong><br>
-        <span style="color:var(--pink-deep);font-size:0.81rem">${s?s.trim():''}</span>
+        <strong>${title}</strong><br>
+        <span style="color:var(--pink-deep);font-size:0.81rem">${sub}</span>
       </div>`;
     }).join('');
+    // 用 event delegation 避免特殊字元造成 onclick 斷裂
+    grid.querySelectorAll('.topic-chip').forEach(el => {
+      el.addEventListener('click', () => pickTopic(el.dataset.topic));
+    });
   } catch(e) { if (window.handleGuestApiError && window.handleGuestApiError(e)) return; err.textContent='❌ '+e.message; err.classList.add('show'); }
   finally { btn.disabled=false; load.classList.remove('show'); }
 }
@@ -1540,14 +1602,22 @@ async function genInspo() {
       dir = lines[0]?.trim() || '（無法解析）';
       why = lines[1]?.trim() || '（AI 未依格式回覆）';
     }
-    const safeDir = dir.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
-    return `<div class="inspo-card" onclick="pickInspo(this, \`${safeDir}\`)">
+    return `<div class="inspo-card" data-dir="${dir.replace(/"/g,'&quot;')}">
       <span class="inspo-badge ${badge}">${emoji} ${label}</span>
       <div class="inspo-direction">${dir}</div>
       <div class="inspo-reason">${why}</div>
-      <button class="inspo-select-btn" onclick="event.stopPropagation();pickInspo(this.closest('.inspo-card'), \`${safeDir}\`)">用這個 →</button>
+      <button class="inspo-select-btn">用這個 →</button>
     </div>`;
   }).join('');
+
+  // event delegation for inspo cards
+  document.getElementById('inspoCards').querySelectorAll('.inspo-card').forEach(card => {
+    card.addEventListener('click', () => pickInspo(card, card.dataset.dir));
+    card.querySelector('.inspo-select-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      pickInspo(card, card.dataset.dir);
+    });
+  });
 
   btn.disabled = false;
 }
@@ -2149,6 +2219,23 @@ function clearAllHistory() {
           <div>
             <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">外觀描述</div>
             <input class="settings-input" id="charAppearance" placeholder="例如：3D卡通狗狗女孩，金色長髮、格紋粉色洋裝">
+            <!-- 上傳圖片讓 AI 分析外觀 -->
+            <div style="margin-top:8px">
+              <input type="file" id="charImgUpload" accept="image/*" style="display:none" onchange="previewCharImg(event)">
+              <div id="charImgPreviewWrap" style="display:none;margin-bottom:8px;position:relative">
+                <img id="charImgPreview" style="width:100%;max-height:160px;object-fit:contain;border-radius:10px;border:1.5px solid #e8d5f5;background:#f8f4ff">
+                <button onclick="clearCharImg()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.45);border:none;color:white;border-radius:50%;width:22px;height:22px;font-size:0.7rem;cursor:pointer;line-height:1">✕</button>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button onclick="document.getElementById('charImgUpload').click()" style="flex:1;padding:8px;border-radius:10px;border:1.5px dashed #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">
+                  📷 上傳角色圖片
+                </button>
+                <button id="analyzeImgBtn" onclick="analyzeCharImg()" style="display:none;flex:1;padding:8px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">
+                  🤖 AI 分析外觀
+                </button>
+              </div>
+              <div id="analyzeImgStatus" style="display:none;font-size:0.78rem;color:#764ba2;font-weight:700;margin-top:6px;text-align:center"></div>
+            </div>
           </div>
           <div>
             <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">個性</div>
@@ -2273,6 +2360,30 @@ function clearAllHistory() {
         </div>
       </div>
 
+      <!-- 🖼️ 生圖指令設定 -->
+      <div class="settings-section">
+        <div class="settings-label" style="display:flex;align-items:center;gap:8px">
+          🖼️ 生圖指令設定
+          <span onclick="showImgPromptHelp()" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#e8d5f5;color:#764ba2;font-size:0.72rem;font-weight:900;cursor:pointer;flex-shrink:0" title="說明">?</span>
+        </div>
+        <p style="font-size:0.8rem;color:#aaa;margin-bottom:12px;line-height:1.6">設定產腳本後自動產生的生圖指令（大方向），留空則使用預設模板</p>
+
+        <div style="margin-bottom:14px">
+          <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">🎨 一格 / 兩格梗圖指令</div>
+          <textarea id="imgPromptStill" rows="4" class="settings-input" style="margin:0;resize:vertical;font-size:0.82rem;line-height:1.6" placeholder="留空使用預設。例如：
+換服裝換場景，表情要豐富
+不要更換原人物材質
+輸出尺寸 9:16"></textarea>
+        </div>
+
+        <div>
+          <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">🎬 影片腳本指令</div>
+          <textarea id="imgPromptVideo" rows="3" class="settings-input" style="margin:0;resize:vertical;font-size:0.82rem;line-height:1.6" placeholder="留空使用預設。例如：
+不要字幕，中文版
+換服裝，表情要豐富"></textarea>
+        </div>
+      </div>
+
       <button class="settings-save-btn" onclick="saveSettings()">💾 儲存設定</button>
 
       <hr class="settings-divider">
@@ -2336,6 +2447,96 @@ function selectChar(i) {
   document.getElementById('charEditTitle').textContent = '✏️ 編輯：' + (ch.name || '角色');
   document.getElementById('charEditPanel').style.display = 'flex';
   document.querySelectorAll('.char-chip').forEach(c => c.classList.remove('active'));
+  // 切換角色時清除圖片預覽
+  clearCharImg();
+}
+
+// ── 角色圖片上傳 & AI 分析 ────────────────────────
+let _charImgBase64 = '';
+
+function previewCharImg(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    _charImgBase64 = dataUrl.split(',')[1]; // 只取 base64 部分
+    document.getElementById('charImgPreview').src = dataUrl;
+    document.getElementById('charImgPreviewWrap').style.display = 'block';
+    document.getElementById('analyzeImgBtn').style.display = 'block';
+    document.getElementById('analyzeImgStatus').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCharImg() {
+  _charImgBase64 = '';
+  document.getElementById('charImgPreviewWrap').style.display = 'none';
+  document.getElementById('analyzeImgBtn').style.display = 'none';
+  document.getElementById('analyzeImgStatus').style.display = 'none';
+  document.getElementById('charImgUpload').value = '';
+}
+
+async function analyzeCharImg() {
+  if (!_charImgBase64) return;
+  const btn = document.getElementById('analyzeImgBtn');
+  const status = document.getElementById('analyzeImgStatus');
+  btn.disabled = true;
+  btn.textContent = '🤖 分析中...';
+  status.style.display = 'block';
+  status.textContent = '⏳ AI 正在辨識角色外觀...';
+
+  try {
+    const uid = window._currentUid;
+    if (!uid) throw new Error('請先登入');
+
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: _charImgBase64 }
+          },
+          {
+            type: 'text',
+            text: `請仔細觀察這個角色的外觀，用繁體中文描述以下特徵，輸出一段簡潔的外觀描述（50字以內），適合用來當作 AI 生圖的角色外觀 prompt：
+- 角色類型（人物/動物/卡通/3D 等）
+- 髮色與髮型
+- 服裝與顏色
+- 明顯特徵（眼睛、配件、材質風格等）
+
+只輸出描述文字，不要加任何說明或前綴。`
+          }
+        ]
+      }]
+    };
+
+    const r = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || '分析失敗');
+
+    const result = d.content?.map(i => i.type === 'text' ? i.text : '').join('').trim();
+    if (result) {
+      document.getElementById('charAppearance').value = result;
+      status.textContent = '✅ 已填入外觀描述，可以手動微調！';
+      status.style.color = '#27ae60';
+    } else {
+      throw new Error('AI 未能辨識');
+    }
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+    status.style.color = '#e74c3c';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 AI 分析外觀';
+  }
 }
 
 function addNewChar() {
@@ -2701,6 +2902,9 @@ function openSettings() {
   } else {
     document.getElementById('accountInfo').textContent = '尚未登入 Google 帳號';
   }
+  // image prompt settings
+  document.getElementById('imgPromptStill').value = localStorage.getItem('fumei_img_prompt_still') || '';
+  document.getElementById('imgPromptVideo').value = localStorage.getItem('fumei_img_prompt_video') || '';
   document.getElementById('settingsModal').classList.add('show');
   initDropZone();
 }
@@ -2857,6 +3061,9 @@ function saveSettings() {
   localStorage.setItem('fumei_social_ig',      document.getElementById('socialIG').value.trim());
   localStorage.setItem('fumei_social_fb',      document.getElementById('socialFB').value.trim());
   localStorage.setItem('fumei_social_threads', document.getElementById('socialThreads').value.trim());
+  // image prompt settings
+  localStorage.setItem('fumei_img_prompt_still', document.getElementById('imgPromptStill').value.trim());
+  localStorage.setItem('fumei_img_prompt_video', document.getElementById('imgPromptVideo').value.trim());
   document.querySelector('.logo-text h1').textContent = name;
   document.title = name + ' ✨';
   const logoIcon = document.querySelector('.logo-icon');
