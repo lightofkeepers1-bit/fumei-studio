@@ -30,7 +30,7 @@
   .save-btn { padding:8px 16px;border-radius:20px;border:none;background:white;color:var(--pink-deep);font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:transform 0.15s }
   .save-btn:hover { transform:scale(1.05) }
 
-  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto }
+  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto;justify-content:center }
   .tab { padding:10px 22px;border-radius:14px 14px 0 0;border:none;background:transparent;color:#999;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap }
   .tab.active { background:white;color:var(--pink-deep);box-shadow:0 -4px 12px rgba(244,167,185,0.2) }
   .tab:hover:not(.active) { color:var(--pink-deep);background:#fff5f8 }
@@ -652,7 +652,6 @@ window.syncToCloud = async () => {
       <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題</button>
     </div>
     <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div>Fumei 正在尋找靈感中...</div>
-    <div class="topics-grid" id="topicsGrid"></div>
     <div class="err" id="scanErr"></div>
   </div>
   <div class="card" id="selectedCard" style="display:none">
@@ -665,6 +664,9 @@ window.syncToCloud = async () => {
       <div id="newsLinks"></div>
     </div>
     <button class="btn" onclick="goToScript()">✍️ 用這個話題產腳本 →</button>
+  </div>
+  <div class="card" style="display:none" id="topicsCard">
+    <div class="topics-grid" id="topicsGrid"></div>
   </div>
 </div>
 
@@ -884,7 +886,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.4.2';
+const APP_VERSION = '4.4.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1375,6 +1377,7 @@ async function scanTopics() {
   const err = document.getElementById('scanErr');
   btn.disabled=true; load.classList.add('show'); grid.innerHTML=''; err.classList.remove('show');
   document.getElementById('selectedCard').style.display='none';
+  document.getElementById('topicsCard').style.display='none';
   try {
     const isNews = !!topic.isNews;
     const today = new Date();
@@ -1446,6 +1449,7 @@ ${newsHeadlines}
       const idx = parseInt(el.dataset.idx);
       el.addEventListener('click', () => pickTopic(topicList[idx].title));
     });
+    document.getElementById('topicsCard').style.display = 'block';
   } catch(e) {
     if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
     const msg = e.message || '';
