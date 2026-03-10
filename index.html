@@ -891,7 +891,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5';
+const APP_VERSION = '4.5.1';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1395,7 +1395,8 @@ async function scanTopics() {
 
     let prompt;
     if (isNews) {
-      // 先抓 RSS 最新標題，再讓 Claude 挑選
+      // 抓 RSS 標題+連結，存到全域供點話題時配對
+      window._rssItems = [];
       let newsHeadlines = '';
       try {
         const uid = window._currentUid;
@@ -1404,8 +1405,9 @@ async function scanTopics() {
         });
         if (newsRes.ok) {
           const newsData = await newsRes.json();
-          if (newsData.titles && newsData.titles.length) {
-            newsHeadlines = newsData.titles.map(t => `【${t.source}】${t.title}`).join('\n');
+          if (newsData.items && newsData.items.length) {
+            window._rssItems = newsData.items; // 存起來含 url
+            newsHeadlines = newsData.items.map(t => `【${t.source}】${t.title}`).join('\n');
           }
         }
       } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
@@ -1426,6 +1428,7 @@ ${newsHeadlines}
 範例：股市大跌上班族哀嚎｜「帳面虧損跟薪水一樣，都很難看」
 只輸出6行，不要編號、不要額外說明。`;
     } else {
+      window._rssItems = []; // 非時事類清空
       prompt = `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
@@ -1491,64 +1494,41 @@ async function searchNewsLinks(topic) {
   const linksEl = document.getElementById('newsLinks');
   loadEl.style.display = 'flex';
   linksEl.innerHTML = '';
-  try {
-    const uid = window._currentUid;
-    if (!uid) {
-      linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">登入後可查看相關新聞連結</div>`;
-      return;
-    }
-    const body = {
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 800,
-      temperature: 0.3,
-      system: '你是新聞搜尋助手，專門搜尋台灣新聞網站的真實文章連結。',
-      messages: [{ role: 'user', content:
-        `請用網路搜尋，找出關於「${topic}」的台灣新聞報導或相關討論，列出3則真實連結。
 
-每行格式：標題｜完整網址
-優先來源：ETtoday、三立、自由時報、聯合、中時、Line今日新聞
-網址必須是完整的 https:// 開頭，找不到就輸出：暫無相關報導｜none
-只輸出3行，不要任何說明。`
-      }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }]
-    };
-    const r = await fetch('/api/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
-      body: JSON.stringify(body)
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error?.message || '搜尋失敗');
-    const text = (d.content || []).map(i => i.type === 'text' ? i.text : '').join('\n').trim();
-    const lines = text.split('\n').filter(l => l.includes('｜'));
-    const validLines = lines.filter(l => {
-      const url = l.split('｜').slice(1).join('｜').trim();
-      return url && url !== 'none' && url.startsWith('http');
-    });
+  // 用 RSS 資料配對，零 token
+  const rssItems = window._rssItems || [];
+  if (rssItems.length) {
+    // 簡易關鍵字配對：把話題標題拆成詞，找最相關的 RSS 項目
+    const keywords = topic.replace(/[【】「」『』《》\s]/g, ' ').split(' ').filter(w => w.length > 1);
+    const scored = rssItems.map(item => {
+      const score = keywords.reduce((s, kw) => s + (item.title.includes(kw) ? 1 : 0), 0);
+      return { ...item, score };
+    }).filter(item => item.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
 
-    if (!validLines.length) {
-      linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
-    } else {
+    if (scored.length) {
       linksEl.innerHTML = `
         <div style="font-size:0.8rem;color:#aaa;font-weight:700;margin-bottom:8px">📰 相關新聞來源</div>
-        ${validLines.map(l => {
-          const sepIdx = l.indexOf('｜');
-          const title = l.slice(0, sepIdx).trim();
-          const url   = l.slice(sepIdx + 1).trim();
-          return `<a href="${url}" target="_blank" rel="noopener"
+        ${scored.map(item => `
+          <a href="${item.url}" target="_blank" rel="noopener"
             style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:#fff8fc;border:1.5px solid #f0d8e0;border-radius:12px;margin-bottom:8px;text-decoration:none;transition:all 0.2s"
             onmouseover="this.style.borderColor='#F4A7B9';this.style.background='#fff0f5'"
             onmouseout="this.style.borderColor='#f0d8e0';this.style.background='#fff8fc'">
             <span style="font-size:1rem;flex-shrink:0">🔗</span>
-            <span style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${title}</span>
-          </a>`;
-        }).join('')}`;
+            <div>
+              <div style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${item.title}</div>
+              <div style="font-size:0.75rem;color:#bbb;margin-top:2px">【${item.source}】</div>
+            </div>
+          </a>`).join('')}`;
+    } else {
+      linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
     }
-  } catch(e) {
-    linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
-  } finally {
     loadEl.style.display = 'none';
+    return;
   }
+
+  // 非時事類或 RSS 抓失敗：不顯示連結
+  linksEl.innerHTML = '';
+  loadEl.style.display = 'none';
 }
 function goToScript() {
   document.getElementById('scriptTopic').value = currentTopic;
