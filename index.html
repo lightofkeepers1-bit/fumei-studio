@@ -891,7 +891,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.1';
+const APP_VERSION = '4.5.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1406,22 +1406,22 @@ async function scanTopics() {
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            window._rssItems = newsData.items; // 存起來含 url
-            newsHeadlines = newsData.items.map(t => `【${t.source}】${t.title}`).join('\n');
+            window._rssItems = newsData.items;
+            newsHeadlines = newsData.items.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
           }
         }
       } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
 
       prompt = newsHeadlines
-        ? `今天是 ${today.toLocaleDateString('zh-TW')}。以下是剛剛從台灣新聞網站抓到的最新標題：
+        ? `今天是 ${today.toLocaleDateString('zh-TW')}。以下是剛剛從台灣新聞網站抓到的最新標題（每行前面是編號）：
 
 ${newsHeadlines}
 
-請從上面的標題中，挑出6個最適合做成梗圖的話題，${rule}，切角各不同。
+請從上面挑出6個最適合做成梗圖的話題，${rule}，切角各不同。
 
-嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
-範例：WBC台灣隊爆冷出局全場沉默｜「我剛換好應援服，還沒穿到就結束了」
-只輸出6行，不要編號、不要額外說明。`
+嚴格按照以下格式，每行輸出：編號,梗圖話題標題｜角色一句反應台詞
+範例：3,WBC台灣隊提前出局球迷傻眼｜「我剛換好應援服，還沒穿到就結束了」
+只輸出6行，不要額外說明。編號必須對應上面清單的數字。`
         : `今天是 ${today.toLocaleDateString('zh-TW')}，請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
@@ -1439,13 +1439,20 @@ ${newsHeadlines}
     // 時事：RSS 已提供新聞，Claude 不需要 web_search；其他類型也不需要
     const txt = await claudeScan(prompt, false);
     const lines = txt.split('\n').filter(l => l.includes('｜'));
-    // 用 JS 陣列儲存話題，完全不依賴 HTML attribute 傳遞
     const topicList = lines.map(l => {
-      const idx = l.indexOf('｜');
-      const t = l.slice(0, idx).trim();
-      const s = l.slice(idx + 1).trim();
-      return { title: t, sub: s };
-    }).filter(item => item.title.length > 0); // 過濾掉標題是空的
+      // 格式可能是 "3,標題｜台詞" 或 "標題｜台詞"
+      const commaIdx = l.search(/^\d+,/);
+      let rssIndex = -1, rest = l;
+      if (commaIdx === 0) {
+        const comma = l.indexOf(',');
+        rssIndex = parseInt(l.slice(0, comma));
+        rest = l.slice(comma + 1);
+      }
+      const sepIdx = rest.indexOf('｜');
+      const title = rest.slice(0, sepIdx).trim();
+      const sub = rest.slice(sepIdx + 1).trim();
+      return { title, sub, rssIndex };
+    }).filter(item => item.title.length > 0);
     grid.innerHTML = topicList.map((item, i) =>
       `<div class="topic-chip" data-idx="${i}" style="cursor:pointer">
         <span class="topic-num">話題 ${i+1}</span>
@@ -1455,7 +1462,7 @@ ${newsHeadlines}
     ).join('');
     grid.querySelectorAll('.topic-chip').forEach(el => {
       const idx = parseInt(el.dataset.idx);
-      el.addEventListener('click', () => pickTopic(topicList[idx].title));
+      el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
     });
     document.getElementById('topicsCard').style.display = 'block';
   } catch(e) {
@@ -1480,55 +1487,52 @@ ${newsHeadlines}
     load.classList.remove('show');
   }
 }
-function pickTopic(t) {
+function pickTopic(t, rssIndex = -1) {
   currentTopic = t;
   document.getElementById('selectedText').textContent = '📌 ' + t;
   document.getElementById('selectedCard').style.display = 'block';
   document.getElementById('newsLinks').innerHTML = '';
   setTimeout(() => document.getElementById('selectedCard').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
-  searchNewsLinks(t);
+  showNewsLinks(rssIndex);
 }
 
-async function searchNewsLinks(topic) {
-  const loadEl = document.getElementById('newsLinkLoading');
+function showNewsLinks(rssIndex) {
   const linksEl = document.getElementById('newsLinks');
-  loadEl.style.display = 'flex';
-  linksEl.innerHTML = '';
+  const loadEl = document.getElementById('newsLinkLoading');
+  loadEl.style.display = 'none';
 
-  // 用 RSS 資料配對，零 token
   const rssItems = window._rssItems || [];
-  if (rssItems.length) {
-    // 簡易關鍵字配對：把話題標題拆成詞，找最相關的 RSS 項目
-    const keywords = topic.replace(/[【】「」『』《》\s]/g, ' ').split(' ').filter(w => w.length > 1);
-    const scored = rssItems.map(item => {
-      const score = keywords.reduce((s, kw) => s + (item.title.includes(kw) ? 1 : 0), 0);
-      return { ...item, score };
-    }).filter(item => item.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+  if (!rssItems.length) { linksEl.innerHTML = ''; return; }
 
-    if (scored.length) {
-      linksEl.innerHTML = `
-        <div style="font-size:0.8rem;color:#aaa;font-weight:700;margin-bottom:8px">📰 相關新聞來源</div>
-        ${scored.map(item => `
-          <a href="${item.url}" target="_blank" rel="noopener"
-            style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:#fff8fc;border:1.5px solid #f0d8e0;border-radius:12px;margin-bottom:8px;text-decoration:none;transition:all 0.2s"
-            onmouseover="this.style.borderColor='#F4A7B9';this.style.background='#fff0f5'"
-            onmouseout="this.style.borderColor='#f0d8e0';this.style.background='#fff8fc'">
-            <span style="font-size:1rem;flex-shrink:0">🔗</span>
-            <div>
-              <div style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${item.title}</div>
-              <div style="font-size:0.75rem;color:#bbb;margin-top:2px">【${item.source}】</div>
-            </div>
-          </a>`).join('')}`;
-    } else {
-      linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
-    }
-    loadEl.style.display = 'none';
+  // 用精確 index 取主要來源，再用關鍵字找相關的補到3則
+  const main = rssIndex >= 0 && rssItems[rssIndex] ? [rssItems[rssIndex]] : [];
+  const keywords = currentTopic.replace(/[【】「」『』《》\s,，。！？]/g, ' ').split(' ').filter(w => w.length > 1);
+  const related = rssItems
+    .filter((item, i) => i !== rssIndex)
+    .map(item => ({ ...item, score: keywords.reduce((s, kw) => s + (item.title.includes(kw) ? 1 : 0), 0) }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3 - main.length);
+
+  const results = [...main, ...related];
+  if (!results.length) {
+    linksEl.innerHTML = `<div style="font-size:0.82rem;color:#bbb;padding:6px 0">找不到近期相關新聞連結</div>`;
     return;
   }
 
-  // 非時事類或 RSS 抓失敗：不顯示連結
-  linksEl.innerHTML = '';
-  loadEl.style.display = 'none';
+  linksEl.innerHTML = `
+    <div style="font-size:0.8rem;color:#aaa;font-weight:700;margin-bottom:8px">📰 相關新聞來源</div>
+    ${results.map(item => `
+      <a href="${item.url}" target="_blank" rel="noopener"
+        style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:#fff8fc;border:1.5px solid #f0d8e0;border-radius:12px;margin-bottom:8px;text-decoration:none;transition:all 0.2s"
+        onmouseover="this.style.borderColor='#F4A7B9';this.style.background='#fff0f5'"
+        onmouseout="this.style.borderColor='#f0d8e0';this.style.background='#fff8fc'">
+        <span style="font-size:1rem;flex-shrink:0">🔗</span>
+        <div>
+          <div style="font-size:0.83rem;color:var(--brown);font-weight:600;line-height:1.5">${item.title}</div>
+          <div style="font-size:0.75rem;color:#bbb;margin-top:2px">【${item.source}】</div>
+        </div>
+      </a>`).join('')}`;
 }
 function goToScript() {
   document.getElementById('scriptTopic').value = currentTopic;
