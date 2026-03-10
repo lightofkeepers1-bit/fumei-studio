@@ -884,7 +884,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.8';
+const APP_VERSION = '4.4.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -946,8 +946,8 @@ function showSub(name, el) {
 // ── TASKS ─────────────────────────────────────────
 function getPlatformLinks() {
   return {
-    ig:      localStorage.getItem('fumei_social_ig')      || 'https://www.instagram.com/thejiongsrepublic/',
-    fb:      localStorage.getItem('fumei_social_fb')      || 'https://www.facebook.com/The.Jiong.Republic/',
+    ig:      localStorage.getItem('fumei_social_ig')      || '',
+    fb:      localStorage.getItem('fumei_social_fb')      || '',
     threads: localStorage.getItem('fumei_social_threads') || '',
   };
 }
@@ -974,14 +974,15 @@ function renderTasks() {
 
   function getLinkBtn(p) {
     if (p === 'ig') {
-      return `<a href="${links.ig}" target="_blank" class="link-btn link-ig">📸 開啟 IG</a>`;
+      return links.ig ? `<a href="${links.ig}" target="_blank" class="link-btn link-ig">📸 開啟 IG</a>` : '';
     } else if (p === 'fb') {
-      return `<a href="${links.fb}" target="_blank" class="link-btn link-fb">📘 開啟 FB</a>`;
+      return links.fb ? `<a href="${links.fb}" target="_blank" class="link-btn link-fb">📘 開啟 FB</a>` : '';
     } else if (p === 'threads') {
       return links.threads ? `<a href="${links.threads}" target="_blank" class="link-btn link-threads">🧵 開啟 Threads</a>` : '';
     } else {
-      let btns = `<a href="${links.ig}" target="_blank" class="link-btn link-ig">📸 IG</a>
-              <a href="${links.fb}" target="_blank" class="link-btn link-fb">📘 FB</a>`;
+      let btns = '';
+      if (links.ig) btns += `<a href="${links.ig}" target="_blank" class="link-btn link-ig">📸 IG</a>`;
+      if (links.fb) btns += `<a href="${links.fb}" target="_blank" class="link-btn link-fb">📘 FB</a>`;
       if (links.threads) btns += `<a href="${links.threads}" target="_blank" class="link-btn link-threads">🧵</a>`;
       return btns;
     }
@@ -1384,19 +1385,47 @@ async function scanTopics() {
     const rangeLabel = rangeLabelMap[days] || `近${days}天`;
     const rule = topic.rule || '自行判斷最適合的多樣化切角，確保6個話題方向完全不同';
 
-    const prompt = isNews
-      ? `今天是 ${today.toLocaleDateString('zh-TW')}（台灣時間）。請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。
+    let prompt;
+    if (isNews) {
+      // 先抓 RSS 最新標題，再讓 Claude 挑選
+      let newsHeadlines = '';
+      try {
+        const uid = window._currentUid;
+        const newsRes = await fetch('/api/news', {
+          headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid }
+        });
+        if (newsRes.ok) {
+          const newsData = await newsRes.json();
+          if (newsData.titles && newsData.titles.length) {
+            newsHeadlines = newsData.titles.map(t => `【${t.source}】${t.title}`).join('\n');
+          }
+        }
+      } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
+
+      prompt = newsHeadlines
+        ? `今天是 ${today.toLocaleDateString('zh-TW')}。以下是剛剛從台灣新聞網站抓到的最新標題：
+
+${newsHeadlines}
+
+請從上面的標題中，挑出6個最適合做成梗圖的話題，${rule}，切角各不同。
+
+嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
+範例：WBC台灣隊爆冷出局全場沉默｜「我剛換好應援服，還沒穿到就結束了」
+只輸出6行，不要編號、不要額外說明。`
+        : `今天是 ${today.toLocaleDateString('zh-TW')}，請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
 範例：股市大跌上班族哀嚎｜「帳面虧損跟薪水一樣，都很難看」
-只輸出6行，不要編號、不要額外說明。`
-      : `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。
+只輸出6行，不要編號、不要額外說明。`;
+    } else {
+      prompt = `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
 範例：上班族週一症候群大爆發｜「星期一是人類最大的發明錯誤」
 只輸出6行，不要編號、不要額外說明。`;
+    }
 
-    // 話題掃描不使用 web_search 避免 rate limit，新聞連結另外搜尋
+    // 時事：RSS 已提供新聞，Claude 不需要 web_search；其他類型也不需要
     const txt = await claudeScan(prompt, false);
     const lines = txt.split('\n').filter(l => l.includes('｜'));
     // 用 JS 陣列儲存話題，完全不依賴 HTML attribute 傳遞
@@ -1421,20 +1450,30 @@ async function scanTopics() {
     if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
     const msg = e.message || '';
     if (msg.includes('429') || msg.includes('rate limit')) {
-      err.textContent = '⏳ 請求太頻繁，請稍等 1 分鐘再試';
+      // 自動 retry 一次，等 5 秒
+      err.textContent = '⏳ 流量稍高，5 秒後自動重試...';
+      err.classList.add('show');
+      await new Promise(r => setTimeout(r, 5000));
+      err.classList.remove('show');
+      btn.disabled = false;
+      load.classList.remove('show');
+      scanTopics(); // 重試
+      return;
     } else {
       err.textContent = '❌ ' + msg;
+      err.classList.add('show');
     }
-    err.classList.add('show');
   } finally {
     btn.disabled = false;
     load.classList.remove('show');
   }
 }
 function pickTopic(t) {
+  currentTopic = t;
   document.getElementById('selectedText').textContent = '📌 ' + t;
   document.getElementById('selectedCard').style.display = 'block';
   document.getElementById('newsLinks').innerHTML = '';
+  setTimeout(() => document.getElementById('selectedCard').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
   searchNewsLinks(t);
 }
 
@@ -1455,7 +1494,7 @@ async function searchNewsLinks(topic) {
       temperature: 0.3,
       system: '你是新聞搜尋助手，專門搜尋台灣新聞網站的真實文章連結。',
       messages: [{ role: 'user', content:
-        `請用網路搜尋，找出台灣最近3天內關於「${topic}」的新聞報導，列出3則真實連結。
+        `請用網路搜尋，找出關於「${topic}」的台灣新聞報導或相關討論，列出3則真實連結。
 
 每行格式：標題｜完整網址
 優先來源：ETtoday、三立、自由時報、聯合、中時、Line今日新聞
