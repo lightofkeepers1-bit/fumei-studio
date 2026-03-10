@@ -1,20 +1,137 @@
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+// ── 設定 ──────────────────────────────────────────
+const FIREBASE_PROJECT = 'fumei-3e684';
+const FIREBASE_API_KEY = 'AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY';
+const GUEST_DAILY_LIMIT = 5; // 訪客每日最多幾次
+
+// ── Firestore REST 工具 ────────────────────────────
+const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
+
+async function fsGet(docPath) {
+  const r = await fetch(`${FS_BASE}/${docPath}?key=${FIREBASE_API_KEY}`);
+  if (r.status === 404) return null;
+  const d = await r.json();
+  return d.fields || null;
+}
+
+async function fsPatch(docPath, fields) {
+  const body = { fields };
+  const fieldMask = Object.keys(fields).join(',');
+  await fetch(`${FS_BASE}/${docPath}?updateMask.fieldPaths=${fieldMask}&key=${FIREBASE_API_KEY}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+// ── 訪客限流 ───────────────────────────────────────
+async function checkGuestLimit(fingerprint, ip) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const safeKey = (fingerprint || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  const docPath = `guest_usage/${safeKey}`;
+
+  const data = await fsGet(docPath);
+
+  if (data) {
+    const docDate  = data.date?.stringValue || '';
+    const docCount = parseInt(data.count?.integerValue || '0', 10);
+    const docIp    = data.ip?.stringValue || '';
+
+    // IP 不同但指紋相同 → 可能共用裝置，允許但記錄
+    // 同一天超過限制 → 拒絕
+    if (docDate === today && docCount >= GUEST_DAILY_LIMIT) {
+      return { allowed: false, remaining: 0 };
+    }
+
+    const newCount = docDate === today ? docCount + 1 : 1;
+    await fsPatch(docPath, {
+      date:  { stringValue: today },
+      count: { integerValue: String(newCount) },
+      ip:    { stringValue: ip },
+    });
+    return { allowed: true, remaining: GUEST_DAILY_LIMIT - newCount };
+  } else {
+    // 第一次使用
+    await fsPatch(docPath, {
+      date:  { stringValue: today },
+      count: { integerValue: '1' },
+      ip:    { stringValue: ip },
+    });
+    return { allowed: true, remaining: GUEST_DAILY_LIMIT - 1 };
   }
+}
+
+// ── IP 速率限制（防腳本刷）─────────────────────────
+// 簡易記憶體快取，Vercel serverless 重啟會清空，夠用了
+const ipCache = new Map();
+
+function checkIpRate(ip) {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 分鐘
+  const maxPerWindow = 10;    // 同 IP 1 分鐘內最多 10 次
+
+  const entry = ipCache.get(ip) || { count: 0, start: now };
+  if (now - entry.start > windowMs) {
+    ipCache.set(ip, { count: 1, start: now });
+    return true;
+  }
+  if (entry.count >= maxPerWindow) return false;
+  entry.count++;
+  ipCache.set(ip, entry);
+  return true;
+}
+
+// ── 訪客允許的功能 ─────────────────────────────────
+// 前端會帶 x-guest-feature header 標記是哪個功能
+const GUEST_ALLOWED_FEATURES = ['scan', 'script'];
+const GUEST_BLOCKED_FEATURES  = ['inspo', 'reply'];
+
+// ── Main Handler ───────────────────────────────────
+export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid, x-fingerprint, x-guest-feature');
+    return res.status(200).end();
+  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid, x-fingerprint, x-guest-feature');
 
-  const authHeader = req.headers['x-firebase-uid'];
-  if (!authHeader) {
-    return res.status(401).json({ error: '請先登入' });
+  const uid         = req.headers['x-firebase-uid'];
+  const fingerprint = req.headers['x-fingerprint'] || '';
+  const feature     = req.headers['x-guest-feature'] || '';
+  const ip          = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+
+  // ── IP 速率限制（所有人都要過）─────────────────
+  if (!checkIpRate(ip)) {
+    return res.status(429).json({ error: '⚠️ 請求過於頻繁，請稍後再試' });
   }
 
+  // ── 訪客邏輯 ──────────────────────────────────
+  if (!uid) {
+    // 檢查功能是否開放給訪客
+    if (GUEST_BLOCKED_FEATURES.includes(feature)) {
+      return res.status(403).json({ error: '🔒 此功能需要登入才能使用', needLogin: true });
+    }
+    if (!fingerprint) {
+      return res.status(401).json({ error: '請先登入或啟用訪客模式', needLogin: true });
+    }
+
+    const { allowed, remaining } = await checkGuestLimit(fingerprint, ip);
+    if (!allowed) {
+      return res.status(429).json({
+        error: `🌟 今日訪客體驗次數已用完！登入後可無限使用`,
+        needLogin: true,
+        remaining: 0,
+      });
+    }
+    // 把剩餘次數帶回給前端顯示
+    res.setHeader('x-guest-remaining', String(remaining));
+  }
+
+  // ── 呼叫 Claude API ────────────────────────────
   const CLAUDE_KEY = process.env.CLAUDE_API_KEY;
-  if (!CLAUDE_KEY) {
-    return res.status(500).json({ error: 'Server config error' });
-  }
+  if (!CLAUDE_KEY) return res.status(500).json({ error: 'Server config error' });
 
   try {
     const body = req.body;
@@ -30,7 +147,6 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(body),
     });
-
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (err) {
