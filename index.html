@@ -387,10 +387,21 @@ onAuthStateChanged(auth, async (user) => {
     // 從雲端載入資料
     const data = await window.loadFromCloud(user.uid);
     if (data) {
-      if (data.fumei_tasks) { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window._renderTasks(); }
-      if (data.fumei_history) { localStorage.setItem('fumei_history', data.fumei_history); window.scriptHistory = JSON.parse(data.fumei_history); window._renderHistory(); }
+      if (data.fumei_tasks)         { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window._renderTasks(); }
+      if (data.fumei_history)       { localStorage.setItem('fumei_history', data.fumei_history); window.scriptHistory = JSON.parse(data.fumei_history); window._renderHistory(); }
+      if (data.fumei_chars)         { localStorage.setItem('fumei_chars', data.fumei_chars); }
+      if (data.fumei_char_active)   { localStorage.setItem('fumei_char_active', data.fumei_char_active); }
+      if (data.fumei_onboarded)     { localStorage.setItem('fumei_onboarded', data.fumei_onboarded); }
+      if (data.fumei_custom_topics) { localStorage.setItem('fumei_custom_topics', data.fumei_custom_topics); }
+      if (data.fumei_social_ig)     { localStorage.setItem('fumei_social_ig', data.fumei_social_ig); }
+      if (data.fumei_social_fb)     { localStorage.setItem('fumei_social_fb', data.fumei_social_fb); }
+      if (data.fumei_social_threads){ localStorage.setItem('fumei_social_threads', data.fumei_social_threads); }
+      if (data.fumei_studio_name)   { localStorage.setItem('fumei_studio_name', data.fumei_studio_name); }
+      if (data.fumei_theme)         { localStorage.setItem('fumei_theme', data.fumei_theme); }
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
+    // 檢查是否為新用戶
+    setTimeout(checkOnboarding, 300);
   } else {
     // 未登入
     document.getElementById('loginBtn').style.display = 'flex';
@@ -406,8 +417,17 @@ window.syncToCloud = async () => {
   const el = document.getElementById('syncStatus');
   el.textContent = '☁️ 同步中...';
   await window.saveToCloud(window._currentUid, {
-    fumei_tasks: localStorage.getItem('fumei_tasks') || '[]',
-    fumei_history: localStorage.getItem('fumei_history') || '[]',
+    fumei_tasks:          localStorage.getItem('fumei_tasks') || '[]',
+    fumei_history:        localStorage.getItem('fumei_history') || '[]',
+    fumei_chars:          localStorage.getItem('fumei_chars') || '',
+    fumei_char_active:    localStorage.getItem('fumei_char_active') || '0',
+    fumei_onboarded:      localStorage.getItem('fumei_onboarded') || '',
+    fumei_custom_topics:  localStorage.getItem('fumei_custom_topics') || '[]',
+    fumei_social_ig:      localStorage.getItem('fumei_social_ig') || '',
+    fumei_social_fb:      localStorage.getItem('fumei_social_fb') || '',
+    fumei_social_threads: localStorage.getItem('fumei_social_threads') || '',
+    fumei_studio_name:    localStorage.getItem('fumei_studio_name') || '',
+    fumei_theme:          localStorage.getItem('fumei_theme') || '',
   });
   el.textContent = '☁️ 已同步';
 };
@@ -668,7 +688,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9';
+const APP_VERSION = '4.0';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1282,22 +1302,32 @@ async function genInspo() {
   area.style.display = 'block';
 
   const charCtx = buildCharPrompt();
-  const inspoPrompt = (style) => `${charCtx}
-
-你現在是 Fumei 的梗圖創意顧問，請針對以下話題提出一個創意方向。
+  const claudePrompt = (style) => `針對以下話題提出一個梗圖創意方向。
 
 話題：${topic}
 類型：${type}
-創意風格要求：${style}
+創意風格：${style}
 
-必須嚴格按照以下格式輸出，只輸出這兩行，不要任何其他文字：
-方向：（一句話說明梗圖切入點，20字以內，要具體有畫面）
-原因：（說明為什麼會讓台灣人有共鳴或覺得好笑，30字以內）`;
+嚴格按照格式輸出，只輸出這兩行：
+方向：（梗圖切入點，20字以內）
+原因：（為什麼台灣人會有共鳴，30字以內）`;
+
+  const geminiGptPrompt = (style) => `你是台灣社群梗圖創意顧問，專門為一個叫 Fumei（富美）的卡通狗狗女孩角色發想內容。Fumei 是有趣自信的台灣上班族，熱愛時事，語氣幽默。
+
+請針對話題「${topic}」（類型：${type}），用「${style}」的角度提出一個梗圖創意方向。
+
+【重要】你的回覆必須剛好是以下兩行，不能多也不能少：
+方向：（梗圖切入點一句話，20字以內）
+原因：（為什麼台灣人會有共鳴或覺得好笑，30字以內）
+
+範例格式：
+方向：把老闆的晨會當成求生節目來拍
+原因：台灣上班族對無意義會議的共同痛苦，一看就懂`;
 
   const results = await Promise.allSettled([
-    claude(charCtx, inspoPrompt('邏輯清晰、反差感強，擅長找出意想不到的對比角度'), false, true),
-    callGemini(inspoPrompt('創意跳躍、視覺感強，擅長找出畫面感十足的場景')),
-    callGPT(inspoPrompt('生活共鳴、情緒到位，擅長說出大家心裡有口難言的話'))
+    claude(charCtx, claudePrompt('邏輯清晰、反差感強，找出意想不到的對比角度'), false, true),
+    callGemini(geminiGptPrompt('創意跳躍、視覺感強，找出畫面感十足的場景')),
+    callGPT(geminiGptPrompt('生活共鳴、情緒到位，說出大家心裡有口難言的話'))
   ]);
 
   const aiMeta = [
@@ -1749,6 +1779,110 @@ function clearAllHistory() {
 </script>
 
 <!-- Settings Modal -->
+<!-- ONBOARDING MODAL -->
+<div id="onboardingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#ffeef4,#f0e8ff);overflow-y:auto">
+  <div style="max-width:520px;margin:0 auto;padding:40px 24px 60px">
+
+    <!-- 進度條 -->
+    <div style="display:flex;gap:6px;margin-bottom:32px;justify-content:center">
+      <div id="ob-step-1" style="height:6px;flex:1;border-radius:10px;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);transition:all 0.3s"></div>
+      <div id="ob-step-2" style="height:6px;flex:1;border-radius:10px;background:#e0e0e0;transition:all 0.3s"></div>
+      <div id="ob-step-3" style="height:6px;flex:1;border-radius:10px;background:#e0e0e0;transition:all 0.3s"></div>
+      <div id="ob-step-4" style="height:6px;flex:1;border-radius:10px;background:#e0e0e0;transition:all 0.3s"></div>
+    </div>
+
+    <!-- Step 1：歡迎 -->
+    <div id="ob-page-1">
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="font-size:4rem;margin-bottom:12px">🎨</div>
+        <h2 style="font-size:1.6rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:10px">歡迎來到 Fumei Studio！</h2>
+        <p style="font-size:0.95rem;color:#888;line-height:1.7">這是一個 AI 驅動的社群梗圖創作工具。<br>先花 2 分鐘設定你的專屬角色，<br>讓 AI 更了解你的風格 ✨</p>
+      </div>
+      <div style="background:white;border-radius:20px;padding:20px;margin-bottom:24px;border:2px solid #f0d8e0">
+        <div style="font-size:0.82rem;font-weight:800;color:#C9B8E8;margin-bottom:12px">設定完成後你可以</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:0.88rem;color:#666">🔍 <strong>話題掃描</strong>：AI 搜尋台灣時事，找最適合你的梗圖靈感</div>
+          <div style="font-size:0.88rem;color:#666">✍️ <strong>腳本生成</strong>：三個 AI 同時幫你產出角色專屬腳本</div>
+          <div style="font-size:0.88rem;color:#666">💬 <strong>留言回覆</strong>：AI 用你的語氣幫你回覆粉絲</div>
+        </div>
+      </div>
+      <button onclick="obNext(2)" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">開始設定我的角色 →</button>
+    </div>
+
+    <!-- Step 2：基本資料 -->
+    <div id="ob-page-2" style="display:none">
+      <h2 style="font-size:1.3rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:6px">你的角色叫什麼？</h2>
+      <p style="font-size:0.85rem;color:#aaa;margin-bottom:24px">設定角色的基本資訊</p>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">角色名稱 *</div>
+        <input id="ob-name" class="settings-input" placeholder="例如：Fumei、小明、咖哩貓" style="margin:0">
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">角色 Emoji</div>
+        <input id="ob-emoji" class="settings-input" placeholder="例如：🐾、🐱、🌸" style="margin:0;max-width:120px">
+      </div>
+      <div style="margin-bottom:24px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">外貌描述</div>
+        <input id="ob-appearance" class="settings-input" placeholder="例如：3D 卡通狗狗女孩，金色長髮、粉色洋裝" style="margin:0">
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="obNext(1)" style="flex:1;padding:12px;border-radius:14px;border:1.5px solid #eee;background:white;color:#aaa;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">← 上一步</button>
+        <button onclick="obNext(3)" style="flex:2;padding:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">下一步 →</button>
+      </div>
+    </div>
+
+    <!-- Step 3：個性與風格 -->
+    <div id="ob-page-3" style="display:none">
+      <h2 style="font-size:1.3rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:6px">個性與說話風格</h2>
+      <p style="font-size:0.85rem;color:#aaa;margin-bottom:20px">可以複選，或自由輸入</p>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">個性特質</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          ${['上班族','自信聰明','偶爾脫線','白富美','單身驕傲','愛旅遊','愛美食','宅宅','毒舌','正能量','熱愛時事','知識型'].map(t =>
+            `<span class="char-chip" onclick="obToggleChip(this,'ob-personality')">${t}</span>`
+          ).join('')}
+        </div>
+        <input id="ob-personality" class="settings-input" placeholder="或自由輸入..." style="margin:0">
+      </div>
+
+      <div style="margin-bottom:24px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">說話風格</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          ${['台灣用語','直接自嗨','誇張共鳴','神邏輯','冷笑話','知識型','溫柔親切','毒舌犀利'].map(t =>
+            `<span class="char-chip" onclick="obToggleChip(this,'ob-style')">${t}</span>`
+          ).join('')}
+        </div>
+        <input id="ob-style" class="settings-input" placeholder="或自由輸入..." style="margin:0">
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="obNext(2)" style="flex:1;padding:12px;border-radius:14px;border:1.5px solid #eee;background:white;color:#aaa;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">← 上一步</button>
+        <button onclick="obNext(4)" style="flex:2;padding:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">下一步 →</button>
+      </div>
+    </div>
+
+    <!-- Step 4：AI 分析中 / 完成 -->
+    <div id="ob-page-4" style="display:none">
+      <div id="ob-analyzing" style="text-align:center;padding:40px 0">
+        <div style="font-size:3rem;margin-bottom:16px">🤖</div>
+        <h2 style="font-size:1.2rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:8px">AI 正在分析你的角色...</h2>
+        <p style="font-size:0.85rem;color:#aaa;margin-bottom:24px">幫你判斷最適合的發文語氣、內容方向和尺度</p>
+        <div class="dots" style="justify-content:center"><span></span><span></span><span></span></div>
+      </div>
+      <div id="ob-done" style="display:none;text-align:center">
+        <div style="font-size:3.5rem;margin-bottom:12px">🎉</div>
+        <h2 style="font-size:1.3rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:8px">角色設定完成！</h2>
+        <div id="ob-result" style="background:white;border-radius:16px;padding:16px;margin:16px 0;border:2px solid #f0d8e0;text-align:left;font-size:0.85rem;line-height:2;color:#764ba2;font-weight:700"></div>
+        <button onclick="obFinish()" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">開始使用 Fumei Studio 🚀</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)">
   <div class="modal-box">
     <div class="modal-header">
@@ -2017,10 +2151,10 @@ function addNewChar() {
   selectChar(chars.length - 1);
 }
 
-function saveCurrentChar() {
+async function saveCurrentChar() {
   const chars = loadChars();
   const i = getActiveIdx();
-  chars[i] = {
+  const charData = {
     ...chars[i],
     name:        document.getElementById('charName').value.trim() || '新角色',
     appearance:  document.getElementById('charAppearance').value.trim(),
@@ -2028,14 +2162,76 @@ function saveCurrentChar() {
     style:       document.getElementById('charStyle').value.trim(),
     politics:    document.getElementById('charPolitics').value.trim(),
   };
-  saveChars(chars);
-  renderCharCards();
+
   const btn = document.getElementById('saveCharBtn');
+  btn.textContent = '🤖 AI 分析中...';
+  btn.disabled = true;
+
+  // AI 自動分析語氣、方向、尺度
+  try {
+    const uid = window._currentUid;
+    if (uid) {
+      const analysisPrompt = `根據以下角色設定，分析這個角色適合的發文風格。
+
+角色名稱：${charData.name}
+外貌：${charData.appearance}
+個性：${charData.personality}
+說話風格：${charData.style}
+立場：${charData.politics}
+
+請用以下格式輸出，只輸出這三行：
+語氣：（從「輕鬆日常／幽默誇張／知識理性／毒舌犀利／溫柔親切」選一個最符合的，或自行描述10字內）
+方向：（列出2到3個最適合的內容主題，用頓號分隔，例如：職場、單身生活、時事）
+尺度：（從「保守溫和／正常適中／大膽直接」選一個）`;
+
+      const r = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 200,
+          temperature: 0.3,
+          messages: [{ role: 'user', content: analysisPrompt }]
+        })
+      });
+      const d = await r.json();
+      const text = d.content?.map(c => c.text || '').join('') || '';
+      const tone     = (text.match(/語氣[：:]\s*(.+)/) || [])[1]?.trim() || '';
+      const focus    = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
+      const boldness = (text.match(/尺度[：:]\s*(.+)/) || [])[1]?.trim() || '';
+      if (tone)     charData.tone     = tone;
+      if (focus)    charData.focus    = focus;
+      if (boldness) charData.boldness = boldness;
+    }
+  } catch(e) { /* 分析失敗不影響儲存 */ }
+
+  chars[i] = charData;
+  saveChars(chars);
+  bumpVersion();
+  renderCharCards();
+
+  // 顯示 AI 分析結果
+  const tone     = charData.tone     || '—';
+  const focus    = charData.focus    || '—';
+  const boldness = charData.boldness || '—';
   btn.textContent = '✓ 已儲存';
   btn.style.background = 'linear-gradient(135deg,#81C784,#388E3C)';
+
+  // 顯示分析結果提示
+  let resultEl = document.getElementById('charAnalysisResult');
+  if (!resultEl) {
+    resultEl = document.createElement('div');
+    resultEl.id = 'charAnalysisResult';
+    resultEl.style.cssText = 'margin-top:10px;padding:10px 14px;background:#f8f4ff;border-radius:12px;border:1.5px solid #e8d5f5;font-size:0.8rem;line-height:1.8;color:#764ba2;font-weight:700';
+    btn.parentElement.appendChild(resultEl);
+  }
+  resultEl.innerHTML = `🤖 AI 分析結果<br>🗣️ 語氣：${tone}<br>🎯 方向：${focus}<br>🌶️ 尺度：${boldness}`;
+  resultEl.style.display = 'block';
+
   setTimeout(() => {
     btn.textContent = '💾 儲存角色';
     btn.style.background = 'linear-gradient(135deg,#C9B8E8,#764ba2)';
+    btn.disabled = false;
   }, 1400);
 }
 
@@ -2059,13 +2255,18 @@ function buildCharPrompt() {
   const personality = ch.personality || DEFAULT_CHAR.personality;
   const style       = ch.style || DEFAULT_CHAR.style;
   const politics    = ch.politics || DEFAULT_CHAR.politics;
+  const tone        = ch.tone || '';
+  const focus       = ch.focus || '';
+  const boldness    = ch.boldness || '';
+
   return `你現在是「${name} 梗圖腳本創作師」。
 角色：${name}，${appearance}。
 個性：${personality}。
 說話風格：${style}。
-
-內容方向與立場：
-- ${politics}`;
+內容立場：${politics}。
+${tone     ? `發文語氣：${tone}。` : ''}
+${focus    ? `內容主打方向：${focus}。` : ''}
+${boldness ? `內容尺度：${boldness}。` : ''}`;
 }
 
 
@@ -2105,6 +2306,108 @@ function applyTheme(name) {
   document.body.style.backgroundColor = t['--cream'];
   document.querySelectorAll('.tab.active').forEach(tab => tab.style.color = t.tab);
   currentTheme = name;
+}
+
+// ── ONBOARDING ────────────────────────────────────
+function checkOnboarding() {
+  const chars = loadChars();
+  const ch = chars[0];
+  // 判斷是否為新用戶（角色還是預設空的）
+  const isNew = !ch.personality && !ch.style && ch.name === DEFAULT_CHAR.name;
+  if (isNew) showOnboarding();
+}
+
+function showOnboarding() {
+  document.getElementById('onboardingModal').style.display = 'block';
+  obGoTo(1);
+}
+
+function obGoTo(step) {
+  [1,2,3,4].forEach(n => {
+    document.getElementById(`ob-page-${n}`).style.display = n === step ? 'block' : 'none';
+    const bar = document.getElementById(`ob-step-${n}`);
+    bar.style.background = n <= step
+      ? 'linear-gradient(135deg,#F4A7B9,#C9B8E8)'
+      : '#e0e0e0';
+  });
+}
+
+function obNext(step) {
+  if (step === 3) {
+    const name = document.getElementById('ob-name').value.trim();
+    if (!name) { alert('請輸入角色名稱！'); return; }
+  }
+  if (step === 4) obStartAnalysis();
+  obGoTo(step);
+}
+
+function obToggleChip(el, targetId) {
+  el.classList.toggle('active');
+  const group = el.closest('div');
+  const active = [...group.querySelectorAll('.char-chip.active')].map(c => c.textContent);
+  const input = document.getElementById(targetId);
+  const manual = input.value.split('、').filter(v => !['上班族','自信聰明','偶爾脫線','白富美','單身驕傲','愛旅遊','愛美食','宅宅','毒舌','正能量','熱愛時事','知識型','台灣用語','直接自嗨','誇張共鳴','神邏輯','冷笑話','溫柔親切','毒舌犀利'].includes(v.trim())).filter(Boolean);
+  input.value = [...active, ...manual].join('、');
+}
+
+async function obStartAnalysis() {
+  document.getElementById('ob-analyzing').style.display = 'block';
+  document.getElementById('ob-done').style.display = 'none';
+
+  const name       = document.getElementById('ob-name').value.trim() || '我的角色';
+  const emoji      = document.getElementById('ob-emoji').value.trim() || '✨';
+  const appearance = document.getElementById('ob-appearance').value.trim();
+  const personality= document.getElementById('ob-personality').value.trim();
+  const style      = document.getElementById('ob-style').value.trim();
+
+  let tone = '', focus = '', boldness = '';
+
+  try {
+    const uid = window._currentUid;
+    if (uid) {
+      const prompt = `根據以下角色設定，分析這個角色適合的發文風格。
+
+角色名稱：${name}
+外貌：${appearance}
+個性：${personality}
+說話風格：${style}
+
+請用以下格式輸出，只輸出這三行：
+語氣：（從「輕鬆日常／幽默誇張／知識理性／毒舌犀利／溫柔親切」選一個最符合的，或自行描述10字內）
+方向：（列出2到3個最適合的內容主題，用頓號分隔，例如：職場、單身生活、時事）
+尺度：（從「保守溫和／正常適中／大膽直接」選一個）`;
+
+      const r = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
+        body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:200, temperature:0.3, messages:[{role:'user',content:prompt}] })
+      });
+      const d = await r.json();
+      const text = d.content?.map(c => c.text||'').join('') || '';
+      tone     = (text.match(/語氣[：:]\s*(.+)/) || [])[1]?.trim() || '';
+      focus    = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
+      boldness = (text.match(/尺度[：:]\s*(.+)/) || [])[1]?.trim() || '';
+    }
+  } catch(e) { /* 失敗不影響流程 */ }
+
+  // 儲存角色
+  const charData = { name, emoji, appearance, personality, style, politics:'', tone, focus, boldness };
+  const chars = loadChars();
+  chars[0] = charData;
+  saveChars(chars);
+  localStorage.setItem('fumei_onboarded', '1');
+  if (window.syncToCloud) window.syncToCloud();
+
+  // 顯示結果
+  document.getElementById('ob-analyzing').style.display = 'none';
+  document.getElementById('ob-done').style.display = 'block';
+  document.getElementById('ob-result').innerHTML =
+    `🗣️ 語氣：${tone || '—'}<br>🎯 方向：${focus || '—'}<br>🌶️ 尺度：${boldness || '—'}`;
+}
+
+function obFinish() {
+  document.getElementById('onboardingModal').style.display = 'none';
+  renderCharCards();
 }
 
 function openSettings() {
