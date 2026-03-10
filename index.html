@@ -1281,18 +1281,23 @@ async function genInspo() {
     </div>`).join('');
   area.style.display = 'block';
 
-  const inspoPrompt = (style) => `你是 Fumei 梗圖創意顧問。
+  const charCtx = buildCharPrompt();
+  const inspoPrompt = (style) => `${charCtx}
+
+你現在是 Fumei 的梗圖創意顧問，請針對以下話題提出一個創意方向。
+
 話題：${topic}
 類型：${type}
-請用${style}提出一個梗圖創意方向。
-格式（只輸出以下兩行，不要其他說明）：
-方向：（一句話說明切入點，15字內）
-原因：（為什麼有共鳴或好笑，30字內）`;
+創意風格要求：${style}
+
+必須嚴格按照以下格式輸出，只輸出這兩行，不要任何其他文字：
+方向：（一句話說明梗圖切入點，20字以內，要具體有畫面）
+原因：（說明為什麼會讓台灣人有共鳴或覺得好笑，30字以內）`;
 
   const results = await Promise.allSettled([
-    claude(buildCharPrompt(), inspoPrompt('邏輯清晰、反差感強的角度'), false, true),
-    callGemini(inspoPrompt('創意跳躍、視覺感強的角度')),
-    callGPT(inspoPrompt('生活共鳴、情緒到位的角度'))
+    claude(charCtx, inspoPrompt('邏輯清晰、反差感強，擅長找出意想不到的對比角度'), false, true),
+    callGemini(inspoPrompt('創意跳躍、視覺感強，擅長找出畫面感十足的場景')),
+    callGPT(inspoPrompt('生活共鳴、情緒到位，擅長說出大家心裡有口難言的話'))
   ]);
 
   const aiMeta = [
