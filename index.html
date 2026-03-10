@@ -884,7 +884,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.6';
+const APP_VERSION = '4.3.7';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1344,7 +1344,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   }
   const body = {
     model: 'claude-sonnet-4-20250514',
-    max_tokens: useSearch ? 2000 : 400,
+    max_tokens: useSearch ? 1200 : 400,
     temperature: 0.9,
     system: buildCharPrompt(),
     messages: [{role:'user', content:msg}]
@@ -1416,11 +1416,21 @@ async function scanTopics() {
       const idx = parseInt(el.dataset.idx);
       el.addEventListener('click', () => pickTopic(topicList[idx].title));
     });
-  } catch(e) { if (window.handleGuestApiError && window.handleGuestApiError(e)) return; err.textContent='❌ '+e.message; err.classList.add('show'); }
-  finally { btn.disabled=false; load.classList.remove('show'); }
+  } catch(e) {
+    if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
+    const msg = e.message || '';
+    if (msg.includes('429') || msg.includes('rate limit')) {
+      err.textContent = '⏳ 請求太頻繁，請稍等 1 分鐘再試';
+    } else {
+      err.textContent = '❌ ' + msg;
+    }
+    err.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    load.classList.remove('show');
+  }
 }
 function pickTopic(t) {
-  currentTopic = t;
   document.getElementById('selectedText').textContent = '📌 ' + t;
   document.getElementById('selectedCard').style.display = 'block';
   document.getElementById('newsLinks').innerHTML = '';
@@ -1440,7 +1450,7 @@ async function searchNewsLinks(topic) {
     }
     const body = {
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2500,
+      max_tokens: 800,
       temperature: 0.3,
       system: '你是新聞搜尋助手，專門搜尋台灣新聞網站的真實文章連結。',
       messages: [{ role: 'user', content:
