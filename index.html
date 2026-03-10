@@ -828,7 +828,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.2.1';
+const APP_VERSION = '4.2.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1531,8 +1531,15 @@ async function genInspo() {
       </div>`;
     }
     const text = res.value || '';
-    const dir = (text.match(/方向[：:]\s*(.+)/)||['','（無）'])[1].trim();
-    const why = (text.match(/原因[：:]\s*(.+)/)||['',''])[1].trim();
+    // 嘗試解析格式，Gemini 有時不帶「方向：」前綴
+    let dir = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
+    let why = (text.match(/原因[：:]\s*(.+)/) || [])[1]?.trim() || '';
+    // fallback：如果解析不到，把整段文字當方向，原因留空提示
+    if (!dir) {
+      const lines = text.split('\n').filter(l => l.trim());
+      dir = lines[0]?.trim() || '（無法解析）';
+      why = lines[1]?.trim() || '（AI 未依格式回覆）';
+    }
     const safeDir = dir.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
     return `<div class="inspo-card" onclick="pickInspo(this, \`${safeDir}\`)">
       <span class="inspo-badge ${badge}">${emoji} ${label}</span>
