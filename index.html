@@ -18,8 +18,7 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Noto Sans TC', sans-serif; background: var(--cream); min-height: 100vh;
-    background-image: radial-gradient(circle at 10% 20%, #fce4ec55 0%, transparent 50%), radial-gradient(circle at 90% 80%, #e8d5f555 0%, transparent 50%);
-    display:flex; flex-direction:column; align-items:center; }
+    background-image: radial-gradient(circle at 10% 20%, #fce4ec55 0%, transparent 50%), radial-gradient(circle at 90% 80%, #e8d5f555 0%, transparent 50%); }
   header, nav { width:100%; }
 
   header { background: linear-gradient(135deg, #F4A7B9 0%, #C9B8E8 100%); padding: 18px 32px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(244,167,185,0.3); position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
@@ -39,7 +38,7 @@
   .tab.active { background:white;color:var(--pink-deep);box-shadow:0 -4px 12px rgba(244,167,185,0.2) }
   .tab:hover:not(.active) { color:var(--pink-deep);background:#fff5f8 }
 
-  main { max-width:980px;margin:0 auto;padding:28px 24px;width:100% }
+  main { max-width:860px;margin:0 auto;padding:28px 28px;width:100% }
   .panel { display:none } .panel.active { display:block }
 
   .card { background:white;border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);margin-bottom:20px;border:1.5px solid #fce4ec }
@@ -892,7 +891,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.4.5';
+const APP_VERSION = '4.4.7';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1002,7 +1001,7 @@ function renderTasks() {
       <div class="task-text">${t.text}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         ${getLinkBtn(t.p)}
-        <span class="badge ${bl[t.p]||'b-ig'}">${ll[t.p]||t.p}</span>
+        ${(links[t.p] || (t.p==='both' && (links.ig||links.fb))) ? `<span class="badge ${bl[t.p||'ig']||'b-ig'}">${ll[t.p||'ig']||'IG'}</span>` : ''}
         <span style="cursor:pointer;color:#ddd" onclick="del(${t.id})">✕</span>
       </div>
     </div>`).join('');
