@@ -913,7 +913,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.8';
+const APP_VERSION = '4.6.9';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1800,12 +1800,46 @@ async function genScript() {
     const topicRule = getTopicRule(type);
     const topicRuleNote = topicRule ? `\n主題方向補充：${topicRule}` : '\n主題方向補充：自行判斷最適合的切入角度，確保內容有台灣生活共鳴';
 
+    // 時事反應：用 RSS 比對話題關鍵字，找相關新聞附入 prompt
+    let newsContext = '';
+    if (type === '時事反應' && topic) {
+      loadTxt.textContent = '正在比對最新時事...';
+      const rssItems = window._rssItems || [];
+      if (!rssItems.length && window._currentUid) {
+        // 若 RSS 尚未載入，先抓一次
+        try {
+          const newsRes = await fetch('/api/news', {
+            headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid }
+          });
+          if (newsRes.ok) {
+            const newsData = await newsRes.json();
+            if (newsData.items) window._rssItems = newsData.items;
+          }
+        } catch(e) {}
+      }
+      // 關鍵字比對
+      const keywords = topic.replace(/[【】「」『』《》\s,，。！？]/g, ' ').split(' ').filter(w => w.length > 1);
+      const matched = (window._rssItems || [])
+        .map(item => ({ ...item, score: keywords.reduce((s, kw) => s + (item.title.includes(kw) ? 1 : 0), 0) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      if (matched.length) {
+        newsContext = `\n\n【相關時事參考】\n` + matched.map(i => `・${i.title}（${i.source}）`).join('\n');
+        used.textContent = `📰 找到 ${matched.length} 則相關時事`;
+      } else {
+        used.textContent = `📭 最近沒有直接相關的時事，將以話題本身產出腳本`;
+      }
+      used.style.display = 'block';
+    }
+
     const format = document.getElementById('scriptFormat').value;
     let scriptPrompt = '';
 
     if (format === '一格') {
       scriptPrompt = `話題：${topic}
-類型：${type}${topicRuleNote}
+類型：${type}${topicRuleNote}${newsContext}
 
 產出 ${charName} 一格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
@@ -1829,7 +1863,7 @@ async function genScript() {
 
     } else if (format === '兩格') {
       scriptPrompt = `話題：${topic}
-類型：${type}${topicRuleNote}
+類型：${type}${topicRuleNote}${newsContext}
 
 產出 ${charName} 兩格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
@@ -1856,7 +1890,7 @@ async function genScript() {
 
       if (is15) {
         scriptPrompt = `話題：${topic}
-類型：${type}${topicRuleNote}
+類型：${type}${topicRuleNote}${newsContext}
 
 產出 ${charName} 15秒短影片腳本（精準控制在15秒內，每個鏡頭要非常精簡有力）：
 
@@ -1899,7 +1933,7 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
 （一句讓粉絲留言的問題，${charName} 語氣）${styleNote}`;
       } else {
         scriptPrompt = `話題：${topic}
-類型：${type}${topicRuleNote}
+類型：${type}${topicRuleNote}${newsContext}
 
 產出 ${charName} 30秒短影片腳本（完整節奏，有起承轉合）：
 
@@ -2021,7 +2055,12 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
     if(window.syncToCloud) window.syncToCloud();
     renderHistory();
 
-  } catch(e) { if (window.handleGuestApiError && window.handleGuestApiError(e)) return; err.textContent='❌ '+e.message; err.classList.add('show'); }
+  } catch(e) {
+    if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
+    const msg = (typeof e === 'string') ? e : (e?.message || JSON.stringify(e) || '未知錯誤');
+    const display = msg.includes('429') ? '❌ [429] API 使用量暫時超限，請稍後再試 ⏳' : '❌ ' + msg;
+    err.textContent = display; err.classList.add('show');
+  }
   finally { btn.disabled=false; load.classList.remove('show'); }
 }
 
