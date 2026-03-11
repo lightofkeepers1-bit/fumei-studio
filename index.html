@@ -429,6 +429,7 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
     document.getElementById('syncStatus').textContent = '';
+    updateCharNameUI(); // 未登入也要更新角色名稱（用 localStorage 或預設值）
     if (window._guestMode) showGuestUI();
   }
 });
@@ -810,6 +811,7 @@ function updateCharNameUI() {
   document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = name);
 }
 
+function getCharName() {
   return (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
 }
 
@@ -896,7 +898,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.3';
+const APP_VERSION = '4.6.4';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
