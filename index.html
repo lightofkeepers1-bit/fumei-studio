@@ -621,19 +621,26 @@ window.updateGuestRemaining = function(n, type) {
 
 // 訪客掃描冷卻（1分鐘）
 window._guestScanCooldownUntil = 0;
+window._guestScriptCooldownUntil = 0;
 
-function startScanCooldown() {
-  window._guestScanCooldownUntil = Date.now() + 60 * 1000;
-  const btn = document.getElementById('scanBtn');
-  const interval = setInterval(() => {
-    const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
+function startCooldown(btnId, labelDone, seconds) {
+  const until = Date.now() + seconds * 1000;
+  if (btnId === 'scanBtn') window._guestScanCooldownUntil = until;
+  if (btnId === 'scriptBtn') window._guestScriptCooldownUntil = until;
+  const tick = () => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const left = Math.ceil((until - Date.now()) / 1000);
     if (left <= 0) {
-      clearInterval(interval);
-      if (btn) { btn.disabled = false; btn.textContent = '🔍 掃描話題'; }
+      btn.disabled = false;
+      btn.textContent = labelDone;
     } else {
-      if (btn) { btn.disabled = true; btn.textContent = `⏳ ${left}秒後可再掃描`; }
+      btn.disabled = true;
+      btn.textContent = `⏳ ${left}秒後可再試`;
+      setTimeout(tick, 500);
     }
-  }, 500);
+  };
+  tick();
 }
 
 function applyGuestRestrictions() {
@@ -1005,7 +1012,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.2';
+const APP_VERSION = '4.9.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1496,20 +1503,22 @@ async function scanTopics() {
   const load = document.getElementById('scanLoading');
   const grid = document.getElementById('topicsGrid');
   const err = document.getElementById('scanErr');
-  btn.disabled=true; load.classList.add('show'); grid.innerHTML=''; err.classList.remove('show');
+  err.classList.remove('show');
+
+  // 訪客：冷卻時間檢查（在 disable btn 之前）
+  if (window._guestMode && !window._currentUid) {
+    const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
+    if (left > 0) {
+      err.textContent = `⏳ 請等待 ${left} 秒後再掃描`;
+      err.classList.add('show');
+      return;
+    }
+  }
+
+  btn.disabled=true; load.classList.add('show'); grid.innerHTML='';
   document.getElementById('selectedCard').style.display='none';
   document.getElementById('topicsCard').style.display='none';
   try {
-    // 訪客：檢查冷卻時間
-    if (window._guestMode && !window._currentUid) {
-      const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
-      if (left > 0) {
-        err.textContent = `⏳ 請等待 ${left} 秒後再掃描`;
-        err.classList.add('show');
-        btn.disabled = false; load.classList.remove('show');
-        return;
-      }
-    }
     const isNews = !!topic.isNews;
     const today = new Date();
     const days = topic.timeRange || (isNews ? 3 : 14);
@@ -1595,27 +1604,27 @@ ${newsHeadlines}
     if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
     const msg = e.message || '';
     if (msg.includes('429') || msg.includes('rate limit')) {
-      // 自動 retry 一次，等 5 秒
       err.textContent = '⏳ 流量稍高，5 秒後自動重試...';
       err.classList.add('show');
       await new Promise(r => setTimeout(r, 5000));
       err.classList.remove('show');
-      btn.disabled = false;
       load.classList.remove('show');
-      scanTopics(); // 重試
-      return;
-    } else {
-      err.textContent = '❌ ' + msg;
-      err.classList.add('show');
-    }
-  } finally {
-    load.classList.remove('show');
-    // 訪客：啟動 1 分鐘冷卻；登入用戶直接解鎖
-    if (window._guestMode && !window._currentUid) {
-      startScanCooldown();
-    } else {
       btn.disabled = false;
+      scanTopics();
+      return;
     }
+    err.textContent = '❌ ' + msg;
+    err.classList.add('show');
+    btn.disabled = false;
+    load.classList.remove('show');
+    return;
+  }
+  // 成功：訪客啟動冷卻，登入直接解鎖
+  load.classList.remove('show');
+  if (window._guestMode && !window._currentUid) {
+    startCooldown('scanBtn', '🔍 掃描話題', 60);
+  } else {
+    btn.disabled = false;
   }
 }
 function pickTopic(t, rssIndex = -1) {
@@ -1882,6 +1891,16 @@ async function genScript() {
   const notice = document.getElementById('autoNotice');
   const used = document.getElementById('autoUsed');
   const isAuto = !topic && type === '時事反應';
+
+  // 訪客：冷卻時間檢查
+  if (window._guestMode && !window._currentUid) {
+    const left = Math.ceil((window._guestScriptCooldownUntil - Date.now()) / 1000);
+    if (left > 0) {
+      err.textContent = `⏳ 請等待 ${left} 秒後再產腳本`;
+      err.classList.add('show');
+      return;
+    }
+  }
 
   btn.disabled=true; load.classList.add('show'); area.style.display='none';
   err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
@@ -2184,8 +2203,17 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
     const msg = (typeof e === 'string') ? e : (e?.message || JSON.stringify(e) || '未知錯誤');
     const display = msg.includes('429') ? '❌ [429] API 使用量暫時超限，請稍後再試 ⏳' : '❌ ' + msg;
     err.textContent = display; err.classList.add('show');
+    btn.disabled=false; load.classList.remove('show');
+    return;
   }
-  finally { btn.disabled=false; load.classList.remove('show'); }
+  load.classList.remove('show');
+  // 成功：訪客啟動冷卻，登入直接解鎖
+  if (window._guestMode && !window._currentUid) {
+    startCooldown('scriptBtn', '✨ 產腳本', 60);
+  } else {
+    btn.disabled = false;
+  }
+}
 }
 
 // ── GEN REPLY ─────────────────────────────────────
