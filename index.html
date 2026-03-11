@@ -489,7 +489,6 @@ function showGuestIntro() {
           <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
           <div style="font-size:0.82rem;color:#bbb;line-height:2">
             🤖 三AI發想<br>
-            💬 留言回覆<br>
             📖 歷史紀錄、角色設定
           </div>
         </div>
@@ -529,10 +528,10 @@ window.updateGuestRemaining = function(n) {
 };
 
 function applyGuestRestrictions() {
-  // 鎖定三AI發想、留言回覆、歷史紀錄 tab
+  // 鎖定三AI發想、歷史紀錄 tab
   document.querySelectorAll('.tab').forEach(btn => {
     const txt = btn.textContent;
-    if (txt.includes('留言') || txt.includes('歷史')) {
+    if (txt.includes('歷史')) {
       btn.style.opacity = '0.4';
       btn.style.cursor = 'not-allowed';
       btn.onclick = () => showLoginPrompt('此功能需要登入才能使用 🔒');
@@ -625,7 +624,6 @@ window.syncToCloud = async () => {
   <button class="tab active" onclick="switchTab('daily',this)">📅 每日任務</button>
   <button class="tab" onclick="switchTab('topics',this)">💡 話題掃描</button>
   <button class="tab" onclick="switchTab('script',this)">✍️ 產腳本</button>
-  <button class="tab" onclick="switchTab('reply',this)">💬 留言回覆</button>
   <button class="tab" onclick="switchTab('history',this)">📖 歷史紀錄</button>
 </nav>
 
@@ -748,29 +746,6 @@ window.syncToCloud = async () => {
 </div>
 
 <!-- REPLY -->
-<div class="panel" id="panel-reply">
-  <div class="card">
-    <div class="card-title">💬 留言自動回覆產生器</div>
-    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">貼上粉絲留言，讓 <span class="char-name-ui">角色</span> 用她的風格回覆！</p>
-    <div style="margin-bottom:12px">
-      <label style="font-size:0.83rem;font-weight:700;color:#888;display:block;margin-bottom:6px">貼文主題（讓回覆更貼切）</label>
-      <input type="text" id="replyCtx" placeholder="例如：週一上班梗圖、加班梗">
-    </div>
-    <label style="font-size:0.83rem;font-weight:700;color:#888;display:block;margin-bottom:6px">粉絲留言（每行一則）</label>
-    <textarea id="replyInput" rows="4" placeholder="哈哈太真實了&#10;我也是這樣！&#10;Fumei 好可愛"></textarea>
-    <button class="btn" onclick="genReply()" id="replyBtn" style="margin-top:12px">💬 產出回覆</button>
-    <div class="loading" id="replyLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在想怎麼回...</div>
-    <div class="err" id="replyErr"></div>
-    <div class="result" id="replyResult"></div>
-    <button class="btn-sm" id="copyReplyBtn" style="display:none;margin-top:10px" onclick="cp('replyResult')">📋 複製回覆</button>
-  </div>
-  <div class="card">
-    <div class="card-title">⚡ 快速回覆模板</div>
-    <p style="font-size:0.83rem;color:#888;margin-bottom:12px">點擊直接複製 <span class="char-name-ui">角色</span> 風格常用回覆</p>
-    <div id="quickReplies"></div>
-  </div>
-</div>
-
 <!-- HISTORY -->
 <div class="panel" id="panel-history">
   <div class="card">
@@ -913,7 +888,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.9';
+const APP_VERSION = '4.7.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -924,7 +899,6 @@ window.onload = () => {
   const days = ['日','一','二','三','四','五','六'];
   document.getElementById('todayDate').textContent = `${d.getMonth()+1}/${d.getDate()} (週${days[d.getDay()]})`;
   renderTasks();
-  renderQuick();
   renderHistory();
   rebuildTopicSelects();
   renderVersion();
@@ -1773,7 +1747,7 @@ async function genScript() {
   const area = document.getElementById('scriptArea');
   const notice = document.getElementById('autoNotice');
   const used = document.getElementById('autoUsed');
-  const isAuto = !topic;
+  const isAuto = !topic && type === '時事反應';
 
   btn.disabled=true; load.classList.add('show'); area.style.display='none';
   err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
@@ -1792,6 +1766,17 @@ async function genScript() {
       topic = res.split('\n')[0].trim();
       notice.style.display='none';
       used.textContent = `🔍 自動找到今日話題：「${topic}」`;
+    } else if (!topic && type !== '時事反應') {
+      // 非時事反應 + 空白 → Claude 自己想一個符合類型的話題
+      loadTxt.textContent = 'AI 正在發想話題...';
+      const typeLabel = { '職場梗':'職場', '單身日常':'單身日常', '旅遊心得':'旅遊', '生活趣事':'生活趣事' }[type] || type;
+      const res = await claude(buildCharPrompt(),
+        `幫 ${charName} 想一個適合「${typeLabel}」類型的梗圖話題。
+要貼近台灣生活、有共鳴感、適合社群。
+只輸出話題名稱，一行，不要其他說明。`);
+      topic = res.split('\n')[0].trim();
+      used.textContent = `💡 AI 發想話題：「${topic}」`;
+      used.style.display = 'block';
     }
 
     // 隨機選一個風格
@@ -2065,51 +2050,6 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
 }
 
 // ── GEN REPLY ─────────────────────────────────────
-async function genReply() {
-  const comments = document.getElementById('replyInput').value.trim();
-  const ctx = document.getElementById('replyCtx').value.trim();
-  if (!comments) { alert('請貼上粉絲留言！'); return; }
-  const btn = document.getElementById('replyBtn');
-  const load = document.getElementById('replyLoading');
-  const result = document.getElementById('replyResult');
-  const err = document.getElementById('replyErr');
-  const cpBtn = document.getElementById('copyReplyBtn');
-  btn.disabled=true; load.classList.add('show'); result.classList.remove('show');
-  err.classList.remove('show'); cpBtn.style.display='none';
-  try {
-    const txt = await claude(buildCharPrompt(),
-      `貼文主題：${ctx||'未指定'}
-粉絲留言：
-${comments}
-
-用 ${getCharName()} 語氣回覆每則留言，格式：
-留言：[原文]
-${getCharName()} 回覆：[1～2句，親切有趣]
----`);
-    result.textContent=txt; result.classList.add('show'); cpBtn.style.display='inline-block';
-  } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
-  finally { btn.disabled=false; load.classList.remove('show'); }
-}
-
-// ── QUICK REPLIES ─────────────────────────────────
-const QR = [
-  {t:'哈哈哈太真實', r:'對吧！我就知道我不孤單 😂 找到同類了！'},
-  {t:'我也是這樣！', r:'歡迎加入苦命俱樂部 🤝 會費是一杯咖啡的眼淚'},
-  {t:'好可愛喔', r:'謝謝你發現我的美 💅 你眼光很好！'},
-  {t:'怎麼辦到的', r:'努力 + 才華 + 一點點神經質，就這樣 😄'},
-  {t:'繼續加油！', r:'感謝你的能量補給！我又可以再撐一個禮拜了 🚀'},
-  {t:'太有共鳴了', r:'我們的靈魂深處是同一個人 🫂'},
-];
-function renderQuick() {
-  document.getElementById('quickReplies').innerHTML = QR.map(q=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fffbfd;border-radius:12px;border:1.5px solid #f0d8e0;margin-bottom:8px">
-      <div style="flex:1">
-        <div style="font-size:0.77rem;color:#bbb;margin-bottom:2px">當粉絲說：「${q.t}」</div>
-        <div style="font-size:0.88rem;font-weight:600;color:var(--brown)">${q.r}</div>
-      </div>
-      <button class="btn-sm" style="margin:0;white-space:nowrap" onclick="navigator.clipboard.writeText('${q.r.replace(/'/g,"\\'")}');this.textContent='✓ 已複製';setTimeout(()=>this.textContent='📋 複製',1500)">📋 複製</button>
-    </div>`).join('');
-}
 
 // ── COPY ─────────────────────────────────────────
 function cp(id) {
@@ -2241,7 +2181,6 @@ function clearAllHistory() {
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="font-size:0.88rem;color:#666">🔍 <strong>話題掃描</strong>：AI 搜尋台灣時事，找最適合你的梗圖靈感</div>
           <div style="font-size:0.88rem;color:#666">✍️ <strong>腳本生成</strong>：三個 AI 同時幫你產出角色專屬腳本</div>
-          <div style="font-size:0.88rem;color:#666">💬 <strong>留言回覆</strong>：AI 用你的語氣幫你回覆粉絲</div>
         </div>
       </div>
       <button onclick="obNext(2)" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:10px">開始設定我的角色 →</button>
