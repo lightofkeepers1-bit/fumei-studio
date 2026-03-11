@@ -354,7 +354,35 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 // ── 登入 / 登出 ──
+function isWebView() {
+  const ua = navigator.userAgent || '';
+  return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|WebView|wv/.test(ua)
+    || ((/iPhone|iPod|iPad/.test(ua)) && !/Safari\//.test(ua));
+}
+
 window.loginGoogle = async () => {
+  if (isWebView()) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:320px;text-align:center">
+        <div style="font-size:2rem;margin-bottom:12px">🌐</div>
+        <div style="font-weight:800;font-size:1.05rem;margin-bottom:10px;color:#333">請用瀏覽器開啟</div>
+        <div style="font-size:0.88rem;color:#666;line-height:1.6;margin-bottom:20px">
+          Google 登入不支援 FB / IG / LINE 的內建瀏覽器。<br>請點下方按鈕，在 Safari 或 Chrome 開啟。
+        </div>
+        <button onclick="window.open(location.href,'_blank');this.closest('div[style*=fixed]').remove();"
+          style="background:#e85d8a;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%">
+          在瀏覽器開啟
+        </button>
+        <button onclick="this.closest('div[style*=fixed]').remove();"
+          style="margin-top:10px;background:none;border:none;color:#aaa;font-size:0.85rem;cursor:pointer">
+          取消
+        </button>
+      </div>`;
+    document.body.appendChild(modal);
+    return;
+  }
   try {
     await signInWithPopup(auth, provider);
   } catch(e) { console.error(e); }
@@ -619,29 +647,7 @@ window.updateGuestRemaining = function(n, type) {
   if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
 };
 
-// 訪客掃描冷卻（1分鐘）
-window._guestScanCooldownUntil = 0;
-window._guestScriptCooldownUntil = 0;
-
-function startCooldown(btnId, labelDone, seconds) {
-  const until = Date.now() + seconds * 1000;
-  if (btnId === 'scanBtn') window._guestScanCooldownUntil = until;
-  if (btnId === 'scriptBtn') window._guestScriptCooldownUntil = until;
-  const tick = () => {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    const left = Math.ceil((until - Date.now()) / 1000);
-    if (left <= 0) {
-      btn.disabled = false;
-      btn.textContent = labelDone;
-    } else {
-      btn.disabled = true;
-      btn.textContent = `⏳ ${left}秒後可再試`;
-      setTimeout(tick, 500);
-    }
-  };
-  tick();
-}
+// 訪客掃描冷卻（1分鐘）— 定義移至主 script block
 
 function applyGuestRestrictions() {
   // 鎖定歷史紀錄 tab
@@ -888,6 +894,30 @@ window.syncToCloud = async () => {
 </main>
 
 <script>
+// ── COOLDOWN（訪客限制）────────────────────────────
+window._guestScanCooldownUntil = 0;
+window._guestScriptCooldownUntil = 0;
+
+function startCooldown(btnId, labelDone, seconds) {
+  const until = Date.now() + seconds * 1000;
+  if (btnId === 'scanBtn') window._guestScanCooldownUntil = until;
+  if (btnId === 'scriptBtn') window._guestScriptCooldownUntil = until;
+  const tick = () => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const left = Math.ceil((until - Date.now()) / 1000);
+    if (left <= 0) {
+      btn.disabled = false;
+      btn.textContent = labelDone;
+    } else {
+      btn.disabled = true;
+      btn.textContent = `⏳ ${left}秒後可再試`;
+      setTimeout(tick, 500);
+    }
+  };
+  tick();
+}
+
 // ── STATE ──────────────────────────────────────────
 // API keys 已移至 Vercel 環境變數，前端不再儲存
 let tasks = JSON.parse(localStorage.getItem('fumei_tasks') || '[]');
@@ -1012,7 +1042,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.5';
+const APP_VERSION = '4.9.7';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
