@@ -418,12 +418,11 @@ onAuthStateChanged(auth, async (user) => {
       localStorage.setItem('fumei_onboarded', '1');
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
-    updateCharNameUI(); // 雲端資料載入後更新角色名稱
+    updateCharNameUI();
     // 登入成功時關閉 Onboarding（若開著）
-    const obModal = document.getElementById('onboardingModal');
-    if (obModal) obModal.style.display = 'none';
-    // 檢查是否為新用戶
-    setTimeout(checkOnboarding, 300);
+    document.getElementById('onboardingModal').style.display = 'none';
+    // 有雲端資料的老用戶不再跳 Onboarding；新用戶（沒有雲端資料）才檢查
+    if (!data) setTimeout(checkOnboarding, 300);
   } else {
     // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
@@ -901,7 +900,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.5';
+const APP_VERSION = '4.6.6';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
