@@ -419,6 +419,9 @@ onAuthStateChanged(auth, async (user) => {
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
     updateCharNameUI(); // 雲端資料載入後更新角色名稱
+    // 登入成功時關閉 Onboarding（若開著）
+    const obModal = document.getElementById('onboardingModal');
+    if (obModal) obModal.style.display = 'none';
     // 檢查是否為新用戶
     setTimeout(checkOnboarding, 300);
   } else {
@@ -898,7 +901,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.4';
+const APP_VERSION = '4.6.5';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2190,7 +2193,8 @@ function clearAllHistory() {
           <div style="font-size:0.88rem;color:#666">💬 <strong>留言回覆</strong>：AI 用你的語氣幫你回覆粉絲</div>
         </div>
       </div>
-      <button onclick="obNext(2)" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">開始設定我的角色 →</button>
+      <button onclick="obNext(2)" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:10px">開始設定我的角色 →</button>
+      <button onclick="loginGoogle()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px"><img src="https://www.google.com/favicon.ico" style="width:16px;height:16px"> 已有帳號？Google 登入</button>
     </div>
 
     <!-- Step 2：基本資料 -->
@@ -2826,7 +2830,9 @@ function applyTheme(name) {
 // ── ONBOARDING ────────────────────────────────────
 function checkOnboarding() {
   const onboarded = localStorage.getItem('fumei_onboarded');
-  if (!onboarded) showOnboarding();
+  const hasChars = localStorage.getItem('fumei_chars');
+  // 有 onboarded flag 或已有角色資料，都視為老用戶，不跳 Onboarding
+  if (!onboarded && !hasChars) showOnboarding();
 }
 
 function showOnboarding() {
