@@ -487,10 +487,45 @@ window._fingerprint = '';
 
 // ── 訪客模式 ──────────────────────────────────────
 window._guestMode = false;
-window._guestRemaining = 5;
+window._guestScanRemaining = 5;
+window._guestScriptRemaining = 10;
+window._guestToken = null;
+window._guestTokenExpires = 0;
+
+// 每次訪客操作前呼叫，type='scan' 或 'script'
+window.acquireGuestToken = async function(type = 'scan') {
+  if (!window._guestMode) return null;
+  // token 還在有效期內（預留30秒）且是同類型直接用
+  if (window._guestToken && window._guestTokenType === type && Date.now() < window._guestTokenExpires - 30000) {
+    return window._guestToken;
+  }
+  const fp = window._fingerprint || '';
+  if (!fp) return null;
+  try {
+    const r = await fetch('/api/guest-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
+      body: JSON.stringify({ type })
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      if (d.needLogin) {
+        if (confirm(`${d.error}\n\n要現在登入嗎？`)) loginGoogle();
+      }
+      throw new Error(d.error || '次數已用完');
+    }
+    window._guestToken = d.token;
+    window._guestTokenType = type;
+    window._guestTokenExpires = Date.now() + 5 * 60 * 1000;
+    if (type === 'scan') window.updateGuestRemaining(d.remaining, 'scan');
+    else window.updateGuestRemaining(d.remaining, 'script');
+    return d.token;
+  } catch(e) {
+    throw e;
+  }
+};
 
 window.enterGuestMode = function() {
-  // 先顯示說明 modal
   showGuestIntro();
 };
 
@@ -510,13 +545,13 @@ function showGuestIntro() {
         <div style="background:#faf4ff;border-radius:14px;padding:14px 16px;margin-bottom:20px">
           <div style="font-size:0.82rem;font-weight:800;color:#764ba2;margin-bottom:10px">✅ 訪客可以使用</div>
           <div style="font-size:0.82rem;color:#666;line-height:2">
-            📰 話題掃描（今日台灣時事）<br>
-            ✍️ 腳本生成（基本格式）<br>
-            🤖 三AI發想
+            📰 話題掃描（每日 5 次）<br>
+            ✍️ 腳本生成（每日 10 次）
           </div>
           <div style="height:1px;background:#eee;margin:10px 0"></div>
           <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
           <div style="font-size:0.82rem;color:#bbb;line-height:2">
+            🤖 三AI發想<br>
             📖 歷史紀錄、角色設定
           </div>
         </div>
@@ -554,27 +589,50 @@ function showGuestUI() {
   document.getElementById('loginBtn').style.display = 'none';
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
-  updateGuestRemaining(window._guestRemaining);
-  // 訪客模式：所有 char-name-ui 都用主要角色名稱
   updateCharNameUI();
+  // 從後端查詢兩種真實剩餘次數
+  const doCheck = () => {
+    const fp = window._fingerprint || '';
+    if (!fp) { setTimeout(doCheck, 300); return; }
+    Promise.all([
+      fetch(`/api/guest-check?type=scan`, { headers: { 'x-fingerprint': fp } }).then(r => r.json()),
+      fetch(`/api/guest-check?type=script`, { headers: { 'x-fingerprint': fp } }).then(r => r.json()),
+    ]).then(([scan, script]) => {
+      window._guestScanRemaining = scan.remaining ?? 5;
+      window._guestScriptRemaining = script.remaining ?? 10;
+      const el = document.getElementById('guestRemaining');
+      if (el) el.innerHTML = `👀 掃描 ${window._guestScanRemaining}次・腳本 ${window._guestScriptRemaining}次`;
+    }).catch(() => {
+      const el = document.getElementById('guestRemaining');
+      if (el) el.innerHTML = `👀 掃描 ${window._guestScanRemaining}次・腳本 ${window._guestScriptRemaining}次`;
+    });
+  };
+  doCheck();
 }
 
-window.updateGuestRemaining = function(n) {
-  window._guestRemaining = n;
+window.updateGuestRemaining = function(n, type) {
+  if (type === 'script') window._guestScriptRemaining = n;
+  else window._guestScanRemaining = n;
   const el = document.getElementById('guestRemaining');
-  if (el) el.textContent = `👀 訪客體驗 ${n} 次剩餘`;
+  if (el) el.innerHTML = `👀 掃描 ${window._guestScanRemaining}次・腳本 ${window._guestScriptRemaining}次`;
 };
 
 function applyGuestRestrictions() {
-  // 鎖定歷史紀錄 tab（訪客不能看歷史）
+  // 鎖定歷史紀錄 tab
   document.querySelectorAll('.tab').forEach(btn => {
-    const txt = btn.textContent;
-    if (txt.includes('歷史')) {
+    if (btn.textContent.includes('歷史')) {
       btn.style.opacity = '0.4';
       btn.style.cursor = 'not-allowed';
       btn.onclick = () => showLoginPrompt('此功能需要登入才能使用 🔒');
     }
   });
+  // 鎖定三AI發想
+  const inspoBtn = document.getElementById('inspoBtn');
+  if (inspoBtn) {
+    inspoBtn.style.opacity = '0.4';
+    inspoBtn.title = '三AI發想需要登入才能使用';
+    inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
+  }
 }
 
 window.showLoginPrompt = function(msg) {
@@ -919,7 +977,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.6';
+const APP_VERSION = '4.8.8';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1056,6 +1114,7 @@ async function claude(sys, msg, search=false, creative=false, feature='') {
     if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
     headers['x-fingerprint'] = window._fingerprint || '';
     if (feature) headers['x-guest-feature'] = feature;
+    if (window._guestToken) headers['x-guest-token'] = window._guestToken;
   }
   const body = {
     model: 'claude-sonnet-4-20250514',
@@ -1381,6 +1440,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
     if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
+    if (window._guestToken) headers['x-guest-token'] = window._guestToken;
   }
   const body = {
     model: 'claude-sonnet-4-20250514',
@@ -1416,6 +1476,10 @@ async function scanTopics() {
   document.getElementById('selectedCard').style.display='none';
   document.getElementById('topicsCard').style.display='none';
   try {
+    // 訪客：先取 session token（扣一次掃描次數）
+    if (window._guestMode && !window._currentUid) {
+      await window.acquireGuestToken('scan');
+    }
     const isNews = !!topic.isNews;
     const today = new Date();
     const days = topic.timeRange || (isNews ? 3 : 14);
@@ -1609,13 +1673,13 @@ async function callGemini(prompt, feature='script', systemPrompt='') {
     if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
+    if (window._guestToken) headers['x-guest-token'] = window._guestToken;
   }
   const body = {
     model: 'gemini-2.5-flash',
     generationConfig: { temperature: 1.0, maxOutputTokens: 800 },
     contents: [{ parts: [{ text: prompt }] }]
   };
-  // Gemini 原生支援 systemInstruction，角色設定分離才穩定
   if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
 
   const r = await fetch('/api/gemini', { method: 'POST', headers, body: JSON.stringify(body) });
@@ -1636,6 +1700,7 @@ async function callGPT(prompt, feature='script') {
     if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
+    if (window._guestToken) headers['x-guest-token'] = window._guestToken;
   }
   const r = await fetch('/api/gpt', {
     method: 'POST', headers,
@@ -1664,6 +1729,13 @@ async function genInspo() {
   const area = document.getElementById('inspoArea');
   const cards = document.getElementById('inspoCards');
   btn.disabled = true;
+
+  // 三AI發想需要登入
+  if (!window._currentUid) {
+    btn.disabled = false;
+    showLoginPrompt('三AI發想需要登入才能使用 🔒');
+    return;
+  }
 
   // 先顯示 loading 占位卡片
   cards.innerHTML = ['🟣 Claude','🔵 Gemini','🟢 ChatGPT'].map(label => `
@@ -1782,8 +1854,13 @@ async function genScript() {
 
   btn.disabled=true; load.classList.add('show'); area.style.display='none';
   err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
-  // 產腳本時收起三AI發想區塊，結果顯示在上方
   document.getElementById('inspoArea').style.display = 'none';
+
+  // 訪客：先取 session token（扣一次產腳本次數）
+  if (window._guestMode && !window._currentUid) {
+    try { await window.acquireGuestToken('script'); }
+    catch(e) { btn.disabled=false; load.classList.remove('show'); return; }
+  }
 
   try {
     const charName = getCharName();
