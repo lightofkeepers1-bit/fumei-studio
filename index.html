@@ -492,15 +492,17 @@ window._guestScriptRemaining = 10;
 window._guestToken = null;
 window._guestTokenExpires = 0;
 
-// 每次訪客操作前呼叫，type='scan' 或 'script'
+// 每次訪客操作前呼叫，type='scan' 或 'script'，每次都扣一次次數
 window.acquireGuestToken = async function(type = 'scan') {
   if (!window._guestMode) return null;
-  // token 還在有效期內（預留30秒）且是同類型直接用
-  if (window._guestToken && window._guestTokenType === type && Date.now() < window._guestTokenExpires - 30000) {
-    return window._guestToken;
+  // 等 fingerprint 初始化完成（最多等 3 秒）
+  let waited = 0;
+  while (!window._fingerprint && waited < 3000) {
+    await new Promise(r => setTimeout(r, 100));
+    waited += 100;
   }
   const fp = window._fingerprint || '';
-  if (!fp) return null;
+  if (!fp) throw new Error('無法識別裝置，請重新整理後再試');
   try {
     const r = await fetch('/api/guest-check', {
       method: 'POST',
@@ -977,7 +979,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.8';
+const APP_VERSION = '4.8.9';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1126,8 +1128,6 @@ async function claude(sys, msg, search=false, creative=false, feature='') {
   if (search) body.tools = [{type:'web_search_20250305', name:'web_search'}];
   const r = await fetch('/api/claude', { method:'POST', headers, body: JSON.stringify(body) });
   // 更新訪客剩餘次數
-  const remaining = r.headers.get('x-guest-remaining');
-  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   if (!r.ok) {
     const e = await r.json();
     const err = new Error(`[${r.status}] ${e.error||e.error?.message||JSON.stringify(e)}`);
@@ -1451,8 +1451,6 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   };
   if (useSearch) body.tools = [{type:'web_search_20250305', name:'web_search'}];
   const r = await fetch('/api/claude', { method:'POST', headers, body: JSON.stringify(body) });
-  const remaining = r.headers.get('x-guest-remaining');
-  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
   if (!r.ok) {
     const err = new Error(`[${r.status}] ${d.error?.message || JSON.stringify(d)}`);
@@ -1683,8 +1681,6 @@ async function callGemini(prompt, feature='script', systemPrompt='') {
   if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
 
   const r = await fetch('/api/gemini', { method: 'POST', headers, body: JSON.stringify(body) });
-  const remaining = r.headers.get('x-guest-remaining');
-  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
   if (!r.ok) { const err = new Error(d.error?.message || 'Gemini 錯誤'); if (d.needLogin) err.needLogin = true; throw err; }
   return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
@@ -1706,8 +1702,6 @@ async function callGPT(prompt, feature='script') {
     method: 'POST', headers,
     body: JSON.stringify({model:'gpt-4o-mini', temperature:1.0, max_tokens:400, messages:[{role:'user', content:prompt}]})
   });
-  const remaining = r.headers.get('x-guest-remaining');
-  if (remaining !== null) window.updateGuestRemaining(parseInt(remaining, 10));
   const d = await r.json();
   if (!r.ok) { const err = new Error(d.error?.message || 'ChatGPT 錯誤'); if (d.needLogin) err.needLogin = true; throw err; }
   return d.choices?.[0]?.message?.content?.trim() || '';
