@@ -504,10 +504,9 @@ window.acquireGuestToken = async function(type = 'scan') {
   const fp = window._fingerprint || '';
   if (!fp) throw new Error('無法識別裝置，請重新整理後再試');
   try {
-    const r = await fetch('/api/guest-check', {
+    const r = await fetch(`/api/guest-check?type=${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
-      body: JSON.stringify({ type })
     });
     const d = await r.json();
     if (!r.ok) {
@@ -547,14 +546,15 @@ function showGuestIntro() {
         <div style="background:#faf4ff;border-radius:14px;padding:14px 16px;margin-bottom:20px">
           <div style="font-size:0.82rem;font-weight:800;color:#764ba2;margin-bottom:10px">✅ 訪客可以使用</div>
           <div style="font-size:0.82rem;color:#666;line-height:2">
-            📰 話題掃描（每日 5 次）<br>
+            📰 話題掃描（非時事類，每次間隔1分鐘）<br>
             ✍️ 腳本生成（每日 10 次）
           </div>
           <div style="height:1px;background:#eee;margin:10px 0"></div>
           <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
           <div style="font-size:0.82rem;color:#bbb;line-height:2">
+            🗞️ 今日時事掃描<br>
             🤖 三AI發想<br>
-            📖 歷史紀錄、角色設定
+            📖 歷史紀錄
           </div>
         </div>
         <div style="background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:0.8rem;color:#b8860b;font-weight:700;text-align:center">
@@ -603,10 +603,10 @@ function showGuestUI() {
       window._guestScanRemaining = scan.remaining ?? 5;
       window._guestScriptRemaining = script.remaining ?? 10;
       const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 掃描 ${window._guestScanRemaining}次・腳本 ${window._guestScriptRemaining}次`;
+      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
     }).catch(() => {
       const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 掃描 ${window._guestScanRemaining}次・腳本 ${window._guestScriptRemaining}次`;
+      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
     });
   };
   doCheck();
@@ -616,8 +616,25 @@ window.updateGuestRemaining = function(n, type) {
   if (type === 'script') window._guestScriptRemaining = n;
   else window._guestScanRemaining = n;
   const el = document.getElementById('guestRemaining');
-  if (el) el.innerHTML = `👀 掃描 ${window._guestScanRemaining}次・腳本 ${window._guestScriptRemaining}次`;
+  if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
 };
+
+// 訪客掃描冷卻（1分鐘）
+window._guestScanCooldownUntil = 0;
+
+function startScanCooldown() {
+  window._guestScanCooldownUntil = Date.now() + 60 * 1000;
+  const btn = document.getElementById('scanBtn');
+  const interval = setInterval(() => {
+    const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
+    if (left <= 0) {
+      clearInterval(interval);
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 掃描話題'; }
+    } else {
+      if (btn) { btn.disabled = true; btn.textContent = `⏳ ${left}秒後可再掃描`; }
+    }
+  }, 500);
+}
 
 function applyGuestRestrictions() {
   // 鎖定歷史紀錄 tab
@@ -634,6 +651,15 @@ function applyGuestRestrictions() {
     inspoBtn.style.opacity = '0.4';
     inspoBtn.title = '三AI發想需要登入才能使用';
     inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
+  }
+  // 鎖定時事類別，強制切換到職場
+  const topicCat = document.getElementById('topicCat');
+  if (topicCat) {
+    // 移除今日時事選項
+    const newsOpt = topicCat.querySelector('option[value="時事"]');
+    if (newsOpt) newsOpt.remove();
+    // 預設選職場
+    topicCat.value = '職場';
   }
 }
 
@@ -979,7 +1005,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.9';
+const APP_VERSION = '4.9.1';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1474,9 +1500,15 @@ async function scanTopics() {
   document.getElementById('selectedCard').style.display='none';
   document.getElementById('topicsCard').style.display='none';
   try {
-    // 訪客：先取 session token（扣一次掃描次數）
+    // 訪客：檢查冷卻時間
     if (window._guestMode && !window._currentUid) {
-      await window.acquireGuestToken('scan');
+      const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
+      if (left > 0) {
+        err.textContent = `⏳ 請等待 ${left} 秒後再掃描`;
+        err.classList.add('show');
+        btn.disabled = false; load.classList.remove('show');
+        return;
+      }
     }
     const isNews = !!topic.isNews;
     const today = new Date();
@@ -1577,8 +1609,13 @@ ${newsHeadlines}
       err.classList.add('show');
     }
   } finally {
-    btn.disabled = false;
     load.classList.remove('show');
+    // 訪客：掃描後啟動 1 分鐘冷卻
+    if (window._guestMode && !window._currentUid) {
+      startScanCooldown();
+    } else {
+      btn.disabled = false;
+    }
   }
 }
 function pickTopic(t, rssIndex = -1) {
