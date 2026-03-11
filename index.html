@@ -418,6 +418,7 @@ onAuthStateChanged(auth, async (user) => {
       localStorage.setItem('fumei_onboarded', '1');
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
+    updateCharNameUI(); // 雲端資料載入後更新角色名稱
     // 檢查是否為新用戶
     setTimeout(checkOnboarding, 300);
   } else {
@@ -428,7 +429,6 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
     document.getElementById('syncStatus').textContent = '';
-    // 如果已在訪客模式，直接還原
     if (window._guestMode) showGuestUI();
   }
 });
@@ -577,6 +577,8 @@ window.syncToCloud = async () => {
 </head>
 <body>
 
+<!-- ── 歡迎登入頁（未登入時全螢幕顯示）── -->
+
 <header>
   <div class="header-inner">
   <div class="logo-icon">🐾</div>
@@ -616,7 +618,7 @@ window.syncToCloud = async () => {
 <!-- DAILY -->
 <div class="panel active" id="panel-daily">
   <div class="banner">
-    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！Fumei 今天也要發光發熱 ✨</div></div>
+    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！<span class="char-name-ui">角色</span> 今天也要發光發熱 ✨</div></div>
     <div class="stats">
       <div class="stat"><div class="n" id="doneCount">0</div><div class="l">已完成</div></div>
       <div class="stat"><div class="n" id="totalCount">0</div><div class="l">總任務</div></div>
@@ -645,7 +647,7 @@ window.syncToCloud = async () => {
 <div class="panel" id="panel-topics">
   <div class="card">
     <div class="card-title">🔍 今日話題掃描</div>
-    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 Fumei 的梗圖靈感</p>
+    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 <span class="char-name-ui">角色</span> 的梗圖靈感</p>
     <div class="row" style="margin-bottom:14px">
       <select id="topicCat">
         <option value="時事">🗞️ 今日時事</option>
@@ -656,7 +658,7 @@ window.syncToCloud = async () => {
       </select>
       <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題</button>
     </div>
-    <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div>Fumei 正在尋找靈感中...</div>
+    <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在尋找靈感中...</div>
     <div class="err" id="scanErr"></div>
   </div>
   <div class="card" id="selectedCard" style="display:none">
@@ -678,14 +680,13 @@ window.syncToCloud = async () => {
 <!-- SCRIPT -->
 <div class="panel" id="panel-script">
   <div class="card">
-    <div class="card-title">✍️ Fumei 腳本生成器</div>
-    <div class="hint-box">💡 <strong>話題框可以留空！</strong> 系統會自動搜尋當日時事，幫 Fumei 找題目 ✨</div>
-    <textarea id="scriptTopic" rows="3" placeholder="（可留空，系統自動找話題）&#10;或輸入指定話題，例如：&#10;老闆突然說要開臨時會議&#10;颱風假到底放不放"></textarea>
+    <div class="card-title">✍️ <span class="char-name-ui">角色</span> 腳本生成器</div>
+    <div class="hint-box">💡 <strong>話題框可以留空！</strong> 系統會自動搜尋當日時事，幫 <span class="char-name-ui">角色</span> 找題目 ✨</div>
+    <textarea id="scriptTopic" rows="3" placeholder="（可留空，系統自動找話題）&#10;或輸入指定話題，例如：&#10;老闆突然說要開臨時會議&#10;颱風假到底放不放" oninput="if(!this.value.trim())unlockScriptType()"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center" class="row">
       <select id="scriptType">
         <option value="職場梗">💼 職場梗</option>
         <option value="單身日常">💅 單身日常</option>
-        <option value="時事反應">🗞️ 時事反應</option>
         <option value="旅遊心得">✈️ 旅遊心得</option>
         <option value="生活趣事">😂 生活趣事</option>
       </select>
@@ -706,7 +707,7 @@ window.syncToCloud = async () => {
     <div class="loading" id="inspoLoading" style="display:none"><div class="dots"><span></span><span></span><span></span></div><span>三個 AI 正在腦力激盪中...</span></div>
     <div class="err" id="inspoErr"></div>
     <div class="notice" id="autoNotice">🔍 話題框空白，正在自動搜尋今日時事...</div>
-    <div class="loading" id="scriptLoading"><div class="dots"><span></span><span></span><span></span></div><span id="scriptLoadTxt">Fumei 正在組織她的神邏輯...</span></div>
+    <div class="loading" id="scriptLoading"><div class="dots"><span></span><span></span><span></span></div><span id="scriptLoadTxt"><span class="char-name-ui">角色</span> 正在組織她的神邏輯...</span></div>
     <div class="err" id="scriptErr"></div>
 
     <div id="scriptArea" style="display:none">
@@ -720,7 +721,7 @@ window.syncToCloud = async () => {
         <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
       </div>
       <div id="sub-prompt" style="display:none">
-        <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 Fumei 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
+        <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 <span class="char-name-ui">角色</span> 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
         <div class="prompt-box" id="promptBox">
           <button class="prompt-copy" onclick="cpPrompt()">📋 複製</button>
           <span id="promptContent"></span>
@@ -734,7 +735,7 @@ window.syncToCloud = async () => {
 <div class="panel" id="panel-reply">
   <div class="card">
     <div class="card-title">💬 留言自動回覆產生器</div>
-    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">貼上粉絲留言，讓 Fumei 用她的風格回覆！</p>
+    <p style="font-size:0.88rem;color:#888;margin-bottom:16px">貼上粉絲留言，讓 <span class="char-name-ui">角色</span> 用她的風格回覆！</p>
     <div style="margin-bottom:12px">
       <label style="font-size:0.83rem;font-weight:700;color:#888;display:block;margin-bottom:6px">貼文主題（讓回覆更貼切）</label>
       <input type="text" id="replyCtx" placeholder="例如：週一上班梗圖、加班梗">
@@ -742,14 +743,14 @@ window.syncToCloud = async () => {
     <label style="font-size:0.83rem;font-weight:700;color:#888;display:block;margin-bottom:6px">粉絲留言（每行一則）</label>
     <textarea id="replyInput" rows="4" placeholder="哈哈太真實了&#10;我也是這樣！&#10;Fumei 好可愛"></textarea>
     <button class="btn" onclick="genReply()" id="replyBtn" style="margin-top:12px">💬 產出回覆</button>
-    <div class="loading" id="replyLoading"><div class="dots"><span></span><span></span><span></span></div>Fumei 正在想怎麼回...</div>
+    <div class="loading" id="replyLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在想怎麼回...</div>
     <div class="err" id="replyErr"></div>
     <div class="result" id="replyResult"></div>
     <button class="btn-sm" id="copyReplyBtn" style="display:none;margin-top:10px" onclick="cp('replyResult')">📋 複製回覆</button>
   </div>
   <div class="card">
     <div class="card-title">⚡ 快速回覆模板</div>
-    <p style="font-size:0.83rem;color:#888;margin-bottom:12px">點擊直接複製 Fumei 風格常用回覆</p>
+    <p style="font-size:0.83rem;color:#888;margin-bottom:12px">點擊直接複製 <span class="char-name-ui">角色</span> 風格常用回覆</p>
     <div id="quickReplies"></div>
   </div>
 </div>
@@ -804,7 +805,11 @@ function getImgPromptVideo() {
   return custom.trim() || `不要字幕\n中文版`;
 }
 
-function getCharName() {
+function updateCharNameUI() {
+  const name = getCharName();
+  document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = name);
+}
+
   return (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
 }
 
@@ -891,7 +896,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.2';
+const APP_VERSION = '4.6.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -906,6 +911,7 @@ window.onload = () => {
   renderHistory();
   rebuildTopicSelects();
   renderVersion();
+  updateCharNameUI(); // 更新所有角色名稱顯示
   // 恢復上次的版面偏好
   const savedView = localStorage.getItem('fumei_view');
   const btn = document.getElementById('viewToggleBtn');
@@ -1052,16 +1058,20 @@ async function claude(sys, msg, search=false, creative=false, feature='') {
 }
 
 // ── RANDOM STYLE ──────────────────────────────────
-const FUMEI_STYLES = [
-  '這次走「超級誇張自嗨」路線，Fumei 要把事情渲染到極致，反應要大到誇張好笑',
-  '這次走「自嘲苦笑」路線，Fumei 知道自己慘但還是笑著接受，有種哭笑不得的幽默',
-  '這次走「知識型反差梗」路線，Fumei 先說一個看起來很認真的道理，再用神邏輯自打臉',
-  '這次走「社會觀察家」路線，Fumei 像個冷靜的旁觀者，用一句話精準戳破現實',
-  '這次走「單身驕傲宣言」路線，Fumei 把所有事情都跟單身自由扯上關係，而且覺得單身完勝',
-  '這次走「職場生存哲學」路線，Fumei 分享上班族的生存智慧，聽起來很有道理但其實很廢',
-  '這次走「突然脫線」路線，Fumei 開頭很正常，結尾突然神邏輯大爆發，讓人沒料到',
-  '這次走「共鳴爆棚」路線，Fumei 說出所有人心裡有口難言的話，讓人看完大喊「就是這樣！」',
-];
+function getRandomStyle() {
+  const n = getCharName();
+  const styles = [
+    `這次走「超級誇張自嗨」路線，${n} 要把事情渲染到極致，反應要大到誇張好笑`,
+    `這次走「自嘲苦笑」路線，${n} 知道自己慘但還是笑著接受，有種哭笑不得的幽默`,
+    `這次走「知識型反差梗」路線，${n} 先說一個看起來很認真的道理，再用神邏輯自打臉`,
+    `這次走「社會觀察家」路線，${n} 像個冷靜的旁觀者，用一句話精準戳破現實`,
+    `這次走「單身驕傲宣言」路線，${n} 把所有事情都跟單身自由扯上關係，而且覺得單身完勝`,
+    `這次走「職場生存哲學」路線，${n} 分享上班族的生存智慧，聽起來很有道理但其實很廢`,
+    `這次走「突然脫線」路線，${n} 開頭很正常，結尾突然神邏輯大爆發，讓人沒料到`,
+    `這次走「共鳴爆棚」路線，${n} 說出所有人心裡有口難言的話，讓人看完大喊「就是這樣！」`,
+  ];
+  return styles[Math.floor(Math.random() * styles.length)];
+}
 
 // ── TOPIC SYSTEM ──────────────────────────────────
 const BUILTIN_TOPICS = [
@@ -1536,10 +1546,32 @@ function showNewsLinks(rssIndex) {
 }
 function goToScript() {
   document.getElementById('scriptTopic').value = currentTopic;
+
+  // 自動選時事反應並鎖定
+  const sel = document.getElementById('scriptType');
+  // 先確保有時事反應選項
+  if (![...sel.options].find(o => o.value === '時事反應')) {
+    const opt = new Option('🗞️ 時事反應', '時事反應');
+    sel.insertBefore(opt, sel.firstChild);
+  }
+  sel.value = '時事反應';
+  sel.disabled = true;
+  sel.title = '從話題掃描帶入，固定為時事反應';
+
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab')[2].classList.add('active');
   document.getElementById('panel-script').classList.add('active');
+}
+
+function unlockScriptType() {
+  // 清空話題時解鎖，並移除時事反應選項
+  const sel = document.getElementById('scriptType');
+  sel.disabled = false;
+  sel.title = '';
+  const newsOpt = [...sel.options].find(o => o.value === '時事反應');
+  if (newsOpt) sel.removeChild(newsOpt);
+  if (sel.value === '時事反應') sel.value = '職場梗';
 }
 
 
@@ -1620,6 +1652,7 @@ async function genInspo() {
   area.style.display = 'block';
 
   const charCtx = buildCharPrompt();
+  const charName = getCharName();
   const claudePrompt = (style) => `針對以下話題提出一個梗圖創意方向。
 
 話題：${topic}
@@ -1630,7 +1663,7 @@ async function genInspo() {
 方向：（梗圖切入點，20字以內）
 原因：（為什麼台灣人會有共鳴，30字以內）`;
 
-  const geminiGptPrompt = (style) => `你是台灣社群梗圖創意顧問，專門為一個叫 Fumei（富美）的卡通狗狗女孩角色發想內容。Fumei 是有趣自信的台灣上班族，熱愛時事，語氣幽默。
+  const geminiGptPrompt = (style) => `你是台灣社群梗圖創意顧問，專門為「${charName}」這個角色發想內容。${charName} 是有趣自信的台灣上班族，熱愛時事，語氣幽默。
 
 請針對話題「${topic}」（類型：${type}），用「${style}」的角度提出一個梗圖創意方向。
 
@@ -1642,7 +1675,7 @@ async function genInspo() {
 方向：把老闆的晨會當成求生節目來拍
 原因：台灣上班族對無意義會議的共同痛苦，一看就懂`;
 
-  const geminiSystem = `你是台灣社群梗圖創意顧問，專門為一個叫 Fumei（富美）的卡通狗狗女孩角色發想內容。Fumei 是有趣自信的台灣上班族，熱愛時事，語氣幽默犀利。你的回覆必須嚴格遵守格式，不能有任何多餘文字。`;
+  const geminiSystem = `你是台灣社群梗圖創意顧問，專門為「${charName}」這個角色發想內容。${charName} 是有趣自信的台灣上班族，熱愛時事，語氣幽默犀利。你的回覆必須嚴格遵守格式，不能有任何多餘文字。`;
 
   const geminiPrompt = (style) => `請針對話題「${topic}」（類型：${type}），用「${style}」的角度提出一個梗圖創意方向。
 
@@ -1731,12 +1764,13 @@ async function genScript() {
   document.getElementById('inspoArea').style.display = 'none';
 
   try {
+    const charName = getCharName();
     if (isAuto) {
       notice.style.display='block';
       loadTxt.textContent='正在搜尋今日時事...';
       const res = await claude(buildCharPrompt(),
         `今天是 ${new Date().toLocaleDateString('zh-TW')}。
-搜尋台灣今日最熱門時事，選最適合 Fumei 做梗圖的一個。
+搜尋台灣今日最熱門時事，選最適合 ${charName} 做梗圖的一個。
 只輸出話題名稱，一行，不要其他說明。`, true);
       topic = res.split('\n')[0].trim();
       notice.style.display='none';
@@ -1744,7 +1778,7 @@ async function genScript() {
     }
 
     // 隨機選一個風格
-    const randomStyle = FUMEI_STYLES[Math.floor(Math.random() * FUMEI_STYLES.length)];
+    const randomStyle = getRandomStyle();
     const styleNote = `\n\n【本次風格指令】${randomStyle}`;
     const topicRule = getTopicRule(type);
     const topicRuleNote = topicRule ? `\n主題方向補充：${topicRule}` : '\n主題方向補充：自行判斷最適合的切入角度，確保內容有台灣生活共鳴';
@@ -1756,13 +1790,13 @@ async function genScript() {
       scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}
 
-產出 Fumei 一格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+產出 ${charName} 一格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
 【情境】
 （一句話描述畫面）
 
 【台詞】
-（Fumei 的精華一句話，要有笑點或共鳴感）
+（${charName} 的精華一句話，要有笑點或共鳴感）
 
 【場景說明】
 （背景場景描述，服裝由 AI 自由發揮選擇符合情境的造型，表情要生動有戲劇張力）
@@ -1774,13 +1808,13 @@ async function genScript() {
 （比 IG 稍長 + hashtag）
 
 【互動問句】
-（一句開放性問題讓粉絲留言，要符合 Fumei 語氣，輕鬆有趣，例如「你們公司也有這種人嗎？」）${styleNote}`;
+（一句開放性問題讓粉絲留言，要符合 ${charName} 語氣，輕鬆有趣，例如「你們公司也有這種人嗎？」）${styleNote}`;
 
     } else if (format === '兩格') {
       scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}
 
-產出 Fumei 兩格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+產出 ${charName} 兩格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
 【情境】
 （一句話描述主題）
@@ -1798,17 +1832,16 @@ async function genScript() {
 （比 IG 稍長 + hashtag）
 
 【互動問句】
-（一句開放性問題讓粉絲留言，要符合 Fumei 語氣，輕鬆有趣）${styleNote}`;
+（一句開放性問題讓粉絲留言，要符合 ${charName} 語氣，輕鬆有趣）${styleNote}`;
 
     } else {
       const is15 = format === '影片15';
-      const secLabel = is15 ? '15秒' : '30秒';
 
       if (is15) {
         scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}
 
-產出 Fumei 15秒短影片腳本（精準控制在15秒內，每個鏡頭要非常精簡有力）：
+產出 ${charName} 15秒短影片腳本（精準控制在15秒內，每個鏡頭要非常精簡有力）：
 
 ## 【影片主題】
 （一句話，要讓人一看就想點進來）
@@ -1832,7 +1865,7 @@ async function genScript() {
 
 ## 【畫面說明（給 AI 影片工具）】
 場景：（背景環境）
-Fumei 造型：（服裝描述，要換一套不同的服裝）
+${charName} 造型：（服裝描述，要換一套不同的服裝）
 表情變化：（從XXX→XXX→XXX）
 動作：（列出關鍵動作）
 
@@ -1846,12 +1879,12 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
 （比 IG 稍長 + hashtag）
 
 ## 【互動問句】
-（一句讓粉絲留言的問題，Fumei 語氣）${styleNote}`;
+（一句讓粉絲留言的問題，${charName} 語氣）${styleNote}`;
       } else {
         scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}
 
-產出 Fumei 30秒短影片腳本（完整節奏，有起承轉合）：
+產出 ${charName} 30秒短影片腳本（完整節奏，有起承轉合）：
 
 ## 【影片主題】
 （一句話說明這支影片在講什麼）
@@ -1863,7 +1896,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
 ## 【中段內容（3-22秒）】
 鏡頭1（3-8秒）：
 - 畫面：（描述）
-- 台詞：（Fumei 的表演或旁白）
+- 台詞：（${charName} 的表演或旁白）
 
 鏡頭2（8-13秒）：
 - 畫面：（描述）
@@ -1884,7 +1917,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
 
 ## 【畫面說明（給 AI 影片工具）】
 場景：（背景環境）
-Fumei 造型：（服裝描述，要換一套不同的服裝）
+${charName} 造型：（服裝描述，要換一套不同的服裝）
 表情變化：（從XXX→XXX→XXX）
 道具：（需要的道具）
 動作：（列出所有關鍵動作）
@@ -1901,7 +1934,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
 （比 IG 稍長 + hashtag）
 
 ## 【互動問句】
-（一句讓粉絲留言的問題，Fumei 語氣）${styleNote}`;
+（一句讓粉絲留言的問題，${charName} 語氣）${styleNote}`;
       }
     }
 
@@ -1923,7 +1956,7 @@ Fumei 造型：（服裝描述，要換一套不同的服裝）
       promptDesc.textContent = '複製以下 Prompt 到 Sora2 即可生成影片 👇';
     } else {
       promptTabBtn.textContent = '🎨 Gemini Prompt';
-      promptDesc.textContent = '上傳 Fumei 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇';
+      promptDesc.textContent = `上傳 ${getCharName()} 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇`;
     }
 
     let geminiContent = '';
@@ -1993,9 +2026,9 @@ async function genReply() {
 粉絲留言：
 ${comments}
 
-用 Fumei 語氣回覆每則留言，格式：
+用 ${getCharName()} 語氣回覆每則留言，格式：
 留言：[原文]
-Fumei 回覆：[1～2句，親切有趣]
+${getCharName()} 回覆：[1～2句，親切有趣]
 ---`);
     result.textContent=txt; result.classList.add('show'); cpBtn.style.display='inline-block';
   } catch(e) { err.textContent='❌ '+e.message; err.classList.add('show'); }
@@ -2790,11 +2823,8 @@ function applyTheme(name) {
 
 // ── ONBOARDING ────────────────────────────────────
 function checkOnboarding() {
-  const chars = loadChars();
-  const ch = chars[0];
-  // 判斷是否為新用戶（角色還是預設空的）
-  const isNew = !ch.personality && !ch.style && ch.name === DEFAULT_CHAR.name;
-  if (isNew) showOnboarding();
+  const onboarded = localStorage.getItem('fumei_onboarded');
+  if (!onboarded) showOnboarding();
 }
 
 function showOnboarding() {
@@ -3157,7 +3187,7 @@ function saveSettings() {
   if (window.syncToCloud) window.syncToCloud();
   const btn = document.querySelector('.settings-save-btn');
   btn.textContent = '✓ 已儲存！';
-  setTimeout(() => { btn.textContent = '💾 儲存設定'; renderTasks(); closeSettings(); }, 1200);
+  setTimeout(() => { btn.textContent = '💾 儲存設定'; renderTasks(); updateCharNameUI(); closeSettings(); }, 1200);
 }
 
 async function switchAccount() {
