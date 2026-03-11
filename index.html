@@ -511,12 +511,12 @@ function showGuestIntro() {
           <div style="font-size:0.82rem;font-weight:800;color:#764ba2;margin-bottom:10px">✅ 訪客可以使用</div>
           <div style="font-size:0.82rem;color:#666;line-height:2">
             📰 話題掃描（今日台灣時事）<br>
-            ✍️ 腳本生成（基本格式）
+            ✍️ 腳本生成（基本格式）<br>
+            🤖 三AI發想
           </div>
           <div style="height:1px;background:#eee;margin:10px 0"></div>
           <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
           <div style="font-size:0.82rem;color:#bbb;line-height:2">
-            🤖 三AI發想<br>
             📖 歷史紀錄、角色設定
           </div>
         </div>
@@ -568,7 +568,7 @@ window.updateGuestRemaining = function(n) {
 };
 
 function applyGuestRestrictions() {
-  // 鎖定三AI發想、歷史紀錄 tab
+  // 鎖定歷史紀錄 tab（訪客不能看歷史）
   document.querySelectorAll('.tab').forEach(btn => {
     const txt = btn.textContent;
     if (txt.includes('歷史')) {
@@ -577,13 +577,6 @@ function applyGuestRestrictions() {
       btn.onclick = () => showLoginPrompt('此功能需要登入才能使用 🔒');
     }
   });
-  // 鎖定三AI發想按鈕
-  const inspoBtn = document.getElementById('inspoBtn');
-  if (inspoBtn) {
-    inspoBtn.style.opacity = '0.4';
-    inspoBtn.title = '登入後可使用';
-    inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
-  }
 }
 
 window.showLoginPrompt = function(msg) {
@@ -928,7 +921,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.1';
+const APP_VERSION = '4.8.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
