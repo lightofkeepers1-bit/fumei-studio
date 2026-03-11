@@ -1,7 +1,7 @@
 // ── 設定 ──────────────────────────────────────────
 const FIREBASE_PROJECT = 'fumei-3e684';
 const FIREBASE_API_KEY = 'AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY';
-const GUEST_DAILY_LIMIT = 5; // 訪客每日最多幾次
+const GUEST_DAILY_LIMIT = 5;
 
 // ── Firestore REST 工具 ────────────────────────────
 const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
@@ -25,7 +25,7 @@ async function fsPatch(docPath, fields) {
 
 // ── 訪客限流 ───────────────────────────────────────
 async function checkGuestLimit(fingerprint, ip) {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
   const safeKey = (fingerprint || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
   const docPath = `guest_usage/${safeKey}`;
 
@@ -34,14 +34,9 @@ async function checkGuestLimit(fingerprint, ip) {
   if (data) {
     const docDate  = data.date?.stringValue || '';
     const docCount = parseInt(data.count?.integerValue || '0', 10);
-    const docIp    = data.ip?.stringValue || '';
-
-    // IP 不同但指紋相同 → 可能共用裝置，允許但記錄
-    // 同一天超過限制 → 拒絕
     if (docDate === today && docCount >= GUEST_DAILY_LIMIT) {
       return { allowed: false, remaining: 0 };
     }
-
     const newCount = docDate === today ? docCount + 1 : 1;
     await fsPatch(docPath, {
       date:  { stringValue: today },
@@ -50,7 +45,6 @@ async function checkGuestLimit(fingerprint, ip) {
     });
     return { allowed: true, remaining: GUEST_DAILY_LIMIT - newCount };
   } else {
-    // 第一次使用
     await fsPatch(docPath, {
       date:  { stringValue: today },
       count: { integerValue: '1' },
@@ -60,56 +54,63 @@ async function checkGuestLimit(fingerprint, ip) {
   }
 }
 
-// ── IP 速率限制（防腳本刷）─────────────────────────
-// 簡易記憶體快取，Vercel serverless 重啟會清空，夠用了
+// ── IP 速率限制 ─────────────────────────────────────
 const ipCache = new Map();
-
 function checkIpRate(ip) {
   const now = Date.now();
-  const windowMs = 60 * 1000; // 1 分鐘
-  const maxPerWindow = 10;    // 同 IP 1 分鐘內最多 10 次
-
+  const windowMs = 60 * 1000;
+  const maxPerWindow = 10;
   const entry = ipCache.get(ip) || { count: 0, start: now };
-  if (now - entry.start > windowMs) {
-    ipCache.set(ip, { count: 1, start: now });
-    return true;
-  }
+  if (now - entry.start > windowMs) { ipCache.set(ip, { count: 1, start: now }); return true; }
   if (entry.count >= maxPerWindow) return false;
   entry.count++;
   ipCache.set(ip, entry);
   return true;
 }
 
-// ── 訪客允許的功能 ─────────────────────────────────
-// 前端會帶 x-guest-feature header 標記是哪個功能
-const GUEST_ALLOWED_FEATURES = ['scan', 'script'];
-const GUEST_BLOCKED_FEATURES  = ['reply'];
+// ── 訪客封鎖功能 ────────────────────────────────────
+const GUEST_BLOCKED_FEATURES = ['reply'];
 
-// ── Main Handler ───────────────────────────────────
+// ── 驗證 session token ──────────────────────────────
+async function validateToken(token) {
+  if (!token) return false;
+  const safeToken = token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  const data = await fsGet(`guest_tokens/${safeToken}`);
+  if (!data) return false;
+  const expires = parseInt(data.expires?.integerValue || '0', 10);
+  return Date.now() < expires;
+}
+
+// ── Main Handler ────────────────────────────────────
 export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid, x-fingerprint, x-guest-feature');
-    return res.status(200).end();
-  }
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid, x-fingerprint, x-guest-feature');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid, x-fingerprint, x-guest-feature, x-guest-token');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // GET：查詢訪客剩餘次數
+  if (req.method === 'GET') {
+    const fingerprint = req.headers['x-fingerprint'] || '';
+    if (!fingerprint) return res.status(200).json({ remaining: GUEST_DAILY_LIMIT });
+    const today = new Date().toISOString().slice(0, 10);
+    const safeKey = fingerprint.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+    const data = await fsGet(`guest_usage/${safeKey}`);
+    const docDate = data?.date?.stringValue || '';
+    const used = docDate === today ? parseInt(data?.count?.integerValue || '0', 10) : 0;
+    return res.status(200).json({ remaining: Math.max(0, GUEST_DAILY_LIMIT - used) });
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const uid         = req.headers['x-firebase-uid'];
   const fingerprint = req.headers['x-fingerprint'] || '';
   const feature     = req.headers['x-guest-feature'] || '';
+  const guestToken  = req.headers['x-guest-token'] || '';
   const ip          = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 
-  // ── IP 速率限制（所有人都要過）─────────────────
-  if (!checkIpRate(ip)) {
-    return res.status(429).json({ error: '⚠️ 請求過於頻繁，請稍後再試' });
-  }
+  if (!checkIpRate(ip)) return res.status(429).json({ error: '⚠️ 請求過於頻繁，請稍後再試' });
 
-  // ── 訪客邏輯 ──────────────────────────────────
   if (!uid) {
-    // 檢查功能是否開放給訪客
     if (GUEST_BLOCKED_FEATURES.includes(feature)) {
       return res.status(403).json({ error: '🔒 此功能需要登入才能使用', needLogin: true });
     }
@@ -117,19 +118,18 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: '請先登入或啟用訪客模式', needLogin: true });
     }
 
-    const { allowed, remaining } = await checkGuestLimit(fingerprint, ip);
-    if (!allowed) {
-      return res.status(429).json({
-        error: `🌟 今日訪客體驗次數已用完！登入後可無限使用`,
-        needLogin: true,
-        remaining: 0,
-      });
+    // 有 session token → 同批操作，不重複扣次數
+    const tokenValid = guestToken ? await validateToken(guestToken) : false;
+    if (!tokenValid) {
+      // 沒有 token 或 token 無效 → 扣次數
+      const { allowed, remaining } = await checkGuestLimit(fingerprint, ip);
+      if (!allowed) {
+        return res.status(429).json({ error: '🌟 今日訪客體驗次數已用完！登入後可無限使用', needLogin: true, remaining: 0 });
+      }
+      res.setHeader('x-guest-remaining', String(remaining));
     }
-    // 把剩餘次數帶回給前端顯示
-    res.setHeader('x-guest-remaining', String(remaining));
   }
 
-  // ── 呼叫 Claude API ────────────────────────────
   const CLAUDE_KEY = process.env.CLAUDE_API_KEY;
   if (!CLAUDE_KEY) return res.status(500).json({ error: 'Server config error' });
 
