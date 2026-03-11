@@ -516,9 +516,19 @@ function showGuestIntro() {
 
 window.confirmGuestMode = function() {
   document.getElementById('guestIntroModal')?.remove();
+  document.getElementById('welcomeModal').style.display = 'none';
   window._guestMode = true;
-  showGuestUI();
-  applyGuestRestrictions();
+  // 有設定過角色 → 直接進
+  if (localStorage.getItem('fumei_chars') && localStorage.getItem('fumei_onboarded')) {
+    showGuestUI();
+    applyGuestRestrictions();
+  } else {
+    // 沒設定過 → 先走 Onboarding，完成後進主畫面
+    showOnboarding();
+    // Onboarding 完成後（obFinish）會呼叫 syncToCloud，此時 _guestMode=true 不會同步
+    // 改在 obFinish 完成後啟動 guest UI
+    window._pendingGuestActivation = true;
+  }
 };
 
 function showGuestUI() {
@@ -526,6 +536,8 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   updateGuestRemaining(window._guestRemaining);
+  // 訪客模式：問候語和角色名稱都改成「訪客」
+  document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = '訪客');
 }
 
 window.updateGuestRemaining = function(n) {
@@ -895,7 +907,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.7.4';
+const APP_VERSION = '4.7.6';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2174,7 +2186,7 @@ function clearAllHistory() {
     <button onclick="loginGoogle();document.getElementById('welcomeModal').style.display='none'" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px">
       <img src="https://www.google.com/favicon.ico" style="width:18px;height:18px"> Google 登入
     </button>
-    <button onclick="enterGuestMode();document.getElementById('welcomeModal').style.display='none'" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif">
+    <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif">
       👀 訪客體驗（每日 5 次）
     </button>
   </div>
@@ -3004,6 +3016,13 @@ async function obStartAnalysis() {
 function obFinish() {
   document.getElementById('onboardingModal').style.display = 'none';
   renderCharCards();
+  updateCharNameUI();
+  // 訪客模式等待 Onboarding 完成後才啟動
+  if (window._pendingGuestActivation) {
+    window._pendingGuestActivation = false;
+    showGuestUI();
+    applyGuestRestrictions();
+  }
 }
 
 function openSettings() {
