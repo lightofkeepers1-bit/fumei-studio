@@ -410,6 +410,17 @@ onAuthStateChanged(auth, async (user) => {
       if (data.fumei_theme)            { localStorage.setItem('fumei_theme', data.fumei_theme); }
       if (data.fumei_img_prompt_still) { localStorage.setItem('fumei_img_prompt_still', data.fumei_img_prompt_still); }
       if (data.fumei_img_prompt_video) { localStorage.setItem('fumei_img_prompt_video', data.fumei_img_prompt_video); }
+      if (data.fumei_avatar_img)       { localStorage.setItem('fumei_avatar_img', data.fumei_avatar_img); }
+      if (data.fumei_avatar_emoji)     { localStorage.setItem('fumei_avatar_emoji', data.fumei_avatar_emoji); }
+      // 更新 header logo
+      const logoIcon = document.querySelector('.logo-icon');
+      if (logoIcon) {
+        const img   = data.fumei_avatar_img || '';
+        const emoji = data.fumei_avatar_emoji || '🐾';
+        logoIcon.innerHTML = img
+          ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+          : emoji;
+      }
     }
 
     // 訪客轉登入：如果雲端沒有角色設定，繼承訪客填的角色
@@ -573,6 +584,8 @@ window.syncToCloud = async () => {
     fumei_theme:            localStorage.getItem('fumei_theme') || '',
     fumei_img_prompt_still: localStorage.getItem('fumei_img_prompt_still') || '',
     fumei_img_prompt_video: localStorage.getItem('fumei_img_prompt_video') || '',
+    fumei_avatar_img:       localStorage.getItem('fumei_avatar_img') || '',
+    fumei_avatar_emoji:     localStorage.getItem('fumei_avatar_emoji') || '',
   });
   el.textContent = '☁️ 已同步';
 };
@@ -900,7 +913,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.6';
+const APP_VERSION = '4.6.8';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -3120,23 +3133,35 @@ function endDrag() {
 
 function confirmImgEditor() {
   const img = document.getElementById('imgEditorImg');
-  const wrap = document.getElementById('imgEditorWrap');
   const size = 260;
   const canvas = document.createElement('canvas');
   canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d');
-  // clip to circle
   ctx.beginPath();
   ctx.arc(size/2, size/2, size/2, 0, Math.PI*2);
   ctx.clip();
   const iw = img.naturalWidth * _editorScale;
   const ih = img.naturalHeight * _editorScale;
   ctx.drawImage(img, _editorX, _editorY, iw, ih);
-  const result = canvas.toDataURL('image/png');
+
+  // 壓縮成 JPEG，自動調整品質讓檔案 < 150KB
+  let quality = 0.85;
+  let result = canvas.toDataURL('image/jpeg', quality);
+  while (result.length > 150 * 1024 && quality > 0.3) {
+    quality -= 0.1;
+    result = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  // 顯示容量提示
+  const kb = Math.round(result.length * 0.75 / 1024);
+  const sizeHint = kb < 150
+    ? `✅ 圖片已上傳（${kb}KB）`
+    : `⚠️ 圖片較大（${kb}KB），建議換張圖`;
+
   localStorage.setItem('fumei_avatar_img', result);
   document.getElementById('avatarClearBtn').style.display = 'block';
   document.getElementById('avatarDropZone').style.borderColor = '#B5EAD7';
-  document.getElementById('avatarDropZone').innerHTML = '✅ 圖片已上傳<input type="file" id="avatarFileInput" accept="image/*" style="display:none">';
+  document.getElementById('avatarDropZone').innerHTML = `${sizeHint}<input type="file" id="avatarFileInput" accept="image/*" style="display:none">`;
   updateAvatarPreview();
   initDropZone();
   cancelImgEditor();
