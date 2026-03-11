@@ -544,10 +544,8 @@ window.confirmGuestMode = function() {
     showGuestUI();
     applyGuestRestrictions();
   } else {
-    // 沒設定過 → 先走 Onboarding，完成後進主畫面
+    // 沒設定過 → 先走 Onboarding
     showOnboarding();
-    // Onboarding 完成後（obFinish）會呼叫 syncToCloud，此時 _guestMode=true 不會同步
-    // 改在 obFinish 完成後啟動 guest UI
     window._pendingGuestActivation = true;
   }
 };
@@ -557,8 +555,12 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   updateGuestRemaining(window._guestRemaining);
-  // 訪客模式：問候語和角色名稱都改成「訪客」
-  document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = '訪客');
+  // 訪客模式：只有入口問候語顯示「訪客」，功能區保留角色名稱
+  const greetingEl = document.getElementById('greetingName');
+  if (greetingEl) greetingEl.textContent = '訪客';
+  // 其他 char-name-ui 用實際角色名稱
+  const charName = getCharName();
+  document.querySelectorAll('.char-name-ui:not(#greetingName)').forEach(el => el.textContent = charName);
 }
 
 window.updateGuestRemaining = function(n) {
@@ -665,7 +667,7 @@ window.syncToCloud = async () => {
 <!-- DAILY -->
 <div class="panel active" id="panel-daily">
   <div class="banner">
-    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！<span class="char-name-ui">角色</span> 今天也要發光發熱 ✨</div></div>
+    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！<span class="char-name-ui" id="greetingName">角色</span> 今天也要發光發熱 ✨</div></div>
     <div class="stats">
       <div class="stat"><div class="n" id="doneCount">0</div><div class="l">已完成</div></div>
       <div class="stat"><div class="n" id="totalCount">0</div><div class="l">總任務</div></div>
@@ -921,7 +923,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.2';
+const APP_VERSION = '4.8.5';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
