@@ -83,7 +83,7 @@ function checkIpRate(ip) {
 // ── 訪客允許的功能 ─────────────────────────────────
 // 前端會帶 x-guest-feature header 標記是哪個功能
 const GUEST_ALLOWED_FEATURES = ['scan', 'script'];
-const GUEST_BLOCKED_FEATURES  = ['inspo', 'reply'];
+const GUEST_BLOCKED_FEATURES  = ['reply'];
 
 // ── Main Handler ───────────────────────────────────
 export default async function handler(req, res) {

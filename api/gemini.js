@@ -64,7 +64,7 @@ function checkIpRate(ip) {
   return true;
 }
 
-const GUEST_BLOCKED_FEATURES = ['inspo', 'reply'];
+const GUEST_BLOCKED_FEATURES = ['reply'];
 
 // ── Main Handler ───────────────────────────────────
 export default async function handler(req, res) {
