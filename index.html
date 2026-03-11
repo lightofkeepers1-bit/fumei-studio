@@ -555,12 +555,8 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   updateGuestRemaining(window._guestRemaining);
-  // 訪客模式：只有入口問候語顯示「訪客」，功能區保留角色名稱
-  const greetingEl = document.getElementById('greetingName');
-  if (greetingEl) greetingEl.textContent = '訪客';
-  // 其他 char-name-ui 用實際角色名稱
-  const charName = getCharName();
-  document.querySelectorAll('.char-name-ui:not(#greetingName)').forEach(el => el.textContent = charName);
+  // 訪客模式：所有 char-name-ui 都用主要角色名稱
+  updateCharNameUI();
 }
 
 window.updateGuestRemaining = function(n) {
@@ -923,7 +919,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.5';
+const APP_VERSION = '4.8.6';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2602,11 +2598,23 @@ function renderCharCards() {
     const thumb = (isFirst && logoImg)
       ? `<img src="${logoImg}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0">`
       : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0">${ch.emoji||'🐾'}</span>`;
-    return `<div class="char-card ${i===active?'active':''}" onclick="selectChar(${i})">
-      ${thumb}
-      <span>${ch.name||'角色'}</span>
+    const isPrimary = i === active;
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <div class="char-card ${isPrimary?'active':''}" onclick="selectChar(${i})" style="flex:1;margin-bottom:0">
+        ${thumb}
+        <span>${ch.name||'角色'}</span>
+        ${isPrimary ? '<span style="font-size:0.7rem;background:#F4A7B9;color:white;padding:2px 7px;border-radius:10px;font-weight:800;margin-left:4px">主要</span>' : ''}
+      </div>
+      ${!isPrimary ? `<button onclick="setPrimaryChar(${i})" style="padding:5px 10px;border-radius:10px;border:1.5px solid #C9B8E8;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer;white-space:nowrap;font-family:'Nunito',sans-serif">設為主要</button>` : ''}
     </div>`;
   }).join('');
+}
+
+function setPrimaryChar(i) {
+  setActiveIdx(i);
+  renderCharCards();
+  updateCharNameUI();
+  if (window.syncToCloud) window.syncToCloud();
 }
 
 function selectChar(i) {
