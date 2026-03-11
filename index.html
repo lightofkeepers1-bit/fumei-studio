@@ -1005,7 +1005,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.1';
+const APP_VERSION = '4.9.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1610,7 +1610,7 @@ ${newsHeadlines}
     }
   } finally {
     load.classList.remove('show');
-    // 訪客：掃描後啟動 1 分鐘冷卻
+    // 訪客：啟動 1 分鐘冷卻；登入用戶直接解鎖
     if (window._guestMode && !window._currentUid) {
       startScanCooldown();
     } else {
