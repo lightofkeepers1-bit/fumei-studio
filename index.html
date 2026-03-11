@@ -1012,7 +1012,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.4';
+const APP_VERSION = '4.9.5';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1600,8 +1600,19 @@ ${newsHeadlines}
       el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
     });
     document.getElementById('topicsCard').style.display = 'block';
+
+    // 訪客：掃描成功後啟動冷卻
+    if (window._guestMode && !window._currentUid) {
+      load.classList.remove('show');
+      startCooldown('scanBtn', '🔍 掃描話題', 60);
+      return;
+    }
   } catch(e) {
-    if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
+    if (window.handleGuestApiError && window.handleGuestApiError(e)) {
+      // 訪客 API 錯誤也要啟動冷卻
+      if (window._guestMode && !window._currentUid) startCooldown('scanBtn', '🔍 掃描話題', 60);
+      return;
+    }
     const msg = e.message || '';
     if (msg.includes('429') || msg.includes('rate limit')) {
       err.textContent = '⏳ 流量稍高，5 秒後自動重試...';
@@ -1615,17 +1626,18 @@ ${newsHeadlines}
     }
     err.textContent = '❌ ' + msg;
     err.classList.add('show');
+    // 訪客：失敗也啟動冷卻
+    if (window._guestMode && !window._currentUid) {
+      load.classList.remove('show');
+      startCooldown('scanBtn', '🔍 掃描話題', 60);
+      return;
+    }
     btn.disabled = false;
     load.classList.remove('show');
     return;
   }
-  // 成功：訪客啟動冷卻，登入直接解鎖
   load.classList.remove('show');
-  if (window._guestMode && !window._currentUid) {
-    startCooldown('scanBtn', '🔍 掃描話題', 60);
-  } else {
-    btn.disabled = false;
-  }
+  btn.disabled = false;
 }
 function pickTopic(t, rssIndex = -1) {
   currentTopic = t;
@@ -2193,26 +2205,35 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
       prompt: geminiPrompt,
       date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
     });
-    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50); // keep last 50
+    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
     localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
     if(window.syncToCloud) window.syncToCloud();
     renderHistory();
 
+    // 訪客：產腳本成功後啟動冷卻
+    if (window._guestMode && !window._currentUid) {
+      load.classList.remove('show');
+      startCooldown('scriptBtn', '✨ 產腳本', 60);
+      return;
+    }
   } catch(e) {
-    if (window.handleGuestApiError && window.handleGuestApiError(e)) return;
+    if (window.handleGuestApiError && window.handleGuestApiError(e)) {
+      if (window._guestMode && !window._currentUid) startCooldown('scriptBtn', '✨ 產腳本', 60);
+      return;
+    }
     const msg = (typeof e === 'string') ? e : (e?.message || JSON.stringify(e) || '未知錯誤');
     const display = msg.includes('429') ? '❌ [429] API 使用量暫時超限，請稍後再試 ⏳' : '❌ ' + msg;
     err.textContent = display; err.classList.add('show');
+    if (window._guestMode && !window._currentUid) {
+      load.classList.remove('show');
+      startCooldown('scriptBtn', '✨ 產腳本', 60);
+      return;
+    }
     btn.disabled=false; load.classList.remove('show');
     return;
   }
   load.classList.remove('show');
-  // 成功：訪客啟動冷卻，登入直接解鎖
-  if (window._guestMode && !window._currentUid) {
-    startCooldown('scriptBtn', '✨ 產腳本', 60);
-  } else {
-    btn.disabled = false;
-  }
+  btn.disabled = false;
 }
 
 // ── GEN REPLY ─────────────────────────────────────
