@@ -777,8 +777,9 @@ getRedirectResult(auth).catch(e => console.error('redirect error', e));
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    // Email 登入需驗證
-    if (user.providerData[0]?.providerId === 'password' && !user.emailVerified) {
+    // Email 登入需驗證（Google 登入不需要檢查）
+    const isEmailProvider = user.providerData.some(p => p.providerId === 'password');
+    if (isEmailProvider && !user.emailVerified) {
       await signOut(auth);
       return;
     }
