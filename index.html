@@ -1227,6 +1227,8 @@ function applyGuestRestrictions() {
     if (newsTypeOpt) newsTypeOpt.remove();
     if (scriptType.value === '時事反應') scriptType.value = '職場梗';
   }
+  // 更新按鈕點數標示（選項被移除後重新計算）
+  if (window.updateCostBadges) window.updateCostBadges();
 }
 
 window.showLoginPrompt = function(msg) {
@@ -1283,7 +1285,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.2</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1348,14 +1350,14 @@ window.syncToCloud = async () => {
     <div class="card-title">🔍 今日話題掃描</div>
     <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 <span class="char-name-ui">角色</span> 的梗圖靈感</p>
     <div class="row" style="margin-bottom:14px">
-      <select id="topicCat">
+      <select id="topicCat" onchange="updateCostBadges()">
         <option value="時事">🗞️ 今日時事</option>
         <option value="職場">💼 職場話題</option>
         <option value="單身生活">💅 單身生活</option>
         <option value="日常趣事">😂 日常趣事</option>
         <option value="旅遊">✈️ 旅遊話題</option>
       </select>
-      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡1</span></button>
+      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡2</span></button>
     </div>
     <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在尋找靈感中...</div>
     <div class="err" id="scanErr"></div>
@@ -1383,7 +1385,7 @@ window.syncToCloud = async () => {
     <div class="hint-box">💡 <strong>話題框可以留空！</strong> 系統會自動搜尋當日時事，幫 <span class="char-name-ui">角色</span> 找題目 ✨</div>
     <textarea id="scriptTopic" rows="3" placeholder="（可留空，系統自動找話題）&#10;或輸入指定話題，例如：&#10;老闆突然說要開臨時會議&#10;颱風假到底放不放" oninput="if(!this.value.trim())unlockScriptType()"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center" class="row">
-      <select id="scriptType">
+      <select id="scriptType" onchange="updateCostBadges()">
         <option value="職場梗">💼 職場梗</option>
         <option value="單身日常">💅 單身日常</option>
         <option value="旅遊心得">✈️ 旅遊心得</option>
@@ -1611,11 +1613,25 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.7';
+const APP_VERSION = '3.7.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
 // ══════════════════════════════════════════════
+// ── 動態更新按鈕點數標示 ─────────────────────────
+window.updateCostBadges = () => {
+  const cat = document.getElementById('topicCat');
+  const scanBadge = document.querySelector('#scanBtn .cost-badge');
+  if (cat && scanBadge) {
+    scanBadge.textContent = cat.value === '時事' ? '⚡2' : '⚡1';
+  }
+  const type = document.getElementById('scriptType');
+  const scriptBadge = document.querySelector('#scriptBtn .cost-badge');
+  if (type && scriptBadge) {
+    scriptBadge.textContent = type.value === '時事反應' ? '⚡2' : '⚡1';
+  }
+};
+
 const CREDITS_NEW_USER = 20;
 const CREDIT_COST = { scan: 1, script: 1, inspo: 2, news: 2 };
 
@@ -1736,6 +1752,7 @@ window.onload = () => {
   rebuildTopicSelects();
   renderVersion();
   updateCharNameUI(); // 更新所有角色名稱顯示
+  updateCostBadges(); // ⚡ 初始化按鈕點數標示
   // 恢復上次的版面偏好
   const savedView = localStorage.getItem('fumei_view');
   const btn = document.getElementById('viewToggleBtn');
