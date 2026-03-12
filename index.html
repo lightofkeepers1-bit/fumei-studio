@@ -134,6 +134,10 @@
   .del-btn { background:#fce4ec;color:#c2185b;border:none;padding:6px 12px;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
   .del-btn:hover { background:#f8bbd0 }
 
+  /* ── 意見回饋 ── */
+  .feedback-type-btn { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
+  .feedback-type-btn.active { background:#764ba2;color:white;border-color:#764ba2 }
+
   /* ── 改寫 chips ── */
   .rewrite-chip { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
   .rewrite-chip:hover { background:#f4e8ff;border-color:#764ba2 }
@@ -514,10 +518,12 @@ window.adminLoadInviteCodes = async () => {
         '<div style="display:flex;gap:5px">',
           '<button data-copy="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer">複製</button>',
           (active && !used) ? '<button data-deactivate="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.72rem;font-weight:800;cursor:pointer">停用</button>' : '',
+          '<button data-delete="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #eee;background:#fafafa;color:#aaa;font-size:0.72rem;font-weight:800;cursor:pointer">🗑️</button>',
         '</div>'
       ].join('');
       row.querySelector('[data-copy]')?.addEventListener('click', () => window.adminCopyCode(codeId));
       row.querySelector('[data-deactivate]')?.addEventListener('click', () => window.adminDeactivateCode(codeId));
+      row.querySelector('[data-delete]')?.addEventListener('click', () => window.adminDeleteCode(codeId));
       return row;
     });
     list.innerHTML = ''; rows.forEach(r => list.appendChild(r));
@@ -601,9 +607,61 @@ window.adminLoadUsage = async () => {
   }
 };
 
+// ── 意見回饋 ────────────────────────────────────
+window._feedbackType = 'bug';
+
+window.selectFeedbackType = function(btn) {
+  document.querySelectorAll('.feedback-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  window._feedbackType = btn.dataset.type;
+};
+
+window.submitFeedback = async () => {
+  const text = document.getElementById('feedbackText').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('feedbackSubmitBtn');
+  const msg = document.getElementById('feedbackMsg');
+  btn.disabled = true;
+  btn.textContent = '⏳ 送出中...';
+  msg.textContent = '';
+
+  try {
+    const { collection, addDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await addDoc(collection(db, 'feedback'), {
+      type: window._feedbackType,
+      text,
+      uid: window._currentUid || '',
+      email: auth.currentUser?.email || '',
+      version: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '',
+      created_at: serverTimestamp()
+    });
+    msg.style.color = '#4caf50';
+    msg.textContent = '✅ 已送出，感謝你的回饋！';
+    document.getElementById('feedbackText').value = '';
+    btn.textContent = '📤 送出回饋';
+    btn.disabled = false;
+  } catch(e) {
+    msg.style.color = '#e85d8a';
+    msg.textContent = '❌ 送出失敗：' + e.message;
+    btn.textContent = '📤 送出回饋';
+    btn.disabled = false;
+  }
+};
+
 window.adminCopyCode = async (code) => {
   try { await navigator.clipboard.writeText(code); }
   catch(e) { prompt('複製此邀請碼：', code); }
+};
+
+window.adminDeleteCode = async (code) => {
+  if (!confirm('確定要刪除邀請碼 ' + code + '？\n刪除後無法復原。')) return;
+  try {
+    const { doc: _doc, deleteDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await deleteDoc(_doc(db, 'invite_codes', code));
+    adminLoadInviteCodes();
+  } catch(e) { alert('刪除失敗：' + e.message); }
 };
 
 window.adminDeactivateCode = async (code) => {
@@ -737,6 +795,9 @@ onAuthStateChanged(auth, async (user) => {
       const accInfo = document.getElementById('accountInfo');
       if (accInfo) accInfo.textContent = '登入身份：' + (user.displayName || user.email);
     }
+    // 意見回饋 section 顯示
+    const fbSec = document.getElementById('feedbackSection');
+    if (fbSec) fbSec.style.display = 'block';
 
     // 檢查是否有待兌換的邀請碼
     const pendingCode = localStorage.getItem('fumei_pending_invite');
@@ -773,6 +834,8 @@ onAuthStateChanged(auth, async (user) => {
     // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
     document.getElementById('guestBtn').style.display = 'flex';
+    const fbSecOut = document.getElementById('feedbackSection');
+    if (fbSecOut) fbSecOut.style.display = 'none';
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
@@ -1023,7 +1086,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.6</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.9</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1350,7 +1413,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.9';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -3139,6 +3202,22 @@ function clearAllHistory() {
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
 
+      <!-- 意見回饋（登入用戶才顯示）-->
+      <div class="settings-section" id="feedbackSection" style="display:none">
+        <hr class="settings-divider">
+        <div class="settings-label">💬 意見回饋</div>
+        <div style="background:#faf7ff;border-radius:14px;padding:16px;border:1.5px solid #e8d5f5">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="feedback-type-btn active" data-type="bug" onclick="selectFeedbackType(this)">🐛 Bug 回報</button>
+            <button class="feedback-type-btn" data-type="suggest" onclick="selectFeedbackType(this)">💡 功能建議</button>
+            <button class="feedback-type-btn" data-type="other" onclick="selectFeedbackType(this)">💬 其他</button>
+          </div>
+          <textarea id="feedbackText" rows="4" class="settings-input" placeholder="描述你遇到的問題或建議..." style="resize:vertical;font-size:0.85rem;line-height:1.6"></textarea>
+          <button onclick="submitFeedback()" id="feedbackSubmitBtn" style="width:100%;margin-top:10px;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">📤 送出回饋</button>
+          <div id="feedbackMsg" style="font-size:0.8rem;font-weight:700;min-height:18px;margin-top:8px;text-align:center"></div>
+        </div>
+      </div>
+
       <!-- 管理員：邀請碼管理（僅特定帳號顯示）-->
       <div class="settings-section" id="adminInviteSection" style="display:none">
         <hr class="settings-divider">
@@ -3577,7 +3656,7 @@ ${emoji} 名稱：${name}
 確定送出，讓 AI 分析嗎？`
     );
     if (!confirmed) return;
-    obStartAnalysis();
+    await obStartAnalysis();
   }
 
   obGoTo(step);
@@ -3642,7 +3721,10 @@ async function obStartAnalysis() {
       focus    = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
       boldness = (text.match(/尺度[：:]\s*(.+)/) || [])[1]?.trim() || '';
     }
-  } catch(e) { /* 分析失敗不影響流程 */ }
+  } catch(e) {
+    console.error('AI分析失敗', e);
+    // 分析失敗仍繼續，tone/focus/boldness 保持空白
+  }
 
   if (!aiValid) {
     // AI 判定亂填，退回 Step 2
