@@ -704,6 +704,28 @@ onAuthStateChanged(auth, async (user) => {
     // 管理員檢查
     window.checkAdminAccess(user.email);
 
+    // 登入後還原被 applyGuestRestrictions 鎖住的按鈕
+    const inspoBtn = document.getElementById('inspoBtn');
+    if (inspoBtn) {
+      inspoBtn.style.opacity = '';
+      inspoBtn.title = '';
+      inspoBtn.onclick = () => window.genInspo();
+    }
+    // 還原 scriptType 的時事反應選項
+    const scriptType = document.getElementById('scriptType');
+    if (scriptType && ![...scriptType.options].find(o => o.value === '時事反應')) {
+      const opt = new Option('🗞️ 時事反應', '時事反應');
+      scriptType.appendChild(opt);
+    }
+    // 還原歷史紀錄 tab
+    document.querySelectorAll('.tab').forEach(btn => {
+      if (btn.textContent.includes('歷史')) {
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        btn.onclick = () => switchTab('history', btn);
+      }
+    });
+
     // 帳號 section 顯示
     const accSec = document.getElementById('accountSection');
     if (accSec) {
@@ -935,6 +957,13 @@ function applyGuestRestrictions() {
     // 預設選職場
     topicCat.value = '職場';
   }
+  // 鎖定產腳本的時事反應選項
+  const scriptType = document.getElementById('scriptType');
+  if (scriptType) {
+    const newsTypeOpt = scriptType.querySelector('option[value="時事反應"]');
+    if (newsTypeOpt) newsTypeOpt.remove();
+    if (scriptType.value === '時事反應') scriptType.value = '職場梗';
+  }
 }
 
 window.showLoginPrompt = function(msg) {
@@ -990,7 +1019,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.0.0</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.2</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1304,7 +1333,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2197,6 +2226,12 @@ async function genScript() {
   const notice = document.getElementById('autoNotice');
   const used = document.getElementById('autoUsed');
   const isAuto = !topic && type === '時事反應';
+
+  // 訪客：不允許時事反應
+  if (!window._currentUid && type === '時事反應') {
+    if (confirm('🔒 時事反應需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+    return;
+  }
 
   // 訪客：冷卻時間檢查
   if (window._guestMode && !window._currentUid) {
