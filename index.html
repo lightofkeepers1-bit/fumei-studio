@@ -46,6 +46,9 @@
 
   .btn { background:linear-gradient(135deg,var(--pink),var(--pink-deep));color:white;border:none;padding:12px 28px;border-radius:50px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;box-shadow:0 4px 15px rgba(224,122,149,0.35);display:inline-flex;align-items:center;gap:8px }
   .btn:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(224,122,149,0.45) }
+  .cost-badge { font-size:0.72rem;font-weight:900;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.4);color:rgba(255,255,255,0.95);padding:2px 7px;border-radius:20px;letter-spacing:0.5px;flex-shrink:0 }
+  #creditsToast { position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(50,30,80,0.92);color:white;padding:10px 20px;border-radius:24px;font-size:0.85rem;font-weight:800;font-family:'Nunito',sans-serif;z-index:9999;pointer-events:none;opacity:0;transition:all 0.35s;white-space:nowrap }
+  #creditsToast.show { opacity:1;transform:translateX(-50%) translateY(0) }
   .btn:disabled { opacity:0.6;cursor:not-allowed;transform:none }
   .btn-sm { background:var(--mint);color:#2d6a4f;border:none;padding:8px 18px;border-radius:20px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-right:6px }
   .btn-sm:hover { background:#95d5b2 }
@@ -510,10 +513,35 @@ window.redeemInviteCode = async () => {
       msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return;
     }
 
-    // 兌換成功：引導登入，登入後自動套用
+    // 如果目前已登入，直接套用（不需再登入）
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const creditsToAdd = data.credits || 20;
+      await updateDoc(codeRef, {
+        used_by: currentUser.email,
+        used_uid: currentUser.uid,
+        used_at: serverTimestamp(),
+        active: false
+      });
+      await window.addCredits(creditsToAdd, 'invite:' + code);
+      // 備份紀錄
+      await window.saveToCloud(currentUser.uid, {
+        fumei_invite_last: code,
+        fumei_invite_last_at: new Date().toISOString(),
+      });
+      msg.style.color = '#2d6a4f';
+      msg.textContent = `🎉 兌換成功！已補充 ${creditsToAdd} 點（目前 ${window.getCredits()} 點）`;
+      input.value = '';
+      return;
+    }
+
+    // 未登入：儲存 pending code，展開登入選項
     localStorage.setItem('fumei_pending_invite', code);
-    msg.style.color = '#2d6a4f'; msg.textContent = '✅ 有效！請登入以完成兌換 👇';
-    setTimeout(() => loginGoogle(), 1200);
+    msg.style.color = '#2d6a4f';
+    msg.textContent = '✅ 邀請碼有效！請選擇登入方式完成兌換 👇';
+    // 展開 Email 登入表單（讓用戶選擇登入方式）
+    const emailArea = document.getElementById('emailFormArea');
+    if (emailArea) emailArea.style.display = 'block';
 
   } catch(e) {
     console.error(e);
@@ -521,6 +549,47 @@ window.redeemInviteCode = async () => {
   }
 };
 
+
+// ── 設定頁兌換邀請碼 ─────────────────────────────
+window.redeemFromSettings = async () => {
+  const input = document.getElementById('settingsInviteInput');
+  const msg = document.getElementById('settingsInviteMsg');
+  if (!input || !msg) return;
+  const code = (input.value || '').trim().toUpperCase();
+  if (!code) { msg.style.color = '#e85d8a'; msg.textContent = '請輸入邀請碼'; return; }
+  // 借用主兌換流程
+  document.getElementById('inviteCodeInput') && (document.getElementById('inviteCodeInput').value = code);
+  msg.style.color = '#aaa'; msg.textContent = '⏳ 兌換中...';
+  try {
+    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const codeRef = _doc(db, 'invite_codes', code);
+    const snap = await _getDoc(codeRef);
+    if (!snap.exists()) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return; }
+    const data = snap.data();
+    if (!data.active) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return; }
+    if (data.used_by) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return; }
+    if (!window._currentUid) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請先登入'; return; }
+    const creditsToAdd = data.credits || 20;
+    await updateDoc(codeRef, { used_by: auth.currentUser.email, used_uid: window._currentUid, used_at: serverTimestamp(), active: false });
+    await window.addCredits(creditsToAdd, 'invite:' + code);
+    await window.saveToCloud(window._currentUid, { fumei_invite_last: code, fumei_invite_last_at: new Date().toISOString() });
+    input.value = '';
+    const newCredits = window.getCredits();
+    msg.style.color = '#2d6a4f';
+    msg.textContent = `🎉 成功！補充 ${creditsToAdd} 點，目前 ${newCredits} 點`;
+    document.getElementById('creditsInfoNum').textContent = newCredits;
+  } catch(e) {
+    console.error(e);
+    msg.style.color = '#e85d8a'; msg.textContent = '❌ 兌換失敗';
+  }
+};
+
+// ── 換登入方式：透過 email 合併邀請碼方案 ──────────
+window._checkInviteMergeByEmail = async (user) => {
+  // 點數制：不需合併舊方案，點數已直接儲存在用戶 uid 文件中
+  // 保留此函式供日後擴充
+};
 
 // ── 管理員邀請碼功能 ──────────────────────────────
 const ADMIN_EMAILS = ['lightofkeepers1@gmail.com']; // 在這裡加管理員 email
@@ -546,22 +615,28 @@ window.adminCreateInviteCode = async () => {
   if (!window._isAdmin) return;
   const msg = document.getElementById('adminCodeMsg');
   const input = document.getElementById('adminCodeInput');
+  const creditsInput = document.getElementById('adminCodeCredits');
   const code = input.value.trim().toUpperCase() || genRandomCode();
+  const credits = creditsInput && creditsInput.value ? parseInt(creditsInput.value) : 20;
 
   msg.style.color = '#aaa'; msg.textContent = '⏳ 建立中...';
 
   try {
     const { doc: _doc, setDoc: _setDoc, serverTimestamp } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await _setDoc(_doc(db, 'invite_codes', code), {
+    const codeData = {
       active: true,
       used_by: '',
+      used_uid: '',
+      credits,
       created_at: serverTimestamp(),
       created_by: auth.currentUser?.email || '',
-    });
+    };
+    await _setDoc(_doc(db, 'invite_codes', code), codeData);
     msg.style.color = '#2d6a4f';
-    msg.textContent = '✅ 已建立：' + code;
+    msg.textContent = `✅ 已建立：${code}　補充 ${credits} 點`;
     input.value = '';
+    if (creditsInput) creditsInput.value = '';
     try { await navigator.clipboard.writeText(code); msg.textContent += '  📋 已複製'; } catch(e) {}
     adminLoadInviteCodes();
   } catch(e) {
@@ -587,17 +662,26 @@ window.adminLoadInviteCodes = async () => {
     const rows = snap.docs.map(d => {
       const data = d.data();
       const used = data.used_by;
+      const usedUid = data.used_uid || '';
       const active = data.active;
-      const statusColor = used ? '#bbb' : (active ? '#2d6a4f' : '#e85d8a');
-      const statusText = used ? ('已使用（' + used + '）') : (active ? '可用' : '已停用');
+      const credits = data.credits || 20;
+      let statusColor, statusText;
+      if (used) {
+        statusColor = '#bbb';
+        statusText = '已使用（' + used + '）';
+      } else {
+        statusColor = active ? '#2d6a4f' : '#e85d8a';
+        statusText = active ? '可用' : '已停用';
+      }
       const codeId = d.id;
-      const plan = data.plan || 'pro';
+      const creditsLabel = '　補充 ' + credits + ' 點';
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 12px;background:white;border-radius:10px;border:1.5px solid #f0e8ff';
       row.innerHTML = [
         '<div style="flex:1">',
           '<div style="font-weight:900;font-size:0.9rem;color:#333;letter-spacing:1px">' + codeId + '</div>',
-          '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">方案：<strong style="color:#764ba2">' + plan + '</strong>　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>',
+          '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">⚡<strong style="color:#764ba2">' + credits + ' 點</strong>' + creditsLabel.replace('　補充 ' + credits + ' 點', '') + '　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>',
+          usedUid ? '<div style="font-size:0.68rem;color:#ccc;margin-top:1px;font-family:monospace">UID: ' + usedUid.slice(0,20) + '…</div>' : '',
         '</div>',
         '<div style="display:flex;gap:5px">',
           '<button data-copy="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer">複製</button>',
@@ -796,6 +880,9 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
 
+    // ⚡ 同步點數
+    window.syncCreditsFromCloud(user.uid);
+
     // 從雲端載入資料
     const wasGuest = window._guestMode;
     const guestChars = wasGuest ? localStorage.getItem('fumei_chars') : null; // 先備份訪客設定
@@ -905,22 +992,32 @@ onAuthStateChanged(auth, async (user) => {
         const codeRef = _doc(db, 'invite_codes', pendingCode);
         const snap = await _getDoc(codeRef);
         if (snap.exists() && snap.data().active && !snap.data().used_by) {
-          const plan = snap.data().plan || 'pro';
-          // 標記邀請碼已使用
-          await updateDoc(codeRef, { used_by: user.email, used_at: serverTimestamp(), active: false });
-          // 寫入用戶方案
-          await window.saveToCloud(user.uid, { fumei_plan: plan, fumei_plan_source: 'invite:' + pendingCode });
-          localStorage.setItem('fumei_plan', plan);
+          const codeData = snap.data();
+          const creditsToAdd = codeData.credits || 20;
+          // 標記邀請碼已使用，同時記錄 uid
+          await updateDoc(codeRef, {
+            used_by: user.email,
+            used_uid: user.uid,
+            used_at: serverTimestamp(),
+            active: false
+          });
+          // 補充點數（syncCreditsFromCloud 已先跑，這裡再加）
+          await window.addCredits(creditsToAdd, 'invite:' + pendingCode);
+          await window.saveToCloud(user.uid, {
+            fumei_invite_last: pendingCode,
+            fumei_invite_last_at: new Date().toISOString(),
+          });
           localStorage.removeItem('fumei_pending_invite');
-          setTimeout(() => alert(`🎉 邀請碼兌換成功！已解鎖 Pro 方案`), 500);
+          document.getElementById('welcomeModal').style.display = 'none';
+          setTimeout(() => alert(`🎉 邀請碼兌換成功！已補充 ${creditsToAdd} 點`), 500);
         } else {
           localStorage.removeItem('fumei_pending_invite');
         }
       } catch(e) { console.error('邀請碼套用失敗', e); localStorage.removeItem('fumei_pending_invite'); }
     }
 
-    // 從雲端讀取方案狀態
-    if (data?.fumei_plan) { localStorage.setItem('fumei_plan', data.fumei_plan); }
+    // 換登入方式偵測（舊邀請碼帳號合併，保留向後相容）
+    await window._checkInviteMergeByEmail(user);
 
     // 登入成功時關閉所有 modal
     document.getElementById('onboardingModal').style.display = 'none';
@@ -936,6 +1033,8 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
+    localStorage.removeItem('fumei_credits');
+    window.updateCreditsUI(-1);
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱，避免舊 localStorage 殘留影響
     document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
@@ -1175,6 +1274,7 @@ window.syncToCloud = async () => {
 </script>
 </head>
 <body>
+<div id="creditsToast"></div>
 
 <!-- ── 歡迎登入頁（未登入時全螢幕顯示）── -->
 
@@ -1183,7 +1283,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.3</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.6</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1196,6 +1296,7 @@ window.syncToCloud = async () => {
     <div id="userInfo" style="display:none;align-items:center;gap:6px">
       <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
       <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情" style="display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap">⚡ <span id="creditsNum">-</span></span>
       <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
     </div>
     <button class="settings-btn" onclick="openSettings()" title="設定">⚙️</button>
@@ -1254,7 +1355,7 @@ window.syncToCloud = async () => {
         <option value="日常趣事">😂 日常趣事</option>
         <option value="旅遊">✈️ 旅遊話題</option>
       </select>
-      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題</button>
+      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡1</span></button>
     </div>
     <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在尋找靈感中...</div>
     <div class="err" id="scanErr"></div>
@@ -1294,8 +1395,8 @@ window.syncToCloud = async () => {
         <option value="影片15">🎬 影片腳本 15秒</option>
         <option value="影片30">🎬 影片腳本 30秒</option>
       </select>
-      <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本</button>
-      <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想</button>
+      <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本 <span class="cost-badge">⚡1</span></button>
+      <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想 <span class="cost-badge" style="background:rgba(255,255,255,0.25)">⚡2</span></button>
     </div>
     <!-- 三AI發想區塊 -->
     <div id="inspoArea" style="display:none;margin-top:20px">
@@ -1510,7 +1611,108 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.3';
+const APP_VERSION = '3.6';
+
+// ══════════════════════════════════════════════
+// ⚡ CREDITS SYSTEM
+// ══════════════════════════════════════════════
+const CREDITS_NEW_USER = 20;
+const CREDIT_COST = { scan: 1, script: 1, inspo: 2, news: 2 };
+
+// 讀取目前點數（本地緩存）
+window.getCredits = () => parseInt(localStorage.getItem('fumei_credits') ?? '-1');
+
+// 更新 Header 點數顯示
+window.updateCreditsUI = (credits) => {
+  const display = document.getElementById('creditsDisplay');
+  const num = document.getElementById('creditsNum');
+  if (!display || !num) return;
+  if (credits < 0 || !window._currentUid) { display.style.display = 'none'; return; }
+  display.style.display = 'inline-flex';
+  num.textContent = credits;
+  // 低點數警告色
+  display.style.background = credits <= 3
+    ? 'rgba(232,93,138,0.7)'
+    : 'rgba(255,255,255,0.2)';
+};
+
+// 顯示扣點 Toast
+window.showCreditToast = (cost, remaining) => {
+  const t = document.getElementById('creditsToast');
+  if (!t) return;
+  t.textContent = `⚡ -${cost} 點　剩餘 ${remaining} 點`;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+};
+
+// 從雲端同步點數（登入後呼叫）
+window.syncCreditsFromCloud = async (uid) => {
+  try {
+    const { doc, getDoc, setDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : {};
+
+    let credits = data.fumei_credits;
+    // 新帳號：初始化 20 點
+    if (credits === undefined || credits === null) {
+      credits = CREDITS_NEW_USER;
+      await setDoc(ref, { fumei_credits: credits, fumei_credits_init_at: serverTimestamp() }, { merge: true });
+    }
+    localStorage.setItem('fumei_credits', String(credits));
+    window.updateCreditsUI(credits);
+    return credits;
+  } catch(e) {
+    console.error('[Credits] sync failed', e);
+    return window.getCredits();
+  }
+};
+
+// 扣點（先扣本地，再同步雲端）
+window.deductCredits = async (cost, feature) => {
+  if (!window._currentUid) return { ok: false, reason: 'notLoggedIn' };
+  const current = window.getCredits();
+  if (current < 0) return { ok: false, reason: 'notSynced' };
+  if (current < cost) return { ok: false, reason: 'insufficient', remaining: current };
+
+  const newVal = current - cost;
+  localStorage.setItem('fumei_credits', String(newVal));
+  window.updateCreditsUI(newVal);
+  window.showCreditToast(cost, newVal);
+
+  // 非同步寫回雲端（不等待，避免阻塞 UI）
+  (async () => {
+    try {
+      const { doc, updateDoc, increment } =
+        await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await updateDoc(doc(db, 'users', window._currentUid), {
+        fumei_credits: newVal,
+        ['fumei_credits_last_use']: new Date().toISOString(),
+      });
+    } catch(e) { console.error('[Credits] cloud write failed', e); }
+  })();
+
+  return { ok: true, remaining: newVal };
+};
+
+// 補充點數（邀請碼兌換）
+window.addCredits = async (amount, source) => {
+  if (!window._currentUid) return;
+  const current = window.getCredits();
+  const newVal = (current < 0 ? 0 : current) + amount;
+  localStorage.setItem('fumei_credits', String(newVal));
+  window.updateCreditsUI(newVal);
+  try {
+    const { doc, updateDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await updateDoc(doc(db, 'users', window._currentUid), {
+      fumei_credits: newVal,
+      ['fumei_credits_added_' + Date.now()]: { amount, source, at: new Date().toISOString() },
+    });
+  } catch(e) { console.error('[Credits] addCredits failed', e); }
+};
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2013,6 +2215,20 @@ async function scanTopics() {
     }
   }
 
+  // ⚡ 登入用戶：點數檢查（今日時事扣2點，其他1點）
+  if (window._currentUid) {
+    const isNewsCheck = (document.getElementById('topicCat')?.value === '時事');
+    const cost = isNewsCheck ? CREDIT_COST.news : CREDIT_COST.scan;
+    const result = await window.deductCredits(cost, 'scan');
+    if (!result.ok) {
+      if (result.reason === 'insufficient') {
+        err.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請兌換邀請碼補充點數。`;
+        err.classList.add('show');
+      }
+      return;
+    }
+  }
+
   btn.disabled=true; load.classList.add('show'); grid.innerHTML='';
   document.getElementById('selectedCard').style.display='none';
   document.getElementById('topicsCard').style.display='none';
@@ -2289,6 +2505,20 @@ async function genInspo() {
     return;
   }
 
+  // ⚡ 點數檢查（2點）
+  {
+    const result = await window.deductCredits(CREDIT_COST.inspo, 'inspo');
+    if (!result.ok) {
+      btn.disabled = false;
+      if (result.reason === 'insufficient') {
+        const e = document.getElementById('inspoErr');
+        e.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請兌換邀請碼補充點數。`;
+        e.classList.add('show');
+      }
+      return;
+    }
+  }
+
   // 先顯示 loading 占位卡片
   cards.innerHTML = ['🟣 Claude','🔵 Gemini','🟢 ChatGPT'].map(label => `
     <div class="inspo-loading-row">
@@ -2465,6 +2695,19 @@ async function genScript() {
     if (left > 0) {
       err.textContent = `⏳ 請等待 ${left} 秒後再產腳本`;
       err.classList.add('show');
+      return;
+    }
+  }
+
+  // ⚡ 登入用戶：點數檢查（時事反應扣2點，其他1點）
+  if (window._currentUid) {
+    const scriptCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
+    const result = await window.deductCredits(scriptCost, 'script');
+    if (!result.ok) {
+      if (result.reason === 'insufficient') {
+        err.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請兌換邀請碼補充點數。`;
+        err.classList.add('show');
+      }
       return;
     }
   }
@@ -2943,9 +3186,9 @@ function clearAllHistory() {
     <!-- 邀請碼區塊 -->
     <div style="border-top:1px solid #f0e8ff;padding-top:16px">
       <div style="font-size:0.78rem;color:#bbb;margin-bottom:8px;font-weight:700">🎟️ 有邀請碼？</div>
-      <div style="display:flex;gap:8px">
-        <input id="inviteCodeInput" placeholder="輸入邀請碼" style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555">
-        <button onclick="redeemInviteCode()" style="padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="inviteCodeInput" placeholder="輸入邀請碼" style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;height:42px;box-sizing:border-box">
+        <button onclick="redeemInviteCode()" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">兌換</button>
       </div>
       <div id="inviteCodeMsg" style="font-size:0.78rem;margin-top:8px;min-height:18px"></div>
     </div>
@@ -3311,6 +3554,21 @@ function clearAllHistory() {
       <div class="settings-section" id="accountSection" style="display:none">
         <div class="settings-label">帳號</div>
         <div id="accountInfo" style="font-size:0.85rem;color:#888;margin-bottom:10px"></div>
+        <div id="creditsInfo" style="display:flex;align-items:center;justify-content:space-between;background:#faf7ff;border-radius:14px;padding:14px 16px;border:1.5px solid #e8d5f5;margin-bottom:12px">
+          <div>
+            <div style="font-size:0.75rem;color:#bbb;font-weight:800;margin-bottom:3px">⚡ 點數餘額</div>
+            <div style="font-size:1.5rem;font-weight:900;color:#764ba2;line-height:1"><span id="creditsInfoNum">-</span> <span style="font-size:0.8rem;color:#bbb;font-weight:700">點</span></div>
+            <div style="font-size:0.72rem;color:#bbb;margin-top:4px">掃描 ⚡1點・時事/三AI ⚡2點</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:0.72rem;color:#bbb;margin-bottom:6px">有邀請碼可補充點數</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="settingsInviteInput" placeholder="輸入邀請碼" style="padding:8px 12px;border-radius:10px;border:1.5px solid #e0d0f0;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;width:130px">
+              <button onclick="redeemFromSettings()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
+            </div>
+            <div id="settingsInviteMsg" style="font-size:0.75rem;font-weight:700;min-height:16px;margin-top:6px;text-align:right"></div>
+          </div>
+        </div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
@@ -3339,6 +3597,11 @@ function clearAllHistory() {
           <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">新增邀請碼</div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input id="adminCodeInput" class="settings-input" placeholder="留空自動產生" style="margin:0;flex:1;font-family:'Nunito',sans-serif;font-size:0.85rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            <div style="display:flex;align-items:center;gap:5px;background:white;border:1.5px solid #e0d0f0;border-radius:12px;padding:0 12px">
+              <span style="font-size:0.8rem;color:#bbb;white-space:nowrap">⚡</span>
+              <input id="adminCodeCredits" type="number" min="1" value="20" style="width:55px;border:none;outline:none;font-size:0.9rem;font-weight:800;color:#764ba2;font-family:'Nunito',sans-serif;text-align:center;background:transparent">
+              <span style="font-size:0.75rem;color:#bbb">點</span>
+            </div>
             <button onclick="adminCreateInviteCode()" style="padding:10px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">＋ 新增</button>
           </div>
           <div id="adminCodeMsg" style="font-size:0.8rem;font-weight:700;min-height:18px;margin-bottom:10px;padding:0 2px"></div>
@@ -3899,8 +4162,15 @@ function openSettings() {
   document.getElementById('accountSection').style.display = 'block';
   if (window._currentUid) {
     document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
+    const credits = window.getCredits();
+    const infoNum = document.getElementById('creditsInfoNum');
+    if (infoNum) infoNum.textContent = credits >= 0 ? credits : '載入中...';
+    if (infoNum && credits <= 3 && credits >= 0) infoNum.style.color = '#e85d8a';
+    else if (infoNum) infoNum.style.color = '#764ba2';
   } else {
     document.getElementById('accountInfo').textContent = '尚未登入 Google 帳號';
+    const infoNum = document.getElementById('creditsInfoNum');
+    if (infoNum) infoNum.textContent = '-';
   }
   // image prompt settings
   document.getElementById('imgPromptStill').value = localStorage.getItem('fumei_img_prompt_still') || '';
