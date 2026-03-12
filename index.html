@@ -880,8 +880,8 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
 
-    // ⚡ 同步點數
-    window.syncCreditsFromCloud(user.uid);
+    // ⚡ 同步點數（await 確保 UI 在登入流程完成前就更新）
+    await window.syncCreditsFromCloud(user.uid);
 
     // 從雲端載入資料
     const wasGuest = window._guestMode;
@@ -1283,7 +1283,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.6</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1296,7 +1296,7 @@ window.syncToCloud = async () => {
     <div id="userInfo" style="display:none;align-items:center;gap:6px">
       <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
       <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-      <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情" style="display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap">⚡ <span id="creditsNum">-</span></span>
+      <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情" style="display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap;line-height:1">⚡ <span id="creditsNum">-</span></span>
       <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
     </div>
     <button class="settings-btn" onclick="openSettings()" title="設定">⚙️</button>
@@ -1611,7 +1611,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.6';
+const APP_VERSION = '3.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1627,13 +1627,22 @@ window.updateCreditsUI = (credits) => {
   const display = document.getElementById('creditsDisplay');
   const num = document.getElementById('creditsNum');
   if (!display || !num) return;
-  if (credits < 0 || !window._currentUid) { display.style.display = 'none'; return; }
-  display.style.display = 'inline-flex';
+  if (credits < 0 || !window._currentUid) {
+    display.style.display = 'none';
+    return;
+  }
+  display.style.display = 'flex';
   num.textContent = credits;
   // 低點數警告色
   display.style.background = credits <= 3
     ? 'rgba(232,93,138,0.7)'
     : 'rgba(255,255,255,0.2)';
+  // 同步更新設定頁點數
+  const infoNum = document.getElementById('creditsInfoNum');
+  if (infoNum) {
+    infoNum.textContent = credits;
+    infoNum.style.color = credits <= 3 ? '#e85d8a' : '#764ba2';
+  }
 };
 
 // 顯示扣點 Toast
@@ -4162,11 +4171,9 @@ function openSettings() {
   document.getElementById('accountSection').style.display = 'block';
   if (window._currentUid) {
     document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
+    // 直接從 localStorage 讀（syncCreditsFromCloud 已在登入時 await 完成）
     const credits = window.getCredits();
-    const infoNum = document.getElementById('creditsInfoNum');
-    if (infoNum) infoNum.textContent = credits >= 0 ? credits : '載入中...';
-    if (infoNum && credits <= 3 && credits >= 0) infoNum.style.color = '#e85d8a';
-    else if (infoNum) infoNum.style.color = '#764ba2';
+    window.updateCreditsUI(credits >= 0 ? credits : 0);
   } else {
     document.getElementById('accountInfo').textContent = '尚未登入 Google 帳號';
     const infoNum = document.getElementById('creditsInfoNum');
