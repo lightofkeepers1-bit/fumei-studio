@@ -342,7 +342,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.js';
 
@@ -392,7 +392,12 @@ window.loginGoogle = async () => {
     return;
   }
   try {
-    await signInWithPopup(auth, provider);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      await signInWithRedirect(auth, provider);
+    } else {
+      await signInWithPopup(auth, provider);
+    }
   } catch(e) { console.error(e); }
 };
 window.logoutUser = async () => {
@@ -690,6 +695,9 @@ window.loadFromCloud = async (uid) => {
 };
 
 // ── 監聽登入狀態 ──
+// 接收 redirect 登入結果
+getRedirectResult(auth).catch(e => console.error('redirect error', e));
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     // 已登入
@@ -1086,7 +1094,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.9</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.0</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1413,7 +1421,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '2.9';
+const APP_VERSION = '3.0';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
