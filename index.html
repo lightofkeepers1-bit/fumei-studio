@@ -454,7 +454,6 @@ window.adminCreateInviteCode = async () => {
   if (!window._isAdmin) return;
   const msg = document.getElementById('adminCodeMsg');
   const input = document.getElementById('adminCodeInput');
-  const plan = document.getElementById('adminPlanSelect').value;
   const code = input.value.trim().toUpperCase() || genRandomCode();
 
   msg.style.color = '#aaa'; msg.textContent = '⏳ 建立中...';
@@ -463,14 +462,13 @@ window.adminCreateInviteCode = async () => {
     const { doc: _doc, setDoc: _setDoc, serverTimestamp } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     await _setDoc(_doc(db, 'invite_codes', code), {
-      plan,
       active: true,
       used_by: '',
       created_at: serverTimestamp(),
       created_by: auth.currentUser?.email || '',
     });
     msg.style.color = '#2d6a4f';
-    msg.textContent = '✅ 已建立：' + code + '（' + plan + '）';
+    msg.textContent = '✅ 已建立：' + code;
     input.value = '';
     try { await navigator.clipboard.writeText(code); msg.textContent += '  📋 已複製'; } catch(e) {}
     adminLoadInviteCodes();
@@ -523,6 +521,82 @@ window.adminLoadInviteCodes = async () => {
     console.error(e);
     list.innerHTML = '<div style="font-size:0.8rem;color:#e85d8a;text-align:center;padding:12px">載入失敗：' + e.message + '</div>';
   }
+};
+
+
+window.adminLoadUsage = async () => {
+  if (!window._isAdmin) return;
+  const list = document.getElementById('adminUsageList');
+  list.innerHTML = '<div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">⏳ 載入中...</div>';
+
+  try {
+    const { collection, getDocs } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
+    // 取所有已使用的邀請碼（email 對照表）
+    const codesSnap = await getDocs(collection(db, 'invite_codes'));
+    const emailToCode = {};
+    codesSnap.docs.forEach(d => {
+      const data = d.data();
+      if (data.used_by) emailToCode[data.used_by] = d.id;
+    });
+
+    // 取所有 users，找有 usage 欄位的
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const rows = [];
+    usersSnap.docs.forEach(d => {
+      const u = d.data();
+      const claude = parseInt(u.usage_claude || '0');
+      const gemini = parseInt(u.usage_gemini || '0');
+      const gpt    = parseInt(u.usage_gpt    || '0');
+      if (claude + gemini + gpt === 0) return; // 沒用過就跳過
+      rows.push({ uid: d.id, claude, gemini, gpt });
+    });
+
+    // 排序：總次數高的排前面
+    rows.sort((a, b) => (b.claude + b.gemini + b.gpt) - (a.claude + a.gemini + a.gpt));
+
+    if (!rows.length) {
+      list.innerHTML = '<div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">尚無使用紀錄（用戶開始使用後才會出現）</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    rows.forEach(u => {
+      const total = u.claude + u.gemini + u.gpt;
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:10px 12px;background:white;border-radius:10px;border:1.5px solid #f0e8ff';
+      row.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        + '<div style="font-size:0.75rem;color:#aaa;font-family:monospace">' + u.uid.slice(0,20) + '…</div>'
+        + '<div style="font-size:0.78rem;font-weight:900;color:#764ba2">共 ' + total + ' 次</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        + '<span style="font-size:0.72rem;padding:3px 8px;border-radius:20px;background:#f4e8ff;color:#6b3fa0;font-weight:700">🟣 Claude ' + u.claude + '</span>'
+        + '<span style="font-size:0.72rem;padding:3px 8px;border-radius:20px;background:#e8f4ff;color:#1a73e8;font-weight:700">🔵 Gemini ' + u.gemini + '</span>'
+        + '<span style="font-size:0.72rem;padding:3px 8px;border-radius:20px;background:#e8fff4;color:#1a7a4a;font-weight:700">🟢 GPT ' + u.gpt + '</span>'
+        + '</div>';
+      list.appendChild(row);
+    });
+
+    // 補充：有兌換邀請碼但還沒使用的用戶
+    const unusedEmails = Object.entries(emailToCode).filter(([email]) =>
+      !rows.some(r => false) // uid 無法直接對 email，只做補充提示
+    );
+    if (unusedEmails.length) {
+      const note = document.createElement('div');
+      note.style.cssText = 'margin-top:8px;padding:8px 12px;background:#fafafa;border-radius:10px;border:1.5px dashed #e8d5f5;font-size:0.75rem;color:#aaa;line-height:1.8';
+      note.innerHTML = '🎟️ 已兌換但尚未使用的帳號：<br>'
+        + unusedEmails.map(([email, code]) => '<strong style="color:#764ba2">' + code + '</strong> → ' + email).join('<br>');
+      list.appendChild(note);
+    }
+
+  } catch(e) {
+    console.error(e);
+    list.innerHTML = '<div style="font-size:0.8rem;color:#e85d8a;text-align:center;padding:12px">載入失敗：' + e.message + '</div>';
+  }
+};
+
 };
 
 window.adminCopyCode = async (code) => {
@@ -916,7 +990,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.10</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.11</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1230,7 +1304,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.10';
+const APP_VERSION = '4.9.11';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2958,13 +3032,8 @@ function clearAllHistory() {
           <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">新增邀請碼</div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input id="adminCodeInput" class="settings-input" placeholder="留空自動產生" style="margin:0;flex:1;font-family:'Nunito',sans-serif;font-size:0.85rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-            <select id="adminPlanSelect" style="border:1.5px solid #e8d5f5;border-radius:12px;padding:8px 12px;font-size:0.82rem;font-family:'Nunito',sans-serif;background:white;color:#764ba2;font-weight:700;outline:none;cursor:pointer">
-              <option value="pro">Pro</option>
-              <option value="beta">Beta</option>
-              <option value="lifetime">Lifetime</option>
-            </select>
+            <button onclick="adminCreateInviteCode()" style="padding:10px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">＋ 新增</button>
           </div>
-          <button onclick="adminCreateInviteCode()" style="width:100%;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px">＋ 新增邀請碼</button>
           <div id="adminCodeMsg" style="font-size:0.8rem;font-weight:700;min-height:18px;margin-bottom:10px;padding:0 2px"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <div style="font-size:0.78rem;font-weight:800;color:#bbb">現有邀請碼</div>
@@ -2972,6 +3041,17 @@ function clearAllHistory() {
           </div>
           <div id="adminCodeList" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
             <div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">點擊「重新載入」查看邀請碼</div>
+          </div>
+
+          <!-- 用量統計 -->
+          <div style="margin-top:16px;border-top:1px solid #ede8f5;padding-top:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-size:0.78rem;font-weight:800;color:#bbb">📊 用戶使用量</div>
+              <button onclick="adminLoadUsage()" style="font-size:0.72rem;padding:4px 12px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🔄 載入</button>
+            </div>
+            <div id="adminUsageList" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">點擊「載入」查看各用戶使用量</div>
+            </div>
           </div>
         </div>
       </div>
