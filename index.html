@@ -400,13 +400,15 @@ window.loginGoogle = async () => {
     return;
   }
   try {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
+    await signInWithPopup(auth, provider);
+  } catch(e) {
+    // popup 被擋時 fallback 到 redirect
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
       await signInWithRedirect(auth, provider);
     } else {
-      await signInWithPopup(auth, provider);
+      console.error(e);
     }
-  } catch(e) { console.error(e); }
+  }
 };
 // ── Email 登入 ────────────────────────────────────
 window._emailTab = 'login';
@@ -773,7 +775,11 @@ window.loadFromCloud = async (uid) => {
 
 // ── 監聽登入狀態 ──
 // 接收 redirect 登入結果
-getRedirectResult(auth).catch(e => console.error('redirect error', e));
+getRedirectResult(auth).then(result => {
+  if (result?.user) console.log('redirect login ok');
+}).catch(e => {
+  console.warn('redirect result:', e.code);
+});
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
