@@ -134,8 +134,12 @@
   .del-btn { background:#fce4ec;color:#c2185b;border:none;padding:6px 12px;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
   .del-btn:hover { background:#f8bbd0 }
 
+  /* ── 改寫 chips ── */
+  .rewrite-chip { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
+  .rewrite-chip:hover { background:#f4e8ff;border-color:#764ba2 }
+
   /* ── 三AI發想卡片 ── */
-  .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s; position:relative }
+  .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s }
   .inspo-card:hover { border-color:var(--pink-deep); box-shadow:0 4px 20px rgba(224,122,149,0.2); transform:translateY(-2px) }
   .inspo-card.selected { border-color:var(--pink-deep); background:#fff5f8; box-shadow:0 4px 20px rgba(224,122,149,0.25) }
   .inspo-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:800; margin-bottom:8px; font-family:'Nunito',sans-serif }
@@ -144,7 +148,7 @@
   .badge-gpt { background:#e8fff4; color:#1a7a4a }
   .inspo-direction { font-size:0.88rem; color:#666; margin-bottom:6px; font-weight:700 }
   .inspo-reason { font-size:0.82rem; color:#999; line-height:1.5 }
-  .inspo-select-btn { position:absolute; right:14px; top:50%; transform:translateY(-50%); background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:white; border:none; padding:7px 14px; border-radius:20px; font-size:0.78rem; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif; white-space:nowrap }
+  .inspo-select-btn { display:block; width:100%; margin-top:12px; background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:white; border:none; padding:8px 14px; border-radius:20px; font-size:0.82rem; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif; white-space:nowrap; text-align:center }
   .inspo-loading-row { display:flex; align-items:center; gap:10px; padding:14px 16px; background:#fafafa; border-radius:12px; font-size:0.82rem; color:#aaa; font-weight:700 }
 
   /* ── API Keys 設定 ── */
@@ -1019,7 +1023,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.2</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.6</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1153,6 +1157,19 @@ window.syncToCloud = async () => {
       <div id="sub-script">
         <div class="result show" id="scriptResult"></div>
         <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
+
+        <!-- 腳本改寫區 -->
+        <div id="rewriteArea" style="margin-top:16px;border-top:1px solid #f0e8ff;padding-top:14px">
+          <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:10px">✏️ 改寫腳本</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="rewrite-chip" onclick="rewriteScript('更誇張、更戲劇化，情緒拉到最高點')">🔥 更誇張</button>
+            <button class="rewrite-chip" onclick="rewriteScript('更溫和、更日常，語氣輕鬆不用力')">🌸 更溫和</button>
+            <button class="rewrite-chip" onclick="rewriteScript('改成適合 Instagram Reels 的節奏，短句、斷行、有畫面感，每句話都要抓眼球')">⚡ Reels 節奏</button>
+            <button class="rewrite-chip" onclick="rewriteScript('更台味、更接地氣，用台灣人日常說話方式')">🇹🇼 更台味</button>
+          </div>
+          <div id="rewriteLoading" style="display:none;margin-top:10px;font-size:0.83rem;color:var(--pink-deep);font-weight:700">✨ 改寫中...</div>
+          <div id="rewriteErr" class="err"></div>
+        </div>
       </div>
       <div id="sub-prompt" style="display:none">
         <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 <span class="char-name-ui">角色</span> 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
@@ -1333,7 +1350,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.6';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2177,14 +2194,15 @@ async function genInspo() {
       </div>`;
     }
     const text = res.value || '';
-    // 嘗試解析格式，Gemini 有時不帶「方向：」前綴
-    let dir = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
-    let why = (text.match(/原因[：:]\s*(.+)/) || [])[1]?.trim() || '';
-    // fallback：如果解析不到，把整段文字當方向，原因留空提示
+    // 解析「方向：」— 支援跨行內容（取到下一個標籤前）
+    let dir = (text.match(/方向[：:]\s*([\s\S]+?)(?=原因[：:]|$)/) || [])[1]?.replace(/\n/g,' ').trim() || '';
+    // 解析「原因：」— 同樣支援跨行
+    let why = (text.match(/原因[：:]\s*([\s\S]+?)$/) || [])[1]?.replace(/\n/g,' ').trim() || '';
+    // fallback：整段文字分行
     if (!dir) {
       const lines = text.split('\n').filter(l => l.trim());
       dir = lines[0]?.trim() || '（無法解析）';
-      why = lines[1]?.trim() || '（AI 未依格式回覆）';
+      why = lines.slice(1).join(' ').trim() || '';
     }
     return `<div class="inspo-card" data-dir="${dir.replace(/"/g,'&quot;')}">
       <span class="inspo-badge ${badge}">${emoji} ${label}</span>
@@ -2204,6 +2222,54 @@ async function genInspo() {
   });
 
   btn.disabled = false;
+}
+
+async function rewriteScript(direction) {
+  const current = document.getElementById('scriptResult').textContent.trim();
+  if (!current) return;
+  await _doRewrite(direction);
+}
+
+async function _doRewrite(direction) {
+  const current = document.getElementById('scriptResult').textContent.trim();
+  if (!current) return;
+
+  const loading = document.getElementById('rewriteLoading');
+  const err = document.getElementById('rewriteErr');
+  const rewriteArea = document.getElementById('rewriteArea');
+  loading.style.display = 'block';
+  err.classList.remove('show');
+
+  try {
+    const charCtx = buildCharPrompt();
+    const prompt = `以下是一份梗圖腳本，請依照指定方向改寫，保留原本的話題和角色精神，但調整風格和節奏。
+
+原始腳本：
+${current}
+
+改寫方向：${direction}
+
+請直接輸出改寫後的腳本，不要說明、不要前言。`;
+
+    const result = await claude(charCtx, prompt, true);
+    document.getElementById('scriptResult').textContent = result;
+
+    // 同步加入歷史紀錄
+    const topic = document.getElementById('scriptTopic').value.trim() || '（改寫）';
+    const charName = getCharName();
+    const entry = { topic, script: result, char: charName, ts: Date.now() };
+    scriptHistory.unshift(entry);
+    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if (window.syncToCloud) window.syncToCloud();
+    renderHistory();
+
+  } catch(e) {
+    err.textContent = '❌ ' + (e.message || '改寫失敗');
+    err.classList.add('show');
+  } finally {
+    loading.style.display = 'none';
+  }
 }
 
 function pickInspo(el, direction) {
