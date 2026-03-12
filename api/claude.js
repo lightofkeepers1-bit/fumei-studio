@@ -54,6 +54,16 @@ async function checkGuestLimit(fingerprint, ip) {
   }
 }
 
+
+// ── 使用次數累加 ────────────────────────────────────
+async function fsIncrement(docPath, field) {
+  try {
+    const data = await fsGet(docPath);
+    const current = parseInt(data?.[field]?.integerValue || '0', 10);
+    await fsPatch(docPath, { [field]: { integerValue: String(current + 1) } });
+  } catch(e) { /* 不影響主流程 */ }
+}
+
 // ── IP 速率限制 ─────────────────────────────────────
 const ipCache = new Map();
 function checkIpRate(ip) {
@@ -148,6 +158,10 @@ export default async function handler(req, res) {
       body: JSON.stringify(body),
     });
     const data = await response.json();
+    // 記錄登入用戶使用次數
+    if (uid && response.ok) {
+      fsIncrement(`users/${uid}`, 'usage_claude').catch(() => {});
+    }
     return res.status(response.status).json(data);
   } catch (err) {
     return res.status(500).json({ error: err.message });

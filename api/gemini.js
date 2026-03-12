@@ -35,6 +35,15 @@ async function checkGuestLimit(fingerprint, ip) {
   }
 }
 
+
+async function fsIncrement(docPath, field) {
+  try {
+    const data = await fsGet(docPath);
+    const current = parseInt(data?.[field]?.integerValue || '0', 10);
+    await fsPatch(docPath, { [field]: { integerValue: String(current + 1) } });
+  } catch(e) {}
+}
+
 const ipCache = new Map();
 function checkIpRate(ip) {
   const now = Date.now();
@@ -90,6 +99,9 @@ export default async function handler(req, res) {
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     );
     const data = await response.json();
+    if (uid && response.ok) {
+      fsIncrement(`users/${uid}`, 'usage_gemini').catch(() => {});
+    }
     return res.status(response.status).json(data);
   } catch (err) {
     return res.status(500).json({ error: err.message });
