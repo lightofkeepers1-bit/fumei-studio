@@ -364,27 +364,35 @@ const provider = new GoogleAuthProvider();
 // ── 登入 / 登出 ──
 function isWebView() {
   const ua = navigator.userAgent || '';
-  return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|WebView|wv/.test(ua)
-    || ((/iPhone|iPod|iPad/.test(ua)) && !/Safari\//.test(ua));
+  // 明確的 WebView 特徵
+  if (/FBAN|FBAV|Instagram|Line\/|MicroMessenger/.test(ua)) return true;
+  // iOS WebView：有 iPhone 但沒有 Safari 也沒有 CriOS（Chrome iOS）也沒有 FxiOS（Firefox iOS）
+  if (/iPhone|iPod|iPad/.test(ua) && !/Safari\//.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua)) return true;
+  return false;
 }
 
 window.loginGoogle = async () => {
   if (isWebView()) {
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+    const siteUrl = location.href;
     modal.innerHTML = `
       <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:320px;text-align:center">
         <div style="font-size:2rem;margin-bottom:12px">🌐</div>
         <div style="font-weight:800;font-size:1.05rem;margin-bottom:10px;color:#333">請用瀏覽器開啟</div>
         <div style="font-size:0.88rem;color:#666;line-height:1.6;margin-bottom:20px">
-          Google 登入不支援 FB / IG / LINE 的內建瀏覽器。<br>請點下方按鈕，在 Safari 或 Chrome 開啟。
+          Google 登入不支援 LINE / FB / IG 的內建瀏覽器。<br>請選擇下方其中一個方式 👇
         </div>
-        <button onclick="window.open(location.href,'_blank');this.closest('div[style*=fixed]').remove();"
-          style="background:#e85d8a;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%">
-          在瀏覽器開啟
+        <button onclick="window.open('${siteUrl}','_system');window.open('${siteUrl}','_blank');"
+          style="background:linear-gradient(135deg,#C9B8E8,#764ba2);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:0.95rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
+          🌐 在瀏覽器開啟
+        </button>
+        <button onclick="navigator.clipboard.writeText('${siteUrl}').then(()=>{this.textContent='✅ 已複製！';setTimeout(()=>this.textContent='📋 複製網址，自己貼到瀏覽器',2000)}).catch(()=>{this.textContent='請手動複製：${siteUrl}'});"
+          style="background:#f4f4f4;color:#555;border:none;border-radius:12px;padding:13px 24px;font-size:0.88rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
+          📋 複製網址，自己貼到瀏覽器
         </button>
         <button onclick="this.closest('div[style*=fixed]').remove();"
-          style="margin-top:10px;background:none;border:none;color:#aaa;font-size:0.85rem;cursor:pointer">
+          style="background:none;border:none;color:#ccc;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">
           取消
         </button>
       </div>`;
@@ -1094,7 +1102,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.0</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.2</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1421,7 +1429,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.2';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
