@@ -435,7 +435,7 @@ const ADMIN_EMAILS = ['fumei.studio@gmail.com']; // 在這裡加管理員 email
 
 window._isAdmin = false;
 
-function checkAdminAccess(email) {
+window.checkAdminAccess = function checkAdminAccess(email) {
   window._isAdmin = ADMIN_EMAILS.includes(email);
   if (window._isAdmin) {
     const sec = document.getElementById('adminInviteSection');
