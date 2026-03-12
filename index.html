@@ -622,10 +622,10 @@ onAuthStateChanged(auth, async (user) => {
       } catch(e) {}
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
-    updateCharNameUI();
+    if (window.updateCharNameUI) window.updateCharNameUI();
 
     // 管理員檢查
-    checkAdminAccess(user.email);
+    window.checkAdminAccess(user.email);
 
     // 帳號 section 顯示
     const accSec = document.getElementById('accountSection');
@@ -665,7 +665,7 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('onboardingModal').style.display = 'none';
     document.getElementById('welcomeModal').style.display = 'none';
     // 有雲端資料的老用戶不再跳 Onboarding；新用戶（沒有雲端資料）才檢查
-    if (!data) setTimeout(checkOnboarding, 300);
+    if (!data) setTimeout(window.checkOnboarding, 300);
   } else {
     // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
@@ -801,7 +801,7 @@ function showGuestUI() {
   document.getElementById('loginBtn').style.display = 'none';
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
-  updateCharNameUI();
+  if (window.updateCharNameUI) window.updateCharNameUI();
   // 從後端查詢兩種真實剩餘次數
   const doCheck = () => {
     const fp = window._fingerprint || '';
@@ -1136,6 +1136,7 @@ function updateCharNameUI() {
   const name = getCharName();
   document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = name);
 }
+window.updateCharNameUI = updateCharNameUI;
 
 function getCharName() {
   return (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
@@ -3303,11 +3304,13 @@ function checkOnboarding() {
   // 有 onboarded flag 或已有角色資料，都視為老用戶，不跳 Onboarding
   if (!onboarded && !hasChars) showOnboarding();
 }
+window.checkOnboarding = checkOnboarding;
 
 function showOnboarding() {
   document.getElementById('onboardingModal').style.display = 'block';
   obGoTo(1);
 }
+window.showOnboarding = showOnboarding;
 
 function obGoTo(step) {
   [1,2,3,4].forEach(n => {
