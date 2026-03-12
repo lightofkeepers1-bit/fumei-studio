@@ -753,6 +753,8 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱，避免舊 localStorage 殘留影響
     document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
+    // 未登入一律套用功能限制（不管有沒有選訪客模式）
+    applyGuestRestrictions();
     if (window._guestMode) {
       showGuestUI();
     } else {
@@ -1436,7 +1438,7 @@ async function claude(sys, msg, search=false, creative=false, feature='') {
   if (uid) {
     headers['x-firebase-uid'] = uid;
   } else {
-    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    // 未登入走訪客流程
     headers['x-fingerprint'] = window._fingerprint || '';
     if (feature) headers['x-guest-feature'] = feature;
     if (window._guestToken) headers['x-guest-token'] = window._guestToken;
@@ -1760,7 +1762,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   if (uid) {
     headers['x-firebase-uid'] = uid;
   } else {
-    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    // 未登入走訪客流程
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
     if (window._guestToken) headers['x-guest-token'] = window._guestToken;
@@ -2016,7 +2018,7 @@ async function callGemini(prompt, feature='script', systemPrompt='') {
   if (uid) {
     headers['x-firebase-uid'] = uid;
   } else {
-    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    // 未登入走訪客流程
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
     if (window._guestToken) headers['x-guest-token'] = window._guestToken;
@@ -2041,7 +2043,7 @@ async function callGPT(prompt, feature='script') {
   if (uid) {
     headers['x-firebase-uid'] = uid;
   } else {
-    if (!window._guestMode) throw new Error('請先登入或以訪客身份體驗');
+    // 未登入走訪客流程
     headers['x-fingerprint'] = window._fingerprint || '';
     headers['x-guest-feature'] = feature;
     if (window._guestToken) headers['x-guest-token'] = window._guestToken;
@@ -3489,7 +3491,7 @@ async function obStartAnalysis() {
 
   try {
     const uid = window._currentUid;
-    const isGuest = !uid && window._guestMode;
+    const isGuest = !uid;
     if (uid || isGuest) {
       const prompt = `請分析以下角色設定是否合理，並判斷發文風格。
 
