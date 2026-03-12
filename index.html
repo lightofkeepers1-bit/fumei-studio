@@ -500,20 +500,25 @@ window.adminLoadInviteCodes = async () => {
       const active = data.active;
       const statusColor = used ? '#bbb' : (active ? '#2d6a4f' : '#e85d8a');
       const statusText = used ? ('已使用（' + used + '）') : (active ? '可用' : '已停用');
-      const deactivateBtn = (active && !used)
-        ? '<button onclick="adminDeactivateCode('' + d.id + '')" style="padding:4px 10px;border-radius:8px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">停用</button>'
-        : '';
-      return '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:white;border-radius:10px;border:1.5px solid #f0e8ff">'
-        + '<div style="flex:1">'
-        + '<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:0.9rem;color:#333;letter-spacing:1px">' + d.id + '</div>'
-        + '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">方案：<strong style="color:#764ba2">' + (data.plan || 'pro') + '</strong>　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>'
-        + '</div>'
-        + '<div style="display:flex;gap:5px">'
-        + '<button onclick="adminCopyCode('' + d.id + '')" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">複製</button>'
-        + deactivateBtn
-        + '</div></div>';
+      const codeId = d.id;
+      const plan = data.plan || 'pro';
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 12px;background:white;border-radius:10px;border:1.5px solid #f0e8ff';
+      row.innerHTML = [
+        '<div style="flex:1">',
+          '<div style="font-weight:900;font-size:0.9rem;color:#333;letter-spacing:1px">' + codeId + '</div>',
+          '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">方案：<strong style="color:#764ba2">' + plan + '</strong>　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>',
+        '</div>',
+        '<div style="display:flex;gap:5px">',
+          '<button data-copy="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer">複製</button>',
+          (active && !used) ? '<button data-deactivate="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.72rem;font-weight:800;cursor:pointer">停用</button>' : '',
+        '</div>'
+      ].join('');
+      row.querySelector('[data-copy]')?.addEventListener('click', () => window.adminCopyCode(codeId));
+      row.querySelector('[data-deactivate]')?.addEventListener('click', () => window.adminDeactivateCode(codeId));
+      return row;
     });
-    list.innerHTML = rows.join('');
+    list.innerHTML = ''; rows.forEach(r => list.appendChild(r));
   } catch(e) {
     console.error(e);
     list.innerHTML = '<div style="font-size:0.8rem;color:#e85d8a;text-align:center;padding:12px">載入失敗：' + e.message + '</div>';
@@ -911,7 +916,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.9</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.10</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1225,7 +1230,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.9';
+const APP_VERSION = '4.9.10';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
