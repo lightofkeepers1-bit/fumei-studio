@@ -391,6 +391,150 @@ window.logoutUser = async () => {
   await signOut(auth);
 };
 
+// ── 邀請碼兌換 ──
+window.redeemInviteCode = async () => {
+  const input = document.getElementById('inviteCodeInput');
+  const msg = document.getElementById('inviteCodeMsg');
+  const code = (input.value || '').trim().toUpperCase();
+  if (!code) { msg.style.color = '#e85d8a'; msg.textContent = '請輸入邀請碼'; return; }
+
+  msg.style.color = '#aaa'; msg.textContent = '⏳ 驗證中...';
+
+  try {
+    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
+    const codeRef = _doc(db, 'invite_codes', code);
+    const snap = await _getDoc(codeRef);
+
+    if (!snap.exists()) {
+      msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return;
+    }
+    const data = snap.data();
+    if (!data.active) {
+      msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return;
+    }
+    if (data.used_by && data.used_by !== '') {
+      msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return;
+    }
+
+    // 兌換成功：引導登入，登入後自動套用
+    localStorage.setItem('fumei_pending_invite', code);
+    msg.style.color = '#2d6a4f'; msg.textContent = '✅ 有效！請登入以完成兌換 👇';
+    setTimeout(() => loginGoogle(), 1200);
+
+  } catch(e) {
+    console.error(e);
+    msg.style.color = '#e85d8a'; msg.textContent = '❌ 驗證失敗，請稍後再試';
+  }
+};
+
+
+// ── 管理員邀請碼功能 ──────────────────────────────
+const ADMIN_EMAILS = ['fumei.studio@gmail.com']; // 在這裡加管理員 email
+
+window._isAdmin = false;
+
+function checkAdminAccess(email) {
+  window._isAdmin = ADMIN_EMAILS.includes(email);
+  if (window._isAdmin) {
+    const sec = document.getElementById('adminInviteSection');
+    if (sec) sec.style.display = 'block';
+  }
+}
+
+function genRandomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+window.adminCreateInviteCode = async () => {
+  if (!window._isAdmin) return;
+  const msg = document.getElementById('adminCodeMsg');
+  const input = document.getElementById('adminCodeInput');
+  const plan = document.getElementById('adminPlanSelect').value;
+  const code = input.value.trim().toUpperCase() || genRandomCode();
+
+  msg.style.color = '#aaa'; msg.textContent = '⏳ 建立中...';
+
+  try {
+    const { doc: _doc, setDoc: _setDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await _setDoc(_doc(db, 'invite_codes', code), {
+      plan,
+      active: true,
+      used_by: '',
+      created_at: serverTimestamp(),
+      created_by: auth.currentUser?.email || '',
+    });
+    msg.style.color = '#2d6a4f';
+    msg.textContent = '✅ 已建立：' + code + '（' + plan + '）';
+    input.value = '';
+    try { await navigator.clipboard.writeText(code); msg.textContent += '  📋 已複製'; } catch(e) {}
+    adminLoadInviteCodes();
+  } catch(e) {
+    console.error(e);
+    msg.style.color = '#e85d8a'; msg.textContent = '❌ 建立失敗：' + e.message;
+  }
+};
+
+window.adminLoadInviteCodes = async () => {
+  if (!window._isAdmin) return;
+  const list = document.getElementById('adminCodeList');
+  list.innerHTML = '<div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">⏳ 載入中...</div>';
+
+  try {
+    const { collection, getDocs, query, orderBy } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const q = query(collection(db, 'invite_codes'), orderBy('created_at', 'desc'));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      list.innerHTML = '<div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">尚無邀請碼</div>';
+      return;
+    }
+    const rows = snap.docs.map(d => {
+      const data = d.data();
+      const used = data.used_by;
+      const active = data.active;
+      const statusColor = used ? '#bbb' : (active ? '#2d6a4f' : '#e85d8a');
+      const statusText = used ? ('已使用（' + used + '）') : (active ? '可用' : '已停用');
+      const deactivateBtn = (active && !used)
+        ? '<button onclick="adminDeactivateCode('' + d.id + '')" style="padding:4px 10px;border-radius:8px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">停用</button>'
+        : '';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:white;border-radius:10px;border:1.5px solid #f0e8ff">'
+        + '<div style="flex:1">'
+        + '<div style="font-family:'Nunito',sans-serif;font-weight:900;font-size:0.9rem;color:#333;letter-spacing:1px">' + d.id + '</div>'
+        + '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">方案：<strong style="color:#764ba2">' + (data.plan || 'pro') + '</strong>　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>'
+        + '</div>'
+        + '<div style="display:flex;gap:5px">'
+        + '<button onclick="adminCopyCode('' + d.id + '')" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">複製</button>'
+        + deactivateBtn
+        + '</div></div>';
+    });
+    list.innerHTML = rows.join('');
+  } catch(e) {
+    console.error(e);
+    list.innerHTML = '<div style="font-size:0.8rem;color:#e85d8a;text-align:center;padding:12px">載入失敗：' + e.message + '</div>';
+  }
+};
+
+window.adminCopyCode = async (code) => {
+  try { await navigator.clipboard.writeText(code); }
+  catch(e) { prompt('複製此邀請碼：', code); }
+};
+
+window.adminDeactivateCode = async (code) => {
+  if (!confirm('確定要停用邀請碼 ' + code + '？')) return;
+  try {
+    const { doc: _doc, updateDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await updateDoc(_doc(db, 'invite_codes', code), { active: false });
+    adminLoadInviteCodes();
+  } catch(e) { alert('停用失敗：' + e.message); }
+};
+
 // ── 儲存資料到 Firestore ──
 window.saveToCloud = async (uid, data) => {
   try {
@@ -479,6 +623,44 @@ onAuthStateChanged(auth, async (user) => {
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
     updateCharNameUI();
+
+    // 管理員檢查
+    checkAdminAccess(user.email);
+
+    // 帳號 section 顯示
+    const accSec = document.getElementById('accountSection');
+    if (accSec) {
+      accSec.style.display = 'block';
+      const accInfo = document.getElementById('accountInfo');
+      if (accInfo) accInfo.textContent = '登入身份：' + (user.displayName || user.email);
+    }
+
+    // 檢查是否有待兌換的邀請碼
+    const pendingCode = localStorage.getItem('fumei_pending_invite');
+    if (pendingCode) {
+      try {
+        const { doc: _doc, getDoc: _getDoc, updateDoc, serverTimestamp } =
+          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        const codeRef = _doc(db, 'invite_codes', pendingCode);
+        const snap = await _getDoc(codeRef);
+        if (snap.exists() && snap.data().active && !snap.data().used_by) {
+          const plan = snap.data().plan || 'pro';
+          // 標記邀請碼已使用
+          await updateDoc(codeRef, { used_by: user.email, used_at: serverTimestamp(), active: false });
+          // 寫入用戶方案
+          await window.saveToCloud(user.uid, { fumei_plan: plan, fumei_plan_source: 'invite:' + pendingCode });
+          localStorage.setItem('fumei_plan', plan);
+          localStorage.removeItem('fumei_pending_invite');
+          setTimeout(() => alert(`🎉 邀請碼兌換成功！已解鎖 Pro 方案`), 500);
+        } else {
+          localStorage.removeItem('fumei_pending_invite');
+        }
+      } catch(e) { console.error('邀請碼套用失敗', e); localStorage.removeItem('fumei_pending_invite'); }
+    }
+
+    // 從雲端讀取方案狀態
+    if (data?.fumei_plan) { localStorage.setItem('fumei_plan', data.fumei_plan); }
+
     // 登入成功時關閉所有 modal
     document.getElementById('onboardingModal').style.display = 'none';
     document.getElementById('welcomeModal').style.display = 'none';
@@ -729,7 +911,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.9</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1042,7 +1224,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.7';
+const APP_VERSION = '4.9.8';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2380,13 +2562,22 @@ function clearAllHistory() {
   <div style="background:white;border-radius:28px;padding:36px 28px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
     <div style="font-size:3.5rem;margin-bottom:12px">🎨</div>
     <h2 style="font-size:1.4rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:8px">歡迎來到 Fumei Studio</h2>
-    <p style="font-size:0.88rem;color:#aaa;margin-bottom:28px;line-height:1.6">AI 驅動的社群梗圖創作工具<br>登入以儲存你的設定與紀錄</p>
+    <p style="font-size:0.88rem;color:#aaa;margin-bottom:24px;line-height:1.6">AI 驅動的社群梗圖創作工具<br>登入以儲存你的設定與紀錄</p>
     <button onclick="loginGoogle();document.getElementById('welcomeModal').style.display='none'" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px">
       <img src="https://www.google.com/favicon.ico" style="width:18px;height:18px"> Google 登入
     </button>
-    <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif">
-      👀 訪客體驗（每日 5 次）
+    <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:16px">
+      👀 訪客體驗
     </button>
+    <!-- 邀請碼區塊 -->
+    <div style="border-top:1px solid #f0e8ff;padding-top:16px">
+      <div style="font-size:0.78rem;color:#bbb;margin-bottom:8px;font-weight:700">🎟️ 有邀請碼？</div>
+      <div style="display:flex;gap:8px">
+        <input id="inviteCodeInput" placeholder="輸入邀請碼" style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555">
+        <button onclick="redeemInviteCode()" style="padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
+      </div>
+      <div id="inviteCodeMsg" style="font-size:0.78rem;margin-top:8px;min-height:18px"></div>
+    </div>
   </div>
 </div>
 
@@ -2751,6 +2942,32 @@ function clearAllHistory() {
         <div id="accountInfo" style="font-size:0.85rem;color:#888;margin-bottom:10px"></div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
+      </div>
+
+      <!-- 管理員：邀請碼管理（僅特定帳號顯示）-->
+      <div class="settings-section" id="adminInviteSection" style="display:none">
+        <hr class="settings-divider">
+        <div class="settings-label" style="color:#764ba2">🎟️ 邀請碼管理（管理員）</div>
+        <div style="background:#faf7ff;border-radius:14px;padding:16px;border:1.5px solid #e8d5f5">
+          <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">新增邀請碼</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="adminCodeInput" class="settings-input" placeholder="留空自動產生" style="margin:0;flex:1;font-family:'Nunito',sans-serif;font-size:0.85rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            <select id="adminPlanSelect" style="border:1.5px solid #e8d5f5;border-radius:12px;padding:8px 12px;font-size:0.82rem;font-family:'Nunito',sans-serif;background:white;color:#764ba2;font-weight:700;outline:none;cursor:pointer">
+              <option value="pro">Pro</option>
+              <option value="beta">Beta</option>
+              <option value="lifetime">Lifetime</option>
+            </select>
+          </div>
+          <button onclick="adminCreateInviteCode()" style="width:100%;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px">＋ 新增邀請碼</button>
+          <div id="adminCodeMsg" style="font-size:0.8rem;font-weight:700;min-height:18px;margin-bottom:10px;padding:0 2px"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:0.78rem;font-weight:800;color:#bbb">現有邀請碼</div>
+            <button onclick="adminLoadInviteCodes()" style="font-size:0.72rem;padding:4px 12px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🔄 重新載入</button>
+          </div>
+          <div id="adminCodeList" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:0.8rem;color:#ccc;text-align:center;padding:12px">點擊「重新載入」查看邀請碼</div>
+          </div>
+        </div>
       </div>
 
     </div>
