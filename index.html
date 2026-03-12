@@ -342,7 +342,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.js';
 
@@ -408,6 +408,75 @@ window.loginGoogle = async () => {
     }
   } catch(e) { console.error(e); }
 };
+// ── Email 登入 ────────────────────────────────────
+window._emailTab = 'login';
+
+window.toggleEmailForm = () => {
+  const area = document.getElementById('emailFormArea');
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+};
+
+window.switchEmailTab = (tab) => {
+  window._emailTab = tab;
+  document.getElementById('tabLogin').style.background = tab === 'login' ? '#764ba2' : 'white';
+  document.getElementById('tabLogin').style.color = tab === 'login' ? 'white' : '#764ba2';
+  document.getElementById('tabRegister').style.background = tab === 'register' ? '#764ba2' : 'white';
+  document.getElementById('tabRegister').style.color = tab === 'register' ? 'white' : '#764ba2';
+  document.getElementById('emailSubmitBtn').textContent = tab === 'login' ? '登入' : '註冊';
+  document.getElementById('emailAuthMsg').textContent = '';
+};
+
+window.submitEmailAuth = async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  const msg = document.getElementById('emailAuthMsg');
+  const btn = document.getElementById('emailSubmitBtn');
+
+  if (!email || !password) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請填寫 Email 和密碼'; return; }
+  if (password.length < 6) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 密碼至少需要 6 位'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 處理中...';
+  msg.textContent = '';
+
+  try {
+    if (window._emailTab === 'register') {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(cred.user);
+      msg.style.color = '#2d6a4f';
+      msg.textContent = '✅ 註冊成功！請去收信點驗證連結後再登入';
+      await signOut(auth);
+      btn.textContent = '註冊';
+      btn.disabled = false;
+    } else {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (!cred.user.emailVerified) {
+        msg.style.color = '#e85d8a';
+        msg.textContent = '❌ 請先去收信點驗證連結，再回來登入';
+        await sendEmailVerification(cred.user);
+        await signOut(auth);
+        btn.textContent = '登入';
+        btn.disabled = false;
+        return;
+      }
+      document.getElementById('welcomeModal').style.display = 'none';
+    }
+  } catch(e) {
+    msg.style.color = '#e85d8a';
+    const errMap = {
+      'auth/email-already-in-use': '❌ 此 Email 已被註冊',
+      'auth/invalid-email': '❌ Email 格式不正確',
+      'auth/wrong-password': '❌ 密碼錯誤',
+      'auth/user-not-found': '❌ 此 Email 尚未註冊',
+      'auth/invalid-credential': '❌ Email 或密碼錯誤',
+      'auth/too-many-requests': '❌ 嘗試次數過多，請稍後再試',
+    };
+    msg.textContent = errMap[e.code] || ('❌ ' + e.message);
+    btn.textContent = window._emailTab === 'login' ? '登入' : '註冊';
+    btn.disabled = false;
+  }
+};
+
 window.logoutUser = async () => {
   await signOut(auth);
 };
@@ -708,6 +777,11 @@ getRedirectResult(auth).catch(e => console.error('redirect error', e));
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    // Email 登入需驗證
+    if (user.providerData[0]?.providerId === 'password' && !user.emailVerified) {
+      await signOut(auth);
+      return;
+    }
     // 已登入
     document.getElementById('loginBtn').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
@@ -1102,7 +1176,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.2</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.3</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1429,7 +1503,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2840,6 +2914,22 @@ function clearAllHistory() {
     <button onclick="loginGoogle();document.getElementById('welcomeModal').style.display='none'" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px">
       <img src="https://www.google.com/favicon.ico" style="width:18px;height:18px"> Google 登入
     </button>
+    <button onclick="toggleEmailForm()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#555;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:10px">
+      📧 Email 登入 ／ 註冊
+    </button>
+    <!-- Email 登入表單 -->
+    <div id="emailFormArea" style="display:none;margin-bottom:10px;text-align:left">
+      <div style="background:#faf7ff;border-radius:16px;padding:16px;border:1.5px solid #e8d5f5">
+        <div style="display:flex;gap:0;margin-bottom:14px;border-radius:10px;overflow:hidden;border:1.5px solid #e8d5f5">
+          <button id="tabLogin" onclick="switchEmailTab('login')" style="flex:1;padding:8px;border:none;background:#764ba2;color:white;font-weight:800;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">登入</button>
+          <button id="tabRegister" onclick="switchEmailTab('register')" style="flex:1;padding:8px;border:none;background:white;color:#764ba2;font-weight:800;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">註冊</button>
+        </div>
+        <input id="emailInput" type="email" placeholder="電子郵件" class="settings-input" style="margin:0 0 8px 0;font-size:0.85rem">
+        <input id="passwordInput" type="password" placeholder="密碼（至少 6 位）" class="settings-input" style="margin:0 0 12px 0;font-size:0.85rem">
+        <button onclick="submitEmailAuth()" id="emailSubmitBtn" style="width:100%;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">登入</button>
+        <div id="emailAuthMsg" style="font-size:0.78rem;margin-top:8px;min-height:16px;text-align:center;font-weight:700"></div>
+      </div>
+    </div>
     <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:16px">
       👀 訪客體驗
     </button>
