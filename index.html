@@ -990,7 +990,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.11</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v2.0.0</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1304,7 +1304,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.11';
+const APP_VERSION = '2.0.0';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1907,13 +1907,15 @@ ${newsHeadlines}
     }
     const msg = e.message || '';
     if (msg.includes('429') || msg.includes('rate limit')) {
-      err.textContent = '⏳ 流量稍高，5 秒後自動重試...';
-      err.classList.add('show');
-      await new Promise(r => setTimeout(r, 5000));
-      err.classList.remove('show');
       load.classList.remove('show');
-      btn.disabled = false;
-      scanTopics();
+      if (!window._currentUid) {
+        if (confirm('🔒 此功能需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+        startCooldown('scanBtn', '🔍 掃描話題', 60);
+      } else {
+        err.textContent = '⏳ API 使用量暫時超限，請稍後再試';
+        err.classList.add('show');
+        btn.disabled = false;
+      }
       return;
     }
     err.textContent = '❌ ' + msg;
@@ -2514,7 +2516,19 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
       return;
     }
     const msg = (typeof e === 'string') ? e : (e?.message || JSON.stringify(e) || '未知錯誤');
-    const display = msg.includes('429') ? '❌ [429] API 使用量暫時超限，請稍後再試 ⏳' : '❌ ' + msg;
+    if (msg.includes('429') || msg.includes('rate limit')) {
+      load.classList.remove('show');
+      if (!window._currentUid) {
+        if (confirm('🔒 此功能需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+        startCooldown('scriptBtn', '✨ 產腳本', 60);
+      } else {
+        err.textContent = '⏳ API 使用量暫時超限，請稍後再試';
+        err.classList.add('show');
+        btn.disabled = false;
+      }
+      return;
+    }
+    const display = '❌ ' + msg;
     err.textContent = display; err.classList.add('show');
     if (window._guestMode && !window._currentUid) {
       load.classList.remove('show');
