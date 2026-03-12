@@ -597,8 +597,6 @@ window.adminLoadUsage = async () => {
   }
 };
 
-};
-
 window.adminCopyCode = async (code) => {
   try { await navigator.clipboard.writeText(code); }
   catch(e) { prompt('複製此邀請碼：', code); }
