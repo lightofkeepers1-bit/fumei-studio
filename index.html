@@ -1002,7 +1002,10 @@ onAuthStateChanged(auth, async (user) => {
     // 只有全新帳號（雲端完全沒有 fumei_chars）才讓他走 Onboarding
     // → 不做任何合併，避免訪客角色污染主帳號
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
+    // 雲端資料載入完成後才 render，確保不會顯示訪客殘留資料
     if (window.updateCharNameUI) window.updateCharNameUI();
+    renderTasks();
+    renderHistory();
 
     // 管理員檢查
     window.checkAdminAccess(user.email);
@@ -1396,7 +1399,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.1.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1754,7 +1757,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.9';
+const APP_VERSION = '4.1.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1894,12 +1897,15 @@ window.onload = () => {
   const d = new Date();
   const days = ['日','一','二','三','四','五','六'];
   document.getElementById('todayDate').textContent = `${d.getMonth()+1}/${d.getDate()} (週${days[d.getDay()]})`;
-  renderTasks();
-  renderHistory();
   rebuildTopicSelects();
   renderVersion();
-  updateCharNameUI(); // 更新所有角色名稱顯示
   updateCostBadges(); // ⚡ 初始化按鈕點數標示
+  // 訪客模式才直接初始化，登入用戶等 onAuthStateChanged 從雲端載入後再 render
+  if (window._guestMode) {
+    renderTasks();
+    renderHistory();
+    updateCharNameUI();
+  }
   // 恢復上次的版面偏好
   const savedView = localStorage.getItem('fumei_view');
   const btn = document.getElementById('viewToggleBtn');
