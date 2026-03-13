@@ -960,8 +960,6 @@ onAuthStateChanged(auth, async (user) => {
     const guestChars = wasGuest ? localStorage.getItem('fumei_chars') : null; // 先備份訪客設定
     window._guestMode = false;
     localStorage.removeItem('fumei_guest_mode');
-    // 移除訪客頭像 emoji
-    document.getElementById('guestAvatarEmoji')?.remove();
     document.getElementById('guestBtn').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
 
@@ -1121,9 +1119,8 @@ onAuthStateChanged(auth, async (user) => {
       showGuestUI();
       // 刷新後：顯示訪客角色名（從 localStorage）
       if (window.updateCharNameUI) window.updateCharNameUI();
-      // 隱藏 Google 頭像，顯示訪客預設頭像
-      const avatarEl = document.getElementById('userAvatar');
-      if (avatarEl) { avatarEl.src = ''; avatarEl.style.display = 'none'; }
+      // 確保 userInfo 隱藏
+      document.getElementById('userInfo').style.display = 'none';
     } else {
       // 自動跳出登入選擇視窗
       setTimeout(() => document.getElementById('welcomeModal').style.display = 'flex', 300);
@@ -1148,7 +1145,8 @@ const GUEST_INIT_CREDITS = 20;
 
 // 訪客點數：用 localStorage 存，key 用 fingerprint 區分
 function getGuestCreditsKey() {
-  return 'fumei_guest_credits_' + (window._fingerprint || 'default');
+  // fingerprint 未初始化時用統一 key，確保立即可讀
+  return 'fumei_guest_credits';
 }
 function getGuestCredits() {
   const v = localStorage.getItem(getGuestCreditsKey());
@@ -1226,7 +1224,15 @@ window.confirmGuestMode = function() {
   document.getElementById('welcomeModal').style.display = 'none';
   window._guestMode = true;
   localStorage.setItem('fumei_guest_mode', '1');
-  // 訪客一律走 Onboarding 設定自己的角色（不沿用登入帳號的設定）
+  // 清除登入帳號殘留的所有資料，訪客應該是全新狀態
+  [
+    'fumei_credits','fumei_chars','fumei_tasks','fumei_history',
+    'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+    'fumei_theme','fumei_view','fumei_custom_topics','fumei_onboarded',
+    'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+    'fumei_img_prompt_still','fumei_img_prompt_video'
+  ].forEach(k => localStorage.removeItem(k));
+  // 訪客一律走 Onboarding 設定自己的角色
   showOnboarding();
   window._pendingGuestActivation = true;
 };
@@ -1236,24 +1242,27 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   if (window.updateCharNameUI) window.updateCharNameUI();
-  // 隱藏 Google 頭像，改顯示訪客 emoji 頭像
+  // 確保 userInfo 區塊隱藏（清掉殘留的 Google 頭像）
+  document.getElementById('userInfo').style.display = 'none';
   const avatarEl = document.getElementById('userAvatar');
-  if (avatarEl) { avatarEl.src = ''; avatarEl.style.display = 'none'; }
-  const logoIcon = document.querySelector('.logo-icon');
-  if (logoIcon && !document.getElementById('guestAvatarEmoji')) {
-    const em = document.createElement('div');
-    em.id = 'guestAvatarEmoji';
-    em.textContent = '👀';
-    em.style.cssText = 'width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:2px solid rgba(255,255,255,0.6);flex-shrink:0';
-    avatarEl?.parentNode?.insertBefore(em, avatarEl);
-  }
-  // 等 fingerprint 後初始化訪客點數（新訪客給20點）
-  const doInit = () => {
-    if (!window._fingerprint) { setTimeout(doInit, 300); return; }
-    if (getGuestCredits() < 0) setGuestCredits(GUEST_INIT_CREDITS); // 第一次
+  if (avatarEl) avatarEl.src = '';
+  // 立即顯示點數（用 fallback key 先顯示，fingerprint 好了再確認）
+  const showCredits = () => {
+    const credits = getGuestCredits();
+    if (credits < 0) setGuestCredits(GUEST_INIT_CREDITS);
     window.updateGuestRemaining(getGuestCredits());
   };
-  doInit();
+  showCredits(); // 立即執行一次
+  // fingerprint 好了後用精確 key 再確認一次
+  const waitFp = () => {
+    if (window._fingerprint) {
+      if (getGuestCredits() < 0) setGuestCredits(GUEST_INIT_CREDITS);
+      window.updateGuestRemaining(getGuestCredits());
+    } else {
+      setTimeout(waitFp, 200);
+    }
+  };
+  waitFp();
 }
 
 window.updateGuestRemaining = function(n) {
@@ -1353,7 +1362,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1711,7 +1720,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.6';
+const APP_VERSION = '3.9.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
