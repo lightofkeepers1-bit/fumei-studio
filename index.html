@@ -991,15 +991,10 @@ onAuthStateChanged(auth, async (user) => {
       }
     }
 
-    // 訪客轉登入：帳號資料優先，訪客角色直接丟棄不合併
-    // （避免測試用的訪客角色污染主帳號）
-    if (wasGuest && guestChars && !data?.fumei_chars) {
-      // 只有新用戶（雲端完全沒有角色）才繼承訪客角色
-      try {
-        localStorage.setItem('fumei_chars', guestChars);
-        localStorage.setItem('fumei_onboarded', '1');
-      } catch(e) {}
-    }
+    // 登入後：雲端資料已在上面載入並寫入 localStorage
+    // 如果雲端有角色就用雲端的（已完成），完全不看 localStorage 的訪客角色
+    // 只有全新帳號（雲端完全沒有 fumei_chars）才讓他走 Onboarding
+    // → 不做任何合併，避免訪客角色污染主帳號
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
     if (window.updateCharNameUI) window.updateCharNameUI();
 
@@ -1395,7 +1390,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1753,7 +1748,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.6';
+const APP_VERSION = '4.0.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2430,11 +2425,11 @@ async function scanTopics() {
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            // 每家最多3筆，然後洗牌，讓來源多元
+            // 每家最多2筆，然後洗牌，讓來源更多元
             const capPerSource = {};
             const balanced = newsData.items.filter(item => {
               capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
-              return capPerSource[item.source] <= 3;
+              return capPerSource[item.source] <= 2;
             });
             // Fisher-Yates shuffle
             for (let i = balanced.length - 1; i > 0; i--) {
