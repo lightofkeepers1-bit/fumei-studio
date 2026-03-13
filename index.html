@@ -1133,43 +1133,35 @@ window._fingerprint = '';
 
 // ── 訪客模式 ──────────────────────────────────────
 window._guestMode = false;
-window._guestScanRemaining = 5;
-window._guestScriptRemaining = 10;
 window._guestToken = null;
-window._guestTokenExpires = 0;
+const GUEST_INIT_CREDITS = 20;
 
-// 每次訪客操作前呼叫，type='scan' 或 'script'，每次都扣一次次數
-window.acquireGuestToken = async function(type = 'scan') {
+// 訪客點數：用 localStorage 存，key 用 fingerprint 區分
+function getGuestCreditsKey() {
+  return 'fumei_guest_credits_' + (window._fingerprint || 'default');
+}
+function getGuestCredits() {
+  const v = localStorage.getItem(getGuestCreditsKey());
+  if (v === null) return -1; // 未初始化
+  return parseInt(v) || 0;
+}
+function setGuestCredits(n) {
+  localStorage.setItem(getGuestCreditsKey(), String(n));
+  window.updateGuestRemaining(n);
+}
+
+// 訪客扣點（cost = 點數），回傳 { ok, remaining }
+window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   if (!window._guestMode) return null;
-  // 等 fingerprint 初始化完成（最多等 3 秒）
-  let waited = 0;
-  while (!window._fingerprint && waited < 3000) {
-    await new Promise(r => setTimeout(r, 100));
-    waited += 100;
+  const current = getGuestCredits();
+  if (current < cost) {
+    if (confirm('⚡ 訪客點數已用完！\n\n登入後可獲得完整點數，要現在登入嗎？')) loginGoogle();
+    throw new Error('點數不足，請登入繼續使用');
   }
-  const fp = window._fingerprint || '';
-  if (!fp) throw new Error('無法識別裝置，請重新整理後再試');
-  try {
-    const r = await fetch(`/api/guest-check?type=${type}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
-    });
-    const d = await r.json();
-    if (!r.ok) {
-      if (d.needLogin) {
-        if (confirm(`${d.error}\n\n要現在登入嗎？`)) loginGoogle();
-      }
-      throw new Error(d.error || '次數已用完');
-    }
-    window._guestToken = d.token;
-    window._guestTokenType = type;
-    window._guestTokenExpires = Date.now() + 5 * 60 * 1000;
-    if (type === 'scan') window.updateGuestRemaining(d.remaining, 'scan');
-    else window.updateGuestRemaining(d.remaining, 'script');
-    return d.token;
-  } catch(e) {
-    throw e;
-  }
+  const newVal = current - cost;
+  setGuestCredits(newVal);
+  window._guestToken = 'guest_local_' + Date.now();
+  return window._guestToken;
 };
 
 window.enterGuestMode = function() {
@@ -1192,8 +1184,9 @@ function showGuestIntro() {
         <div style="background:#faf4ff;border-radius:14px;padding:14px 16px;margin-bottom:20px">
           <div style="font-size:0.82rem;font-weight:800;color:#764ba2;margin-bottom:10px">✅ 訪客可以使用</div>
           <div style="font-size:0.82rem;color:#666;line-height:2">
-            📰 話題掃描（非時事類，每次間隔1分鐘）<br>
-            ✍️ 腳本生成（每日 10 次）
+            ⚡ 免費體驗點數 20 點<br>
+            📰 話題掃描（⚡1點，非時事類）<br>
+            ✍️ 腳本生成（⚡1點）
           </div>
           <div style="height:1px;background:#eee;margin:10px 0"></div>
           <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
@@ -1204,7 +1197,7 @@ function showGuestIntro() {
           </div>
         </div>
         <div style="background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:0.8rem;color:#b8860b;font-weight:700;text-align:center">
-          ⚡ 每日體驗上限 5 次，登入後無限使用
+          ⚡ 訪客送 20 點體驗，登入後可繼續累積點數
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif">👀 以訪客身份進入</button>
@@ -1222,15 +1215,9 @@ window.confirmGuestMode = function() {
   document.getElementById('guestIntroModal')?.remove();
   document.getElementById('welcomeModal').style.display = 'none';
   window._guestMode = true;
-  // 有設定過角色 → 直接進
-  if (localStorage.getItem('fumei_chars') && localStorage.getItem('fumei_onboarded')) {
-    showGuestUI();
-    applyGuestRestrictions();
-  } else {
-    // 沒設定過 → 先走 Onboarding
-    showOnboarding();
-    window._pendingGuestActivation = true;
-  }
+  // 訪客一律走 Onboarding 設定自己的角色（不沿用登入帳號的設定）
+  showOnboarding();
+  window._pendingGuestActivation = true;
 };
 
 function showGuestUI() {
@@ -1238,31 +1225,18 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   if (window.updateCharNameUI) window.updateCharNameUI();
-  // 從後端查詢兩種真實剩餘次數
-  const doCheck = () => {
-    const fp = window._fingerprint || '';
-    if (!fp) { setTimeout(doCheck, 300); return; }
-    Promise.all([
-      fetch(`/api/guest-check?type=scan`, { headers: { 'x-fingerprint': fp } }).then(r => r.json()),
-      fetch(`/api/guest-check?type=script`, { headers: { 'x-fingerprint': fp } }).then(r => r.json()),
-    ]).then(([scan, script]) => {
-      window._guestScanRemaining = scan.remaining ?? 5;
-      window._guestScriptRemaining = script.remaining ?? 10;
-      const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
-    }).catch(() => {
-      const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
-    });
+  // 等 fingerprint 後初始化訪客點數（新訪客給20點）
+  const doInit = () => {
+    if (!window._fingerprint) { setTimeout(doInit, 300); return; }
+    if (getGuestCredits() < 0) setGuestCredits(GUEST_INIT_CREDITS); // 第一次
+    window.updateGuestRemaining(getGuestCredits());
   };
-  doCheck();
+  doInit();
 }
 
-window.updateGuestRemaining = function(n, type) {
-  if (type === 'script') window._guestScriptRemaining = n;
-  else window._guestScanRemaining = n;
+window.updateGuestRemaining = function(n) {
   const el = document.getElementById('guestRemaining');
-  if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
+  if (el) el.innerHTML = '👀 ⚡' + n + ' 點';
 };
 
 // 訪客掃描冷卻（1分鐘）— 定義移至主 script block
@@ -1357,7 +1331,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1715,7 +1689,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.3';
+const APP_VERSION = '3.9.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2861,9 +2835,9 @@ async function genScript() {
   err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
   document.getElementById('inspoArea').style.display = 'none';
 
-  // 訪客：先取 session token（扣一次產腳本次數）
+  // 訪客：扣點數
   if (window._guestMode && !window._currentUid) {
-    try { await window.acquireGuestToken('script'); }
+    try { await window.acquireGuestToken('script', CREDIT_COST.script); }
     catch(e) { btn.disabled=false; load.classList.remove('show'); return; }
   }
 
