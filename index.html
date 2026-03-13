@@ -384,6 +384,10 @@ function isWebView() {
 
 window.loginGoogle = async () => {
   if (isWebView()) {
+    const ua = navigator.userAgent || '';
+    const isLINE = /Line\//.test(ua);
+    const isIG = /Instagram/.test(ua);
+    const canJump = !isLINE && !isIG; // FB/TikTok/Threads 支援跳轉
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
     const siteUrl = location.href;
@@ -394,14 +398,19 @@ window.loginGoogle = async () => {
         <div style="font-size:0.88rem;color:#666;line-height:1.6;margin-bottom:20px">
           Google 登入不支援 LINE / FB / IG 的內建瀏覽器。<br>請選擇下方其中一個方式 👇
         </div>
-        <button onclick="window.open('${siteUrl}','_system');window.open('${siteUrl}','_blank');"
+        ${canJump ? `<button onclick="window.open('${siteUrl}','_system');window.open('${siteUrl}','_blank');"
           style="background:linear-gradient(135deg,#C9B8E8,#764ba2);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:0.95rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
           🌐 在瀏覽器開啟
+        </button>` : ''}
+        <button onclick="navigator.clipboard.writeText('${siteUrl}').then(()=>{this.textContent='✅ 已複製！';setTimeout(()=>this.textContent='📋 複製網址，貼到 Safari 開啟',2000)}).catch(()=>{this.textContent='請手動複製：${siteUrl}'});"
+          style="background:${canJump ? '#f4f4f4;color:#555' : 'linear-gradient(135deg,#C9B8E8,#764ba2);color:#fff'};border:none;border-radius:12px;padding:13px 24px;font-size:${canJump ? '0.88' : '0.95'}rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
+          📋 複製網址，貼到 Safari 開啟
         </button>
-        <button onclick="navigator.clipboard.writeText('${siteUrl}').then(()=>{this.textContent='✅ 已複製！';setTimeout(()=>this.textContent='📋 複製網址，自己貼到瀏覽器',2000)}).catch(()=>{this.textContent='請手動複製：${siteUrl}'});"
-          style="background:#f4f4f4;color:#555;border:none;border-radius:12px;padding:13px 24px;font-size:0.88rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
-          📋 複製網址，自己貼到瀏覽器
+        <button onclick="this.closest('div[style*=fixed]').remove();"
+          style="background:none;border:none;color:#ccc;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">
+          取消
         </button>
+      </div>`;
         <button onclick="this.closest('div[style*=fixed]').remove();"
           style="background:none;border:none;color:#ccc;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">
           取消
@@ -1308,7 +1317,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1666,7 +1675,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.8.6';
+const APP_VERSION = '3.8.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
