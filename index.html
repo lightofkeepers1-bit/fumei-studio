@@ -1721,6 +1721,9 @@ window.syncCreditsFromCloud = async (uid) => {
     const data = snap.exists() ? snap.data() : {};
 
     let credits = data.fumei_credits;
+    // debug：把讀到的值顯示在 syncStatus
+    const dbg = document.getElementById('syncStatus');
+    if (dbg) dbg.textContent = '讀到credits=' + credits + ' type=' + typeof credits;
     // 新帳號：初始化 20 點
     if (credits === undefined || credits === null) {
       credits = CREDITS_NEW_USER;
