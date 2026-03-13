@@ -644,17 +644,19 @@ window.adminLoadFeedback = async () => {
       const d = doc.data();
       const date = d.created_at?.toDate ? d.created_at.toDate().toLocaleString('zh-TW') : '未知時間';
       const type = d.type || 'other';
-      return \`<div style="background:#faf7ff;border-radius:12px;padding:12px 14px;border:1.5px solid #e8d5f5">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:0.75rem;font-weight:800;color:\${typeColor[type]||'#888'};background:\${typeColor[type]||'#888'}18;padding:2px 8px;border-radius:10px">\${typeLabel[type]||type}</span>
-          <span style="font-size:0.72rem;color:#bbb">\${date}</span>
-        </div>
-        <div style="font-size:0.83rem;color:#333;line-height:1.5;margin-bottom:5px;white-space:pre-wrap">\${d.text||''}</div>
-        <div style="font-size:0.72rem;color:#bbb">👤 \${d.email||'匿名'} ・ v\${d.version||'?'}</div>
-      </div>\`;
+      const col = typeColor[type] || '#888';
+      const label = typeLabel[type] || type;
+      return '<div style="background:#faf7ff;border-radius:12px;padding:12px 14px;border:1.5px solid #e8d5f5">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+        '<span style="font-size:0.75rem;font-weight:800;color:' + col + ';background:' + col + '18;padding:2px 8px;border-radius:10px">' + label + '</span>' +
+        '<span style="font-size:0.72rem;color:#bbb">' + date + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.83rem;color:#333;line-height:1.5;margin-bottom:5px;white-space:pre-wrap">' + (d.text||'') + '</div>' +
+        '<div style="font-size:0.72rem;color:#bbb">👤 ' + (d.email||'匿名') + ' ・ v' + (d.version||'?') + '</div>' +
+        '</div>';
     }).join('');
   } catch(e) {
-    list.innerHTML = \`<div style="color:#e85d8a;font-size:0.83rem;padding:10px">❌ 載入失敗：\${e.message}</div>\`;
+    list.innerHTML = '<div style="color:#e85d8a;font-size:0.83rem;padding:10px">❌ 載入失敗：' + e.message + '</div>';
   }
 };
 
@@ -1355,7 +1357,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1713,7 +1715,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.2';
+const APP_VERSION = '3.9.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
