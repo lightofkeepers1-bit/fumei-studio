@@ -1,6 +1,5 @@
 // api/news.js — 台灣新聞 RSS 爬蟲
 // 抓多個新聞網站 RSS，回傳標題 + 連結 + 時間
-
 const RSS_SOURCES = [
   { name: 'ETtoday',   url: 'https://feeds.feedburner.com/ettoday/realtime' },
   { name: '自由時報',   url: 'https://news.ltn.com.tw/rss/all.xml' },
@@ -30,6 +29,15 @@ function parseItems(xml, sourceName, maxPerSource = 8) {
   return items;
 }
 
+// Fisher-Yates shuffle — 讓各家媒體混合，避免 Claude 偏選同一家
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -39,6 +47,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   const uid = req.headers['x-firebase-uid'];
   if (!uid) return res.status(401).json({ error: '請先登入' });
+
   try {
     const results = await Promise.allSettled(
       RSS_SOURCES.map(async (source) => {
@@ -51,12 +60,17 @@ export default async function handler(req, res) {
         return parseItems(xml, source.name, 8);
       })
     );
+
     const allItems = [];
     const errors = [];
     results.forEach((r, i) => {
       if (r.status === 'fulfilled') allItems.push(...r.value);
       else errors.push(`${RSS_SOURCES[i].name}: ${r.reason?.message}`);
     });
+
+    // 洗牌讓各來源混合，避免 Claude 偏選同一家媒體
+    shuffle(allItems);
+
     return res.status(200).json({
       items: allItems,
       total: allItems.length,
