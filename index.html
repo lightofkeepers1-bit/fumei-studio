@@ -32,7 +32,7 @@
   .save-btn { padding:8px 16px;border-radius:20px;border:none;background:white;color:var(--pink-deep);font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:transform 0.15s }
   .save-btn:hover { transform:scale(1.05) }
 
-  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto;justify-content:center;width:100% }
+  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto;justify-content:flex-start;width:100% }
   nav > * { flex-shrink:0 }
   .tab { padding:10px 22px;border-radius:14px 14px 0 0;border:none;background:transparent;color:#999;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap }
   .tab.active { background:white;color:var(--pink-deep);box-shadow:0 -4px 12px rgba(244,167,185,0.2) }
@@ -1308,7 +1308,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1666,7 +1666,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.8.4';
+const APP_VERSION = '3.8.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1711,12 +1711,7 @@ window.updateCreditsUI = (credits) => {
 
 // 顯示扣點 Toast
 window.showCreditToast = (cost, remaining) => {
-  const t = document.getElementById('creditsToast');
-  if (!t) return;
-  t.textContent = `⚡ -${cost} 點　剩餘 ${remaining} 點`;
-  t.classList.add('show');
-  clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  // 靜默扣點，不顯示 toast
 };
 
 // 從雲端同步點數（登入後呼叫）
