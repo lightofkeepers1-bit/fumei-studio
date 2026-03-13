@@ -613,6 +613,8 @@ window.checkAdminAccess = function checkAdminAccess(email) {
   if (window._isAdmin) {
     const sec = document.getElementById('adminInviteSection');
     if (sec) sec.style.display = 'block';
+    const fbSec = document.getElementById('adminFeedbackSection');
+    if (fbSec) fbSec.style.display = 'block';
   }
 }
 
@@ -622,6 +624,39 @@ function genRandomCode() {
   for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }
+
+window.adminLoadFeedback = async () => {
+  const list = document.getElementById('adminFeedbackList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px">⏳ 載入中...</div>';
+  try {
+    const { collection, getDocs, orderBy, query, limit } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const q = query(collection(window.db, 'feedback'), orderBy('created_at', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      list.innerHTML = '<div style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px">目前還沒有回饋 🎉</div>';
+      return;
+    }
+    const typeLabel = { bug: '🐛 Bug', suggest: '💡 建議', other: '💬 其他' };
+    const typeColor = { bug: '#e85d8a', suggest: '#764ba2', other: '#888' };
+    list.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const date = d.created_at?.toDate ? d.created_at.toDate().toLocaleString('zh-TW') : '未知時間';
+      const type = d.type || 'other';
+      return \`<div style="background:#faf7ff;border-radius:12px;padding:12px 14px;border:1.5px solid #e8d5f5">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:0.75rem;font-weight:800;color:\${typeColor[type]||'#888'};background:\${typeColor[type]||'#888'}18;padding:2px 8px;border-radius:10px">\${typeLabel[type]||type}</span>
+          <span style="font-size:0.72rem;color:#bbb">\${date}</span>
+        </div>
+        <div style="font-size:0.83rem;color:#333;line-height:1.5;margin-bottom:5px;white-space:pre-wrap">\${d.text||''}</div>
+        <div style="font-size:0.72rem;color:#bbb">👤 \${d.email||'匿名'} ・ v\${d.version||'?'}</div>
+      </div>\`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = \`<div style="color:#e85d8a;font-size:0.83rem;padding:10px">❌ 載入失敗：\${e.message}</div>\`;
+  }
+};
 
 window.adminCreateInviteCode = async () => {
   if (!window._isAdmin) return;
@@ -808,14 +843,22 @@ window.submitFeedback = async () => {
   try {
     const { collection, addDoc, serverTimestamp } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const email = auth.currentUser?.email || '';
+    const version = typeof APP_VERSION !== 'undefined' ? APP_VERSION : '';
     await addDoc(collection(db, 'feedback'), {
       type: window._feedbackType,
       text,
       uid: window._currentUid || '',
-      email: auth.currentUser?.email || '',
-      version: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '',
+      email,
+      version,
       created_at: serverTimestamp()
     });
+    // 同時發 LINE Notify（失敗不影響送出成功）
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid || '' },
+      body: JSON.stringify({ type: window._feedbackType, text, email, version })
+    }).catch(() => {});
     msg.style.color = '#4caf50';
     msg.textContent = '✅ 已送出，感謝你的回饋！';
     document.getElementById('feedbackText').value = '';
@@ -1312,7 +1355,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1670,7 +1713,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.0';
+const APP_VERSION = '3.9.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3671,6 +3714,18 @@ function clearAllHistory() {
         </div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
+      </div>
+
+      <!-- 管理員：意見回饋總覽（僅管理員顯示）-->
+      <div class="settings-section" id="adminFeedbackSection" style="display:none">
+        <hr class="settings-divider">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="settings-label" style="color:#764ba2;margin-bottom:0">💬 意見回饋總覽（管理員）</div>
+          <button onclick="adminLoadFeedback()" style="padding:6px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">🔄 重新載入</button>
+        </div>
+        <div id="adminFeedbackList" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <div style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px">點「重新載入」查看回饋</div>
+        </div>
       </div>
 
       <!-- 管理員：邀請碼管理（僅特定帳號顯示）-->
