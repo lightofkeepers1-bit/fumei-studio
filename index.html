@@ -1307,7 +1307,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1665,7 +1665,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.8.1';
+const APP_VERSION = '3.8.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1694,7 +1694,8 @@ window.getCredits = () => parseInt(localStorage.getItem('fumei_credits') ?? '-1'
 window.updateCreditsUI = (credits) => {
   const num = document.getElementById('creditsNum');
   if (!num) return;
-  num.textContent = credits >= 0 ? credits : '…';
+  // debug：顯示每次被呼叫的值（堆疊追蹤）
+  num.textContent = credits + '|' + (new Error().stack || '').split('\n')[1]?.trim().slice(0,30);
   const display = document.getElementById('creditsDisplay');
   if (display) {
     display.style.background = (credits >= 0 && credits <= 3)
