@@ -45,8 +45,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
   res.setHeader('Access-Control-Allow-Origin', '*');
-  const uid = req.headers['x-firebase-uid'];
-  if (!uid) return res.status(401).json({ error: '請先登入' });
+  // uid 非必要，登入與訪客都可使用
 
   try {
     const results = await Promise.allSettled(
