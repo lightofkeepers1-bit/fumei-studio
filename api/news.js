@@ -5,6 +5,8 @@ const RSS_SOURCES = [
   { name: '自由時報',   url: 'https://news.ltn.com.tw/rss/all.xml' },
   { name: '三立新聞',   url: 'https://www.setn.com/rss.aspx' },
   { name: '聯合新聞網', url: 'https://udn.com/rssfeed/news/2/6638' },
+  { name: '中央社',    url: 'https://www.cna.com.tw/rss/aall.aspx' },
+  { name: 'TVBS',      url: 'https://news.tvbs.com.tw/rss/news' },
 ];
 
 function parseItems(xml, sourceName, maxPerSource = 8) {
@@ -56,7 +58,7 @@ export default async function handler(req, res) {
         });
         if (!r.ok) throw new Error(`${source.name} HTTP ${r.status}`);
         const xml = await r.text();
-        return parseItems(xml, source.name, 8);
+        return parseItems(xml, source.name, 5);
       })
     );
 
