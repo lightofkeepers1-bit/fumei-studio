@@ -1143,32 +1143,56 @@ window._guestMode = localStorage.getItem('fumei_guest_mode') === '1';
 window._guestToken = null;
 const GUEST_INIT_CREDITS = 20;
 
-// 訪客點數：用 localStorage 存，key 用 fingerprint 區分
-function getGuestCreditsKey() {
-  // fingerprint 未初始化時用統一 key，確保立即可讀
-  return 'fumei_guest_credits';
-}
-function getGuestCredits() {
-  const v = localStorage.getItem(getGuestCreditsKey());
-  if (v === null) return -1; // 未初始化
-  return parseInt(v) || 0;
-}
-function setGuestCredits(n) {
-  localStorage.setItem(getGuestCreditsKey(), String(n));
-  window.updateGuestRemaining(n);
+// 訪客點數快取（避免每次都打 API）
+window._guestCreditsCache = null;
+
+// 從後端取得/初始化訪客點數
+async function fetchGuestCredits() {
+  const fp = await waitForFingerprint();
+  const r = await fetch('/api/guest-check?type=credits', {
+    headers: { 'x-fingerprint': fp }
+  });
+  const d = await r.json();
+  window._guestCreditsCache = d.credits ?? 0;
+  return window._guestCreditsCache;
 }
 
-// 訪客扣點（cost = 點數），回傳 { ok, remaining }
+// 等 fingerprint 初始化
+function waitForFingerprint() {
+  return new Promise(resolve => {
+    const check = () => {
+      if (window._fingerprint) resolve(window._fingerprint);
+      else setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+// 訪客扣點（後端扣），回傳剩餘點數
 window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   if (!window._guestMode) return null;
-  const current = getGuestCredits();
+  // 先檢查快取
+  const current = window._guestCreditsCache ?? await fetchGuestCredits();
   if (current < cost) {
     if (confirm('⚡ 訪客點數已用完！\n\n登入後可獲得完整點數，要現在登入嗎？')) loginGoogle();
     throw new Error('點數不足，請登入繼續使用');
   }
-  const newVal = current - cost;
-  setGuestCredits(newVal);
-  window._guestToken = 'guest_local_' + Date.now();
+  const fp = window._fingerprint;
+  const r = await fetch('/api/guest-check?type=deduct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
+    body: JSON.stringify({ cost })
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    if (d.needLogin) {
+      if (confirm(d.error + '\n\n要現在登入嗎？')) loginGoogle();
+    }
+    throw new Error(d.error || '點數不足');
+  }
+  window._guestCreditsCache = d.credits;
+  window.updateGuestRemaining(d.credits);
+  window._guestToken = 'guest_' + Date.now();
   return window._guestToken;
 };
 
@@ -1246,23 +1270,9 @@ function showGuestUI() {
   document.getElementById('userInfo').style.display = 'none';
   const avatarEl = document.getElementById('userAvatar');
   if (avatarEl) avatarEl.src = '';
-  // 立即顯示點數（用 fallback key 先顯示，fingerprint 好了再確認）
-  const showCredits = () => {
-    const credits = getGuestCredits();
-    if (credits < 0) setGuestCredits(GUEST_INIT_CREDITS);
-    window.updateGuestRemaining(getGuestCredits());
-  };
-  showCredits(); // 立即執行一次
-  // fingerprint 好了後用精確 key 再確認一次
-  const waitFp = () => {
-    if (window._fingerprint) {
-      if (getGuestCredits() < 0) setGuestCredits(GUEST_INIT_CREDITS);
-      window.updateGuestRemaining(getGuestCredits());
-    } else {
-      setTimeout(waitFp, 200);
-    }
-  };
-  waitFp();
+  // 從後端取得訪客點數（防私密瀏覽刷新）
+  window.updateGuestRemaining('...');
+  fetchGuestCredits().then(c => window.updateGuestRemaining(c)).catch(() => window.updateGuestRemaining(GUEST_INIT_CREDITS));
 }
 
 window.updateGuestRemaining = function(n) {
@@ -1362,7 +1372,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1720,7 +1730,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.8';
+const APP_VERSION = '3.9.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
