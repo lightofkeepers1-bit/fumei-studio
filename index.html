@@ -47,6 +47,8 @@
   .btn { background:linear-gradient(135deg,var(--pink),var(--pink-deep));color:white;border:none;padding:12px 28px;border-radius:50px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;box-shadow:0 4px 15px rgba(224,122,149,0.35);display:inline-flex;align-items:center;gap:8px }
   .btn:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(224,122,149,0.45) }
   .cost-badge { font-size:0.72rem;font-weight:900;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.4);color:rgba(255,255,255,0.95);padding:2px 7px;border-radius:20px;letter-spacing:0.5px;flex-shrink:0 }
+  #creditsDisplay { display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap;line-height:1 }
+  #creditsDisplay.visible { display:inline-flex }
   #creditsToast { position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(50,30,80,0.92);color:white;padding:10px 20px;border-radius:24px;font-size:0.85rem;font-weight:800;font-family:'Nunito',sans-serif;z-index:9999;pointer-events:none;opacity:0;transition:all 0.35s;white-space:nowrap }
   #creditsToast.show { opacity:1;transform:translateX(-50%) translateY(0) }
   .btn:disabled { opacity:0.6;cursor:not-allowed;transform:none }
@@ -1291,7 +1293,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.3</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.4</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1307,7 +1309,7 @@ window.syncToCloud = async () => {
         <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情" style="display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap;line-height:1">⚡ <span id="creditsNum">-</span></span>
+        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情">⚡ <span id="creditsNum">-</span></span>
         <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
       </div>
     </div>
@@ -1628,7 +1630,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.7.3';
+const APP_VERSION = '3.7.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1659,10 +1661,10 @@ window.updateCreditsUI = (credits) => {
   const num = document.getElementById('creditsNum');
   if (!display || !num) return;
   if (credits < 0 || !window._currentUid) {
-    display.style.display = 'none';
+    display.classList.remove('visible');
     return;
   }
-  display.style.display = 'flex';
+  display.classList.add('visible');
   num.textContent = credits;
   // 低點數警告色
   display.style.background = credits <= 3
