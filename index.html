@@ -133,6 +133,7 @@
   .hb-1{background:#fff0f5;color:#c2185b}
   .hb-2{background:#f0f4ff;color:#1565c0}
   .hb-v{background:#f0fff8;color:#2d6a4f}
+  .hb-scan{background:#f0f0ff;color:#7c4dff}
   .history-actions { display:flex;gap:8px;flex-shrink:0 }
   .history-body { display:none;padding:18px;white-space:pre-wrap;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
   .history-body.open { display:block }
@@ -1390,7 +1391,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1748,7 +1749,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.7';
+const APP_VERSION = '4.0.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2495,6 +2496,23 @@ ${newsHeadlines}
       el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
     });
     document.getElementById('topicsCard').style.display = 'block';
+
+       // 登入用戶：把掃描結果存入歷史紀錄，刷新後不會遺失
+    if (window._currentUid && !window._guestMode && topicList.length > 0) {
+      var scanLines = topicList.map(function(item, i) { return '話題' + (i+1) + '：' + item.title + '<br>「' + item.sub + '」'; });
+      var scanEntry = {
+        id: Date.now(),
+        topic: '📡 話題掃描｜' + (topic.label || topic.name || '今日時事'),
+        script: scanLines.join('<br><br>'),
+        format: '話題掃描',
+        type: '',
+        date: new Date().toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })
+      };
+      scriptHistory.unshift(scanEntry);
+      if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window.syncToCloud) window.syncToCloud();
+    }
 
     // 訪客：掃描成功（點數已在前面扣除）
     if (window._guestMode && !window._currentUid) {
@@ -3281,7 +3299,7 @@ function renderHistory() {
     return;
   }
   empty.style.display = 'none';
-  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v'};
+  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','話題掃描':'hb-scan'};
   list.innerHTML = scriptHistory.map((h,i) => `
     <div class="history-item" id="hi-${h.id}">
       <div class="history-header" onclick="toggleHistory(${h.id})">
