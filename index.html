@@ -883,12 +883,19 @@ onAuthStateChanged(auth, async (user) => {
     // 已登入
     document.getElementById('loginBtn').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
-    // 大頭照：先用緩存，Google photoURL 有時需要延遲
+    // 大頭照：Google photoURL 在部分瀏覽器有 CORS 問題，用 crossOrigin 處理
     const avatarEl = document.getElementById('userAvatar');
     if (user.photoURL) {
+      avatarEl.crossOrigin = 'anonymous';
       avatarEl.src = user.photoURL;
-      // 若圖片載入失敗（CORS/緩存），1秒後重試一次
-      avatarEl.onerror = () => setTimeout(() => { avatarEl.src = user.photoURL + '?t=' + Date.now(); }, 1000);
+      avatarEl.onerror = () => {
+        // 失敗時改用首字母 fallback
+        avatarEl.style.display = 'none';
+        const fallback = document.createElement('span');
+        fallback.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
+        fallback.style.cssText = 'width:26px;height:26px;border-radius:50%;border:2px solid white;flex-shrink:0;background:rgba(255,255,255,0.3);color:white;font-weight:900;font-size:0.85rem;display:inline-flex;align-items:center;justify-content:center;';
+        avatarEl.parentNode.insertBefore(fallback, avatarEl);
+      };
     }
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
@@ -1713,12 +1720,16 @@ window.showCreditToast = (cost, remaining) => {
 
 // 從雲端同步點數（登入後呼叫）
 window.syncCreditsFromCloud = async (uid) => {
+  const syncEl = document.getElementById('syncStatus');
+  if (syncEl) syncEl.textContent = '同步中uid=' + uid.slice(0,6);
   try {
     const { doc, getDoc, setDoc, serverTimestamp } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    if (syncEl) syncEl.textContent = 'Firestore載入OK';
     const ref = doc(db, 'users', uid);
     const snap = await getDoc(ref);
     const data = snap.exists() ? snap.data() : {};
+    if (syncEl) syncEl.textContent = 'snap.exists=' + snap.exists();
 
     let credits = data.fumei_credits;
     // debug：把讀到的值顯示在 syncStatus
