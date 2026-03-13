@@ -1300,7 +1300,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1658,7 +1658,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.7.8';
+const APP_VERSION = '3.7.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1730,7 +1730,11 @@ window.syncCreditsFromCloud = async (uid) => {
     window.updateCreditsUI(credits);
     return credits;
   } catch(e) {
-    console.error('[Credits] sync failed', e);
+    // 顯示錯誤碼讓手機用戶也能回報
+    const code = e?.code || e?.message || String(e);
+    console.error('[Credits] sync failed', code);
+    const syncEl = document.getElementById('syncStatus');
+    if (syncEl) syncEl.textContent = '⚠️ ' + code;
     // 雲端失敗：至少顯示 localStorage 緩存值，沒有就顯示 0
     const cached = window.getCredits();
     const fallback = cached >= 0 ? cached : 0;
