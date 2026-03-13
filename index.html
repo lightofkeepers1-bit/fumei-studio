@@ -991,31 +991,13 @@ onAuthStateChanged(auth, async (user) => {
       }
     }
 
-    // 訪客轉登入：合併訪客設定的角色到帳號現有角色清單
-    if (wasGuest && guestChars) {
+    // 訪客轉登入：帳號資料優先，訪客角色直接丟棄不合併
+    // （避免測試用的訪客角色污染主帳號）
+    if (wasGuest && guestChars && !data?.fumei_chars) {
+      // 只有新用戶（雲端完全沒有角色）才繼承訪客角色
       try {
-        const guestCharList = JSON.parse(guestChars) || [];
-        if (data?.fumei_chars) {
-          // 老用戶：把訪客新設定的角色加進去（避免重複名稱）
-          const existingList = JSON.parse(data.fumei_chars) || [];
-          const existingNames = existingList.map(c => c.name);
-          const newChars = guestCharList.filter(c => !existingNames.includes(c.name));
-          if (newChars.length > 0) {
-            const merged = [...existingList, ...newChars];
-            localStorage.setItem('fumei_chars', JSON.stringify(merged));
-            // 合併後立刻存回雲端，避免重整後被覆蓋
-            await window.saveToCloud(user.uid, { fumei_chars: JSON.stringify(merged) });
-            document.getElementById('syncStatus').textContent = `☁️ 已合併 ${newChars.length} 個新角色`;
-            setTimeout(() => {
-              if (document.getElementById('syncStatus'))
-                document.getElementById('syncStatus').textContent = '☁️ 已同步';
-            }, 3000);
-          }
-        } else {
-          // 新用戶：直接繼承訪客角色
-          localStorage.setItem('fumei_chars', guestChars);
-          localStorage.setItem('fumei_onboarded', '1');
-        }
+        localStorage.setItem('fumei_chars', guestChars);
+        localStorage.setItem('fumei_onboarded', '1');
       } catch(e) {}
     }
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
@@ -1107,13 +1089,24 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
-    localStorage.removeItem('fumei_credits');
+    // 登出時清除所有帳號資料，避免殘留到訪客畫面
+    if (!window._guestMode) {
+      [
+        'fumei_credits','fumei_chars','fumei_tasks','fumei_history',
+        'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+        'fumei_theme','fumei_custom_topics','fumei_onboarded',
+        'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+        'fumei_img_prompt_still','fumei_img_prompt_video','fumei_char_active'
+      ].forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem('fumei_guest_mode');
+    }
     window.updateCreditsUI(-1);
-    // 登入後清除訪客模式標記
-    if (!window._guestMode) localStorage.removeItem('fumei_guest_mode');
     document.getElementById('syncStatus').textContent = '';
-    // 未登入時固定顯示預設名稱，避免舊 localStorage 殘留影響
+    // 未登入時固定顯示預設名稱
     document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
+    // 重置 header logo
+    const logoIcon = document.querySelector('.logo-icon');
+    if (logoIcon) logoIcon.innerHTML = '🐾';
     // 未登入一律套用功能限制（不管有沒有選訪客模式）
     applyGuestRestrictions();
     if (window._guestMode) {
@@ -1402,7 +1395,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1760,7 +1753,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.5';
+const APP_VERSION = '4.0.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
