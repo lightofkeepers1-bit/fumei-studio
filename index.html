@@ -959,7 +959,9 @@ onAuthStateChanged(auth, async (user) => {
     // 從雲端載入資料
     window._guestMode = false;
     localStorage.removeItem('fumei_guest_mode');
-    // 先清除所有可能殘留的訪客資料，避免在雲端資料回來前顯示訪客角色
+    // 清除訪客殘留前，先備份可能有用的自訂頭像（避免清掉後找不回來）
+    var _backupAvatarImg   = localStorage.getItem('fumei_avatar_img') || '';
+    var _backupAvatarEmoji = localStorage.getItem('fumei_avatar_emoji') || '';
     ['fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
      'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
      'fumei_theme','fumei_custom_topics','fumei_onboarded',
@@ -984,17 +986,22 @@ onAuthStateChanged(auth, async (user) => {
       if (data.fumei_theme)            { localStorage.setItem('fumei_theme', data.fumei_theme); }
       if (data.fumei_img_prompt_still) { localStorage.setItem('fumei_img_prompt_still', data.fumei_img_prompt_still); }
       if (data.fumei_img_prompt_video) { localStorage.setItem('fumei_img_prompt_video', data.fumei_img_prompt_video); }
-      if (data.fumei_avatar_img)       { localStorage.setItem('fumei_avatar_img', data.fumei_avatar_img); }
-      if (data.fumei_avatar_emoji)     { localStorage.setItem('fumei_avatar_emoji', data.fumei_avatar_emoji); }
+      // 頭像：優先用雲端，雲端沒有就用備份（避免因 Firestore 大小限制存不進去而遺失）
+      var finalImg   = data.fumei_avatar_img   || _backupAvatarImg;
+      var finalEmoji = data.fumei_avatar_emoji || _backupAvatarEmoji || '🐾';
+      if (finalImg)   localStorage.setItem('fumei_avatar_img', finalImg);
+      if (finalEmoji) localStorage.setItem('fumei_avatar_emoji', finalEmoji);
       // 更新 header logo
       const logoIcon = document.querySelector('.logo-icon');
       if (logoIcon) {
-        const img   = data.fumei_avatar_img || '';
-        const emoji = data.fumei_avatar_emoji || '🐾';
-        logoIcon.innerHTML = img
-          ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-          : emoji;
+        logoIcon.innerHTML = finalImg
+          ? '<img src="' + finalImg + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
+          : finalEmoji;
       }
+    } else {
+      // 雲端沒有資料（新帳號），也要還原頭像備份
+      if (_backupAvatarImg)   localStorage.setItem('fumei_avatar_img', _backupAvatarImg);
+      if (_backupAvatarEmoji) localStorage.setItem('fumei_avatar_emoji', _backupAvatarEmoji);
     }
 
     // 登入後：雲端資料已在上面載入並寫入 localStorage
@@ -1399,7 +1406,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.1.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.1.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1757,7 +1764,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.1.0';
+const APP_VERSION = '4.1.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
