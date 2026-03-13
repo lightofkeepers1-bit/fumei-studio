@@ -185,6 +185,9 @@
     .logo-icon { width:40px; height:40px; font-size:1.2rem }
     .logo-text h1 { font-size:1.2rem }
     .logo-text p { font-size:0.7rem }
+    /* 手機版隱藏用戶名稱，只留頭像+點數+按鈕 */
+    #userName { display:none !important }
+    .header-inner { gap:8px }
     .api-zone { width:100%; margin-left:0 }
     .api-input { width:100%; flex:1 }
 
@@ -251,6 +254,8 @@
   body.force-mobile .logo-icon { width:40px; height:40px; font-size:1.2rem }
   body.force-mobile .logo-text h1 { font-size:1.2rem }
   body.force-mobile .logo-text p { font-size:0.7rem }
+  body.force-mobile #userName { display:none !important }
+  body.force-mobile .header-inner { gap:8px }
   body.force-mobile .api-zone { width:100%; margin-left:0 }
   body.force-mobile .api-input { width:100%; flex:1 }
   body.force-mobile nav { padding:10px 12px 0; gap:6px }
@@ -989,9 +994,9 @@ onAuthStateChanged(auth, async (user) => {
       const accInfo = document.getElementById('accountInfo');
       if (accInfo) accInfo.textContent = '登入身份：' + (user.displayName || user.email);
     }
-    // 意見回饋 section 顯示
-    const fbSec = document.getElementById('feedbackSection');
-    if (fbSec) fbSec.style.display = 'block';
+    // 意見回饋 tab 顯示（登入後才開放）
+    const fbTab = document.getElementById('feedbackTab');
+    if (fbTab) fbTab.style.display = '';
 
     // 檢查是否有待兌換的邀請碼
     const pendingCode = localStorage.getItem('fumei_pending_invite');
@@ -1038,8 +1043,8 @@ onAuthStateChanged(auth, async (user) => {
     // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
     document.getElementById('guestBtn').style.display = 'flex';
-    const fbSecOut = document.getElementById('feedbackSection');
-    if (fbSecOut) fbSecOut.style.display = 'none';
+    const fbTab2 = document.getElementById('feedbackTab');
+    if (fbTab2) fbTab2.style.display = 'none';
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
@@ -1292,32 +1297,35 @@ window.syncToCloud = async () => {
 
 <header>
   <div class="header-inner">
-  <div class="logo-icon">🐾</div>
-  <div class="logo-text">
-    <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.5</span></p>
-  </div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-    <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
-    <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:6px;background:white;border:none;color:#764ba2;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">🔑 Google 登入</button>
-    <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
-    <div id="guestInfo" style="display:none;align-items:center;gap:6px">
-      <span id="guestRemaining" style="font-size:0.72rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:20px"></span>
-      <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
+    <div class="logo-icon">🐾</div>
+    <div class="logo-text">
+      <h1>Fumei Studio</h1>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.7</span></p>
     </div>
-    <div id="userInfo" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-      <div style="display:flex;align-items:center;gap:6px">
-        <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
-        <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+
+    <!-- 右側整體容器：不換行，緊湊排列 -->
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0">
+      <span id="syncStatus" style="font-size:0.65rem;color:rgba(255,255,255,0.85);font-weight:700;white-space:nowrap"></span>
+
+      <!-- 未登入 -->
+      <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:5px;background:white;border:none;color:#764ba2;padding:6px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">🔑 Google 登入</button>
+      <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:6px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
+      <div id="guestInfo" style="display:none;align-items:center;gap:5px">
+        <span id="guestRemaining" style="font-size:0.7rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:20px;white-space:nowrap"></span>
+        <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情">⚡ <span id="creditsNum">-</span></span>
-        <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
+
+      <!-- 已登入 -->
+      <div id="userInfo" style="display:none;align-items:center;gap:5px;min-width:0">
+        <img id="userAvatar" style="width:26px;height:26px;border-radius:50%;border:2px solid white;flex-shrink:0" src="">
+        <span id="userName" style="font-size:0.72rem;color:white;font-weight:700;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額">⚡ <span id="creditsNum">-</span></span>
+        <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;flex-shrink:0">登出</button>
       </div>
+
+      <button class="settings-btn" onclick="openSettings()" title="設定" style="flex-shrink:0">⚙️</button>
+      <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">📱 手機版</button>
     </div>
-    <button class="settings-btn" onclick="openSettings()" title="設定">⚙️</button>
-    <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
-  </div>
   </div>
 </header>
 
@@ -1326,6 +1334,7 @@ window.syncToCloud = async () => {
   <button class="tab" onclick="switchTab('topics',this)">💡 話題掃描</button>
   <button class="tab" onclick="switchTab('script',this)">✍️ 產腳本</button>
   <button class="tab" onclick="switchTab('history',this)">📖 歷史紀錄</button>
+  <button class="tab" id="feedbackTab" style="display:none" onclick="switchTab('feedback',this)">💬 回饋</button>
 </nav>
 
 <main>
@@ -1472,6 +1481,23 @@ window.syncToCloud = async () => {
       還沒有產出過腳本，去「✍️ 產腳本」試試看吧！
     </div>
     <div id="historyList"></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-feedback">
+  <div class="card">
+    <div class="card-title">💬 意見回饋</div>
+    <div style="background:#faf7ff;border-radius:14px;padding:16px;border:1.5px solid #e8d5f5">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="feedback-type-btn active" data-type="bug" onclick="selectFeedbackType(this)">🐛 Bug 回報</button>
+        <button class="feedback-type-btn" data-type="suggest" onclick="selectFeedbackType(this)">💡 功能建議</button>
+        <button class="feedback-type-btn" data-type="other" onclick="selectFeedbackType(this)">💬 其他</button>
+      </div>
+      <textarea id="feedbackText" rows="5" class="settings-input" placeholder="描述你遇到的問題或建議..." style="resize:vertical;font-size:0.88rem;line-height:1.6"></textarea>
+      <button onclick="submitFeedback()" id="feedbackSubmitBtn" style="width:100%;margin-top:12px;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.92rem;cursor:pointer;font-family:'Nunito',sans-serif">📤 送出回饋</button>
+      <div id="feedbackMsg" style="font-size:0.82rem;font-weight:700;min-height:20px;margin-top:10px;text-align:center"></div>
+    </div>
+    <p style="font-size:0.8rem;color:#bbb;text-align:center;margin-top:14px">感謝你的回饋，每一則都會被認真閱讀 💕</p>
   </div>
 </div>
 
@@ -1632,7 +1658,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.7.5';
+const APP_VERSION = '3.7.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3611,22 +3637,6 @@ function clearAllHistory() {
         </div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
-      </div>
-
-      <!-- 意見回饋（登入用戶才顯示）-->
-      <div class="settings-section" id="feedbackSection" style="display:none">
-        <hr class="settings-divider">
-        <div class="settings-label">💬 意見回饋</div>
-        <div style="background:#faf7ff;border-radius:14px;padding:16px;border:1.5px solid #e8d5f5">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-            <button class="feedback-type-btn active" data-type="bug" onclick="selectFeedbackType(this)">🐛 Bug 回報</button>
-            <button class="feedback-type-btn" data-type="suggest" onclick="selectFeedbackType(this)">💡 功能建議</button>
-            <button class="feedback-type-btn" data-type="other" onclick="selectFeedbackType(this)">💬 其他</button>
-          </div>
-          <textarea id="feedbackText" rows="4" class="settings-input" placeholder="描述你遇到的問題或建議..." style="resize:vertical;font-size:0.85rem;line-height:1.6"></textarea>
-          <button onclick="submitFeedback()" id="feedbackSubmitBtn" style="width:100%;margin-top:10px;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">📤 送出回饋</button>
-          <div id="feedbackMsg" style="font-size:0.8rem;font-weight:700;min-height:18px;margin-top:8px;text-align:center"></div>
-        </div>
       </div>
 
       <!-- 管理員：邀請碼管理（僅特定帳號顯示）-->
