@@ -1312,7 +1312,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1670,7 +1670,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.8.9';
+const APP_VERSION = '3.9.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2344,8 +2344,19 @@ async function scanTopics() {
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            window._rssItems = newsData.items;
-            newsHeadlines = newsData.items.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
+            // 每家最多3筆，然後洗牌，讓來源多元
+            const capPerSource = {};
+            const balanced = newsData.items.filter(item => {
+              capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
+              return capPerSource[item.source] <= 3;
+            });
+            // Fisher-Yates shuffle
+            for (let i = balanced.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [balanced[i], balanced[j]] = [balanced[j], balanced[i]];
+            }
+            window._rssItems = balanced;
+            newsHeadlines = balanced.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
           }
         }
       } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
