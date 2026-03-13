@@ -1,12 +1,11 @@
 // api/news.js — 台灣新聞 RSS 爬蟲
 // 抓多個新聞網站 RSS，回傳標題 + 連結 + 時間
+// Google News RSS - 從 Vercel 海外伺服器一定能存取，自動聚合多家台灣媒體
 const RSS_SOURCES = [
-  { name: 'ETtoday',   url: 'https://feeds.feedburner.com/ettoday/realtime' },
-  { name: '自由時報',   url: 'https://news.ltn.com.tw/rss/all.xml' },
-  { name: '三立新聞',   url: 'https://www.setn.com/rss.aspx' },
-  { name: '聯合新聞網', url: 'https://udn.com/rssfeed/news/2/6638' },
-  { name: '中央社',    url: 'https://www.cna.com.tw/rss/aall.aspx' },
-  { name: 'TVBS',      url: 'https://news.tvbs.com.tw/rss/news' },
+  { name: '台灣時事', url: 'https://news.google.com/rss/search?q=台灣&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: '台灣娛樂', url: 'https://news.google.com/rss/search?q=台灣+娛樂+藝人&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: '台灣職場', url: 'https://news.google.com/rss/search?q=台灣+職場+上班族&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
+  { name: '台灣社會', url: 'https://news.google.com/rss/search?q=台灣+社會+民生&hl=zh-TW&gl=TW&ceid=TW:zh-Hant' },
 ];
 
 function parseItems(xml, sourceName, maxPerSource = 8) {
