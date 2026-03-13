@@ -1,12 +1,10 @@
 // api/guest-check.js
-// GET  → 查詢剩餘次數（不扣）：?type=scan 或 ?type=script
-// POST → 扣一次，回傳 session token：body { type: 'scan' | 'script' }
-// 話題掃描：每日 5 次（guest_usage_scan）
-// 產腳本：每日 10 次（guest_usage_script）
+// GET  ?type=credits → 查詢訪客剩餘點數（新訪客自動初始化 20 點）
+// POST ?type=deduct  → 扣點數 body: { cost: 1 }
 
 const FIREBASE_PROJECT = 'fumei-3e684';
 const FIREBASE_API_KEY = 'AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY';
-const LIMITS = { scan: 5, script: 10 };
+const GUEST_INIT_CREDITS = 20;
 const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
 
 async function fsGet(docPath) {
@@ -25,11 +23,12 @@ async function fsPatch(docPath, fields) {
   });
 }
 
-async function getUsed(safeKey, type) {
-  const today = new Date().toISOString().slice(0, 10);
-  const data = await fsGet(`guest_usage_${type}/${safeKey}`);
-  const docDate = data?.date?.stringValue || '';
-  return docDate === today ? parseInt(data?.count?.integerValue || '0', 10) : 0;
+async function fsCreate(docPath, fields) {
+  await fetch(`${FS_BASE}/${docPath}?key=${FIREBASE_API_KEY}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields }),
+  });
 }
 
 export default async function handler(req, res) {
@@ -39,47 +38,58 @@ export default async function handler(req, res) {
 
   const fingerprint = req.headers['x-fingerprint'] || '';
   const safeKey = fingerprint.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  if (!safeKey) return res.status(400).json({ error: '無效的裝置識別碼' });
 
-  // GET：查詢剩餘
+  const docPath = `guest_credits/${safeKey}`;
+
+  // GET：查詢/初始化點數
   if (req.method === 'GET') {
-    const type = req.query?.type === 'script' ? 'script' : 'scan';
-    const limit = LIMITS[type];
-    if (!safeKey) return res.status(200).json({ remaining: limit, type });
-    const used = await getUsed(safeKey, type);
-    return res.status(200).json({ remaining: Math.max(0, limit - used), type });
+    let data = await fsGet(docPath);
+    if (!data) {
+      await fsCreate(docPath, {
+        credits:    { integerValue: String(GUEST_INIT_CREDITS) },
+        created_at: { stringValue: new Date().toISOString() },
+        updated_at: { stringValue: new Date().toISOString() },
+      });
+      return res.status(200).json({ credits: GUEST_INIT_CREDITS, isNew: true });
+    }
+    const credits = parseInt(data.credits?.integerValue ?? GUEST_INIT_CREDITS, 10);
+    return res.status(200).json({ credits });
   }
 
-  if (req.method !== 'POST') return res.status(405).end();
-  if (!safeKey) return res.status(401).json({ error: '請先啟用訪客模式', needLogin: true });
+  // POST：扣點數
+  if (req.method === 'POST') {
+    const cost = parseInt(req.body?.cost ?? 1, 10);
+    let data = await fsGet(docPath);
+    let current = GUEST_INIT_CREDITS;
 
-  const type = req.body?.type === 'script' ? 'script' : 'scan';
-  const limit = LIMITS[type];
-  const today = new Date().toISOString().slice(0, 10);
-  const used = await getUsed(safeKey, type);
+    if (!data) {
+      await fsCreate(docPath, {
+        credits:    { integerValue: String(GUEST_INIT_CREDITS) },
+        created_at: { stringValue: new Date().toISOString() },
+        updated_at: { stringValue: new Date().toISOString() },
+      });
+    } else {
+      current = parseInt(data.credits?.integerValue ?? 0, 10);
+    }
 
-  if (used >= limit) {
-    const label = type === 'script' ? '產腳本' : '話題掃描';
-    return res.status(429).json({
-      error: `🌟 今日${label}體驗次數已用完（${limit}次）！登入後可無限使用`,
-      needLogin: true,
-      remaining: 0,
-      type,
+    if (current < cost) {
+      return res.status(403).json({
+        error: '⚡ 訪客點數已用完！登入後可獲得完整點數。',
+        needLogin: true,
+        credits: 0,
+      });
+    }
+
+    const newCredits = current - cost;
+    await fsPatch(docPath, {
+      credits:    { integerValue: String(newCredits) },
+      updated_at: { stringValue: new Date().toISOString() },
     });
+
+    const token = `${safeKey.slice(0, 12)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return res.status(200).json({ credits: newCredits, token });
   }
 
-  // 扣次數
-  const newCount = used + 1;
-  await fsPatch(`guest_usage_${type}/${safeKey}`, {
-    date:  { stringValue: today },
-    count: { integerValue: String(newCount) },
-  });
-
-  // 產生 session token
-  const token = `${safeKey.slice(0, 12)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  await fsPatch(`guest_tokens/${token}`, {
-    fp:      { stringValue: safeKey },
-    expires: { integerValue: String(Date.now() + 5 * 60 * 1000) },
-  });
-
-  return res.status(200).json({ remaining: limit - newCount, token, type });
+  return res.status(405).end();
 }
