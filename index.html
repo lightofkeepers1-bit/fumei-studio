@@ -32,7 +32,7 @@
   .save-btn { padding:8px 16px;border-radius:20px;border:none;background:white;color:var(--pink-deep);font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:transform 0.15s }
   .save-btn:hover { transform:scale(1.05) }
 
-  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto;justify-content:center;width:100% }
+  nav { display:flex;gap:8px;padding:20px 32px 0;border-bottom:2px solid #f0d8e0;overflow-x:auto;justify-content:flex-start;width:100% }
   nav > * { flex-shrink:0 }
   .tab { padding:10px 22px;border-radius:14px 14px 0 0;border:none;background:transparent;color:#999;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap }
   .tab.active { background:white;color:var(--pink-deep);box-shadow:0 -4px 12px rgba(244,167,185,0.2) }
@@ -46,6 +46,11 @@
 
   .btn { background:linear-gradient(135deg,var(--pink),var(--pink-deep));color:white;border:none;padding:12px 28px;border-radius:50px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;box-shadow:0 4px 15px rgba(224,122,149,0.35);display:inline-flex;align-items:center;gap:8px }
   .btn:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(224,122,149,0.45) }
+  .cost-badge { font-size:0.72rem;font-weight:900;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.4);color:rgba(255,255,255,0.95);padding:2px 7px;border-radius:20px;letter-spacing:0.5px;flex-shrink:0 }
+  #creditsDisplay { display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap;line-height:1 }
+  #creditsDisplay.visible { display:inline-flex }
+  #creditsToast { position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(50,30,80,0.92);color:white;padding:10px 20px;border-radius:24px;font-size:0.85rem;font-weight:800;font-family:'Nunito',sans-serif;z-index:9999;pointer-events:none;opacity:0;transition:all 0.35s;white-space:nowrap }
+  #creditsToast.show { opacity:1;transform:translateX(-50%) translateY(0) }
   .btn:disabled { opacity:0.6;cursor:not-allowed;transform:none }
   .btn-sm { background:var(--mint);color:#2d6a4f;border:none;padding:8px 18px;border-radius:20px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-right:6px }
   .btn-sm:hover { background:#95d5b2 }
@@ -134,8 +139,16 @@
   .del-btn { background:#fce4ec;color:#c2185b;border:none;padding:6px 12px;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
   .del-btn:hover { background:#f8bbd0 }
 
+  /* ── 意見回饋 ── */
+  .feedback-type-btn { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
+  .feedback-type-btn.active { background:#764ba2;color:white;border-color:#764ba2 }
+
+  /* ── 改寫 chips ── */
+  .rewrite-chip { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
+  .rewrite-chip:hover { background:#f4e8ff;border-color:#764ba2 }
+
   /* ── 三AI發想卡片 ── */
-  .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s; position:relative }
+  .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s }
   .inspo-card:hover { border-color:var(--pink-deep); box-shadow:0 4px 20px rgba(224,122,149,0.2); transform:translateY(-2px) }
   .inspo-card.selected { border-color:var(--pink-deep); background:#fff5f8; box-shadow:0 4px 20px rgba(224,122,149,0.25) }
   .inspo-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:800; margin-bottom:8px; font-family:'Nunito',sans-serif }
@@ -144,7 +157,7 @@
   .badge-gpt { background:#e8fff4; color:#1a7a4a }
   .inspo-direction { font-size:0.88rem; color:#666; margin-bottom:6px; font-weight:700 }
   .inspo-reason { font-size:0.82rem; color:#999; line-height:1.5 }
-  .inspo-select-btn { position:absolute; right:14px; top:50%; transform:translateY(-50%); background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:white; border:none; padding:7px 14px; border-radius:20px; font-size:0.78rem; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif; white-space:nowrap }
+  .inspo-select-btn { display:block; width:100%; margin-top:12px; background:linear-gradient(135deg,var(--pink),var(--pink-deep)); color:white; border:none; padding:8px 14px; border-radius:20px; font-size:0.82rem; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif; white-space:nowrap; text-align:center }
   .inspo-loading-row { display:flex; align-items:center; gap:10px; padding:14px 16px; background:#fafafa; border-radius:12px; font-size:0.82rem; color:#aaa; font-weight:700 }
 
   /* ── API Keys 設定 ── */
@@ -172,6 +185,9 @@
     .logo-icon { width:40px; height:40px; font-size:1.2rem }
     .logo-text h1 { font-size:1.2rem }
     .logo-text p { font-size:0.7rem }
+    /* 手機版隱藏用戶名稱，只留頭像+點數+按鈕 */
+    #userName { display:none !important }
+    .header-inner { gap:8px }
     .api-zone { width:100%; margin-left:0 }
     .api-input { width:100%; flex:1 }
 
@@ -238,6 +254,8 @@
   body.force-mobile .logo-icon { width:40px; height:40px; font-size:1.2rem }
   body.force-mobile .logo-text h1 { font-size:1.2rem }
   body.force-mobile .logo-text p { font-size:0.7rem }
+  body.force-mobile #userName { display:none !important }
+  body.force-mobile .header-inner { gap:8px }
   body.force-mobile .api-zone { width:100%; margin-left:0 }
   body.force-mobile .api-input { width:100%; flex:1 }
   body.force-mobile nav { padding:10px 12px 0; gap:6px }
@@ -334,7 +352,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.js';
 
@@ -351,32 +369,45 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+window.db = db; // 讓其他 script block 可以存取
 const provider = new GoogleAuthProvider();
 
 // ── 登入 / 登出 ──
 function isWebView() {
   const ua = navigator.userAgent || '';
-  return /FBAN|FBAV|Instagram|Line\/|MicroMessenger|WebView|wv/.test(ua)
-    || ((/iPhone|iPod|iPad/.test(ua)) && !/Safari\//.test(ua));
+  // 明確的 WebView 特徵
+  if (/FBAN|FBAV|Instagram|Line\/|MicroMessenger/.test(ua)) return true;
+  // iOS WebView：有 iPhone 但沒有 Safari 也沒有 CriOS（Chrome iOS）也沒有 FxiOS（Firefox iOS）
+  if (/iPhone|iPod|iPad/.test(ua) && !/Safari\//.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua)) return true;
+  return false;
 }
 
 window.loginGoogle = async () => {
   if (isWebView()) {
+    const ua = navigator.userAgent || '';
+    const isLINE = /Line\//.test(ua);
+    const isIG = /Instagram/.test(ua);
+    const canJump = !isLINE && !isIG; // FB/TikTok/Threads 支援跳轉
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+    const siteUrl = location.href;
     modal.innerHTML = `
       <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:320px;text-align:center">
         <div style="font-size:2rem;margin-bottom:12px">🌐</div>
         <div style="font-weight:800;font-size:1.05rem;margin-bottom:10px;color:#333">請用瀏覽器開啟</div>
         <div style="font-size:0.88rem;color:#666;line-height:1.6;margin-bottom:20px">
-          Google 登入不支援 FB / IG / LINE 的內建瀏覽器。<br>請點下方按鈕，在 Safari 或 Chrome 開啟。
+          Google 登入不支援 LINE / FB / IG 的內建瀏覽器。<br>請選擇下方其中一個方式 👇
         </div>
-        <button onclick="window.open(location.href,'_blank');this.closest('div[style*=fixed]').remove();"
-          style="background:#e85d8a;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%">
-          在瀏覽器開啟
+        ${canJump ? `<button onclick="window.open('${siteUrl}','_system');window.open('${siteUrl}','_blank');"
+          style="background:linear-gradient(135deg,#C9B8E8,#764ba2);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:0.95rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
+          🌐 在瀏覽器開啟
+        </button>` : ''}
+        <button onclick="navigator.clipboard.writeText('${siteUrl}').then(()=>{this.textContent='✅ 已複製！';setTimeout(()=>this.textContent='📋 複製網址，貼到 Safari 開啟',2000)}).catch(()=>{this.textContent='請手動複製：${siteUrl}'});"
+          style="background:${canJump ? '#f4f4f4;color:#555' : 'linear-gradient(135deg,#C9B8E8,#764ba2);color:#fff'};border:none;border-radius:12px;padding:13px 24px;font-size:${canJump ? '0.88' : '0.95'}rem;font-weight:800;cursor:pointer;width:100%;margin-bottom:10px;font-family:'Nunito',sans-serif">
+          📋 複製網址，貼到 Safari 開啟
         </button>
         <button onclick="this.closest('div[style*=fixed]').remove();"
-          style="margin-top:10px;background:none;border:none;color:#aaa;font-size:0.85rem;cursor:pointer">
+          style="background:none;border:none;color:#ccc;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">
           取消
         </button>
       </div>`;
@@ -385,8 +416,84 @@ window.loginGoogle = async () => {
   }
   try {
     await signInWithPopup(auth, provider);
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    // popup 被擋時 fallback 到 redirect
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+      await signInWithRedirect(auth, provider);
+    } else {
+      console.error(e);
+    }
+  }
 };
+// ── Email 登入 ────────────────────────────────────
+window._emailTab = 'login';
+
+window.toggleEmailForm = () => {
+  const area = document.getElementById('emailFormArea');
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+};
+
+window.switchEmailTab = (tab) => {
+  window._emailTab = tab;
+  document.getElementById('tabLogin').style.background = tab === 'login' ? '#764ba2' : 'white';
+  document.getElementById('tabLogin').style.color = tab === 'login' ? 'white' : '#764ba2';
+  document.getElementById('tabRegister').style.background = tab === 'register' ? '#764ba2' : 'white';
+  document.getElementById('tabRegister').style.color = tab === 'register' ? 'white' : '#764ba2';
+  document.getElementById('emailSubmitBtn').textContent = tab === 'login' ? '登入' : '註冊';
+  document.getElementById('emailAuthMsg').textContent = '';
+};
+
+window.submitEmailAuth = async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  const msg = document.getElementById('emailAuthMsg');
+  const btn = document.getElementById('emailSubmitBtn');
+
+  if (!email || !password) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請填寫 Email 和密碼'; return; }
+  if (password.length < 6) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 密碼至少需要 6 位'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 處理中...';
+  msg.textContent = '';
+
+  try {
+    if (window._emailTab === 'register') {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await sendEmailVerification(cred.user);
+      msg.style.color = '#2d6a4f';
+      msg.textContent = '✅ 註冊成功！請去收信點驗證連結後再登入';
+      await signOut(auth);
+      btn.textContent = '註冊';
+      btn.disabled = false;
+    } else {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (!cred.user.emailVerified) {
+        msg.style.color = '#e85d8a';
+        msg.textContent = '❌ 請先去收信點驗證連結，再回來登入';
+        await sendEmailVerification(cred.user);
+        await signOut(auth);
+        btn.textContent = '登入';
+        btn.disabled = false;
+        return;
+      }
+      document.getElementById('welcomeModal').style.display = 'none';
+    }
+  } catch(e) {
+    msg.style.color = '#e85d8a';
+    const errMap = {
+      'auth/email-already-in-use': '❌ 此 Email 已被註冊',
+      'auth/invalid-email': '❌ Email 格式不正確',
+      'auth/wrong-password': '❌ 密碼錯誤',
+      'auth/user-not-found': '❌ 此 Email 尚未註冊',
+      'auth/invalid-credential': '❌ Email 或密碼錯誤',
+      'auth/too-many-requests': '❌ 嘗試次數過多，請稍後再試',
+    };
+    msg.textContent = errMap[e.code] || ('❌ ' + e.message);
+    btn.textContent = window._emailTab === 'login' ? '登入' : '註冊';
+    btn.disabled = false;
+  }
+};
+
 window.logoutUser = async () => {
   await signOut(auth);
 };
@@ -418,10 +525,35 @@ window.redeemInviteCode = async () => {
       msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return;
     }
 
-    // 兌換成功：引導登入，登入後自動套用
+    // 如果目前已登入，直接套用（不需再登入）
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const creditsToAdd = data.credits || 20;
+      await updateDoc(codeRef, {
+        used_by: currentUser.email,
+        used_uid: currentUser.uid,
+        used_at: serverTimestamp(),
+        active: false
+      });
+      await window.addCredits(creditsToAdd, 'invite:' + code);
+      // 備份紀錄
+      await window.saveToCloud(currentUser.uid, {
+        fumei_invite_last: code,
+        fumei_invite_last_at: new Date().toISOString(),
+      });
+      msg.style.color = '#2d6a4f';
+      msg.textContent = `🎉 兌換成功！已補充 ${creditsToAdd} 點（目前 ${window.getCredits()} 點）`;
+      input.value = '';
+      return;
+    }
+
+    // 未登入：儲存 pending code，展開登入選項
     localStorage.setItem('fumei_pending_invite', code);
-    msg.style.color = '#2d6a4f'; msg.textContent = '✅ 有效！請登入以完成兌換 👇';
-    setTimeout(() => loginGoogle(), 1200);
+    msg.style.color = '#2d6a4f';
+    msg.textContent = '✅ 邀請碼有效！請選擇登入方式完成兌換 👇';
+    // 展開 Email 登入表單（讓用戶選擇登入方式）
+    const emailArea = document.getElementById('emailFormArea');
+    if (emailArea) emailArea.style.display = 'block';
 
   } catch(e) {
     console.error(e);
@@ -429,6 +561,47 @@ window.redeemInviteCode = async () => {
   }
 };
 
+
+// ── 設定頁兌換邀請碼 ─────────────────────────────
+window.redeemFromSettings = async () => {
+  const input = document.getElementById('settingsInviteInput');
+  const msg = document.getElementById('settingsInviteMsg');
+  if (!input || !msg) return;
+  const code = (input.value || '').trim().toUpperCase();
+  if (!code) { msg.style.color = '#e85d8a'; msg.textContent = '請輸入邀請碼'; return; }
+  // 借用主兌換流程
+  document.getElementById('inviteCodeInput') && (document.getElementById('inviteCodeInput').value = code);
+  msg.style.color = '#aaa'; msg.textContent = '⏳ 兌換中...';
+  try {
+    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const codeRef = _doc(db, 'invite_codes', code);
+    const snap = await _getDoc(codeRef);
+    if (!snap.exists()) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return; }
+    const data = snap.data();
+    if (!data.active) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return; }
+    if (data.used_by) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return; }
+    if (!window._currentUid) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請先登入'; return; }
+    const creditsToAdd = data.credits || 20;
+    await updateDoc(codeRef, { used_by: auth.currentUser.email, used_uid: window._currentUid, used_at: serverTimestamp(), active: false });
+    await window.addCredits(creditsToAdd, 'invite:' + code);
+    await window.saveToCloud(window._currentUid, { fumei_invite_last: code, fumei_invite_last_at: new Date().toISOString() });
+    input.value = '';
+    const newCredits = window.getCredits();
+    msg.style.color = '#2d6a4f';
+    msg.textContent = `🎉 成功！補充 ${creditsToAdd} 點，目前 ${newCredits} 點`;
+    document.getElementById('creditsInfoNum').textContent = newCredits;
+  } catch(e) {
+    console.error(e);
+    msg.style.color = '#e85d8a'; msg.textContent = '❌ 兌換失敗';
+  }
+};
+
+// ── 換登入方式：透過 email 合併邀請碼方案 ──────────
+window._checkInviteMergeByEmail = async (user) => {
+  // 點數制：不需合併舊方案，點數已直接儲存在用戶 uid 文件中
+  // 保留此函式供日後擴充
+};
 
 // ── 管理員邀請碼功能 ──────────────────────────────
 const ADMIN_EMAILS = ['lightofkeepers1@gmail.com']; // 在這裡加管理員 email
@@ -440,6 +613,8 @@ window.checkAdminAccess = function checkAdminAccess(email) {
   if (window._isAdmin) {
     const sec = document.getElementById('adminInviteSection');
     if (sec) sec.style.display = 'block';
+    const fbSec = document.getElementById('adminFeedbackSection');
+    if (fbSec) fbSec.style.display = 'block';
   }
 }
 
@@ -450,26 +625,67 @@ function genRandomCode() {
   return code;
 }
 
+window.adminLoadFeedback = async () => {
+  const list = document.getElementById('adminFeedbackList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px">⏳ 載入中...</div>';
+  try {
+    const { collection, getDocs, orderBy, query, limit } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const q = query(collection(window.db, 'feedback'), orderBy('created_at', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      list.innerHTML = '<div style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px">目前還沒有回饋 🎉</div>';
+      return;
+    }
+    const typeLabel = { bug: '🐛 Bug', suggest: '💡 建議', other: '💬 其他' };
+    const typeColor = { bug: '#e85d8a', suggest: '#764ba2', other: '#888' };
+    list.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const date = d.created_at?.toDate ? d.created_at.toDate().toLocaleString('zh-TW') : '未知時間';
+      const type = d.type || 'other';
+      const col = typeColor[type] || '#888';
+      const label = typeLabel[type] || type;
+      return '<div style="background:#faf7ff;border-radius:12px;padding:12px 14px;border:1.5px solid #e8d5f5">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+        '<span style="font-size:0.75rem;font-weight:800;color:' + col + ';background:' + col + '18;padding:2px 8px;border-radius:10px">' + label + '</span>' +
+        '<span style="font-size:0.72rem;color:#bbb">' + date + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.83rem;color:#333;line-height:1.5;margin-bottom:5px;white-space:pre-wrap">' + (d.text||'') + '</div>' +
+        '<div style="font-size:0.72rem;color:#bbb">👤 ' + (d.email||'匿名') + ' ・ v' + (d.version||'?') + '</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#e85d8a;font-size:0.83rem;padding:10px">❌ 載入失敗：' + e.message + '</div>';
+  }
+};
+
 window.adminCreateInviteCode = async () => {
   if (!window._isAdmin) return;
   const msg = document.getElementById('adminCodeMsg');
   const input = document.getElementById('adminCodeInput');
+  const creditsInput = document.getElementById('adminCodeCredits');
   const code = input.value.trim().toUpperCase() || genRandomCode();
+  const credits = creditsInput && creditsInput.value ? parseInt(creditsInput.value) : 20;
 
   msg.style.color = '#aaa'; msg.textContent = '⏳ 建立中...';
 
   try {
     const { doc: _doc, setDoc: _setDoc, serverTimestamp } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await _setDoc(_doc(db, 'invite_codes', code), {
+    const codeData = {
       active: true,
       used_by: '',
+      used_uid: '',
+      credits,
       created_at: serverTimestamp(),
       created_by: auth.currentUser?.email || '',
-    });
+    };
+    await _setDoc(_doc(db, 'invite_codes', code), codeData);
     msg.style.color = '#2d6a4f';
-    msg.textContent = '✅ 已建立：' + code;
+    msg.textContent = `✅ 已建立：${code}　補充 ${credits} 點`;
     input.value = '';
+    if (creditsInput) creditsInput.value = '';
     try { await navigator.clipboard.writeText(code); msg.textContent += '  📋 已複製'; } catch(e) {}
     adminLoadInviteCodes();
   } catch(e) {
@@ -495,25 +711,36 @@ window.adminLoadInviteCodes = async () => {
     const rows = snap.docs.map(d => {
       const data = d.data();
       const used = data.used_by;
+      const usedUid = data.used_uid || '';
       const active = data.active;
-      const statusColor = used ? '#bbb' : (active ? '#2d6a4f' : '#e85d8a');
-      const statusText = used ? ('已使用（' + used + '）') : (active ? '可用' : '已停用');
+      const credits = data.credits || 20;
+      let statusColor, statusText;
+      if (used) {
+        statusColor = '#bbb';
+        statusText = '已使用（' + used + '）';
+      } else {
+        statusColor = active ? '#2d6a4f' : '#e85d8a';
+        statusText = active ? '可用' : '已停用';
+      }
       const codeId = d.id;
-      const plan = data.plan || 'pro';
+      const creditsLabel = '　補充 ' + credits + ' 點';
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 12px;background:white;border-radius:10px;border:1.5px solid #f0e8ff';
       row.innerHTML = [
         '<div style="flex:1">',
           '<div style="font-weight:900;font-size:0.9rem;color:#333;letter-spacing:1px">' + codeId + '</div>',
-          '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">方案：<strong style="color:#764ba2">' + plan + '</strong>　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>',
+          '<div style="font-size:0.72rem;color:#aaa;margin-top:2px">⚡<strong style="color:#764ba2">' + credits + ' 點</strong>' + creditsLabel.replace('　補充 ' + credits + ' 點', '') + '　狀態：<strong style="color:' + statusColor + '">' + statusText + '</strong></div>',
+          usedUid ? '<div style="font-size:0.68rem;color:#ccc;margin-top:1px;font-family:monospace">UID: ' + usedUid.slice(0,20) + '…</div>' : '',
         '</div>',
         '<div style="display:flex;gap:5px">',
           '<button data-copy="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.72rem;font-weight:800;cursor:pointer">複製</button>',
           (active && !used) ? '<button data-deactivate="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.72rem;font-weight:800;cursor:pointer">停用</button>' : '',
+          '<button data-delete="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #eee;background:#fafafa;color:#aaa;font-size:0.72rem;font-weight:800;cursor:pointer">🗑️</button>',
         '</div>'
       ].join('');
       row.querySelector('[data-copy]')?.addEventListener('click', () => window.adminCopyCode(codeId));
       row.querySelector('[data-deactivate]')?.addEventListener('click', () => window.adminDeactivateCode(codeId));
+      row.querySelector('[data-delete]')?.addEventListener('click', () => window.adminDeleteCode(codeId));
       return row;
     });
     list.innerHTML = ''; rows.forEach(r => list.appendChild(r));
@@ -597,9 +824,69 @@ window.adminLoadUsage = async () => {
   }
 };
 
+// ── 意見回饋 ────────────────────────────────────
+window._feedbackType = 'bug';
+
+window.selectFeedbackType = function(btn) {
+  document.querySelectorAll('.feedback-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  window._feedbackType = btn.dataset.type;
+};
+
+window.submitFeedback = async () => {
+  const text = document.getElementById('feedbackText').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('feedbackSubmitBtn');
+  const msg = document.getElementById('feedbackMsg');
+  btn.disabled = true;
+  btn.textContent = '⏳ 送出中...';
+  msg.textContent = '';
+
+  try {
+    const { collection, addDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const email = auth.currentUser?.email || '';
+    const version = typeof APP_VERSION !== 'undefined' ? APP_VERSION : '';
+    await addDoc(collection(db, 'feedback'), {
+      type: window._feedbackType,
+      text,
+      uid: window._currentUid || '',
+      email,
+      version,
+      created_at: serverTimestamp()
+    });
+    // 同時發 LINE Notify（失敗不影響送出成功）
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid || '' },
+      body: JSON.stringify({ type: window._feedbackType, text, email, version })
+    }).catch(() => {});
+    msg.style.color = '#4caf50';
+    msg.textContent = '✅ 已送出，感謝你的回饋！';
+    document.getElementById('feedbackText').value = '';
+    btn.textContent = '📤 送出回饋';
+    btn.disabled = false;
+  } catch(e) {
+    msg.style.color = '#e85d8a';
+    msg.textContent = '❌ 送出失敗：' + e.message;
+    btn.textContent = '📤 送出回饋';
+    btn.disabled = false;
+  }
+};
+
 window.adminCopyCode = async (code) => {
   try { await navigator.clipboard.writeText(code); }
   catch(e) { prompt('複製此邀請碼：', code); }
+};
+
+window.adminDeleteCode = async (code) => {
+  if (!confirm('確定要刪除邀請碼 ' + code + '？\n刪除後無法復原。')) return;
+  try {
+    const { doc: _doc, deleteDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await deleteDoc(_doc(db, 'invite_codes', code));
+    adminLoadInviteCodes();
+  } catch(e) { alert('刪除失敗：' + e.message); }
 };
 
 window.adminDeactivateCode = async (code) => {
@@ -628,19 +915,51 @@ window.loadFromCloud = async (uid) => {
 };
 
 // ── 監聽登入狀態 ──
+// 接收 redirect 登入結果
+getRedirectResult(auth).then(result => {
+  if (result?.user) console.log('redirect login ok');
+}).catch(e => {
+  console.warn('redirect result:', e.code);
+});
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    // Email 登入需驗證（Google 登入不需要檢查）
+    const isEmailProvider = user.providerData.some(p => p.providerId === 'password');
+    if (isEmailProvider && !user.emailVerified) {
+      await signOut(auth);
+      return;
+    }
     // 已登入
     document.getElementById('loginBtn').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
-    document.getElementById('userAvatar').src = user.photoURL || '';
+    // 大頭照：Google photoURL 在部分瀏覽器有 CORS 問題，用 crossOrigin 處理
+    const avatarEl = document.getElementById('userAvatar');
+    if (user.photoURL) {
+      avatarEl.crossOrigin = 'anonymous';
+      avatarEl.src = user.photoURL;
+      avatarEl.onerror = () => {
+        // 失敗時改用首字母 fallback
+        avatarEl.style.display = 'none';
+        const fallback = document.createElement('span');
+        fallback.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
+        fallback.style.cssText = 'width:26px;height:26px;border-radius:50%;border:2px solid white;flex-shrink:0;background:rgba(255,255,255,0.3);color:white;font-weight:900;font-size:0.85rem;display:inline-flex;align-items:center;justify-content:center;';
+        avatarEl.parentNode.insertBefore(fallback, avatarEl);
+      };
+    }
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
+    // ⚡ 先顯示 loading 狀態，等雲端回來再更新
+    window.updateCreditsUI(window.getCredits()); // 先用 localStorage 緩存值（可能是 -1 顯示 …）
+
+    // ⚡ 同步點數（await 確保 UI 在登入流程完成前就更新）
+    await window.syncCreditsFromCloud(user.uid);
 
     // 從雲端載入資料
     const wasGuest = window._guestMode;
     const guestChars = wasGuest ? localStorage.getItem('fumei_chars') : null; // 先備份訪客設定
     window._guestMode = false;
+    localStorage.removeItem('fumei_guest_mode');
     document.getElementById('guestBtn').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
 
@@ -704,6 +1023,28 @@ onAuthStateChanged(auth, async (user) => {
     // 管理員檢查
     window.checkAdminAccess(user.email);
 
+    // 登入後還原被 applyGuestRestrictions 鎖住的按鈕
+    const inspoBtn = document.getElementById('inspoBtn');
+    if (inspoBtn) {
+      inspoBtn.style.opacity = '';
+      inspoBtn.title = '';
+      inspoBtn.onclick = () => window.genInspo();
+    }
+    // 還原 scriptType 的時事反應選項
+    const scriptType = document.getElementById('scriptType');
+    if (scriptType && ![...scriptType.options].find(o => o.value === '時事反應')) {
+      const opt = new Option('🗞️ 時事反應', '時事反應');
+      scriptType.appendChild(opt);
+    }
+    // 還原歷史紀錄 tab
+    document.querySelectorAll('.tab').forEach(btn => {
+      if (btn.textContent.includes('歷史')) {
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        btn.onclick = () => switchTab('history', btn);
+      }
+    });
+
     // 帳號 section 顯示
     const accSec = document.getElementById('accountSection');
     if (accSec) {
@@ -711,6 +1052,9 @@ onAuthStateChanged(auth, async (user) => {
       const accInfo = document.getElementById('accountInfo');
       if (accInfo) accInfo.textContent = '登入身份：' + (user.displayName || user.email);
     }
+    // 意見回饋 tab 顯示（登入後才開放）
+    const fbTab = document.getElementById('feedbackTab');
+    if (fbTab) fbTab.style.display = '';
 
     // 檢查是否有待兌換的邀請碼
     const pendingCode = localStorage.getItem('fumei_pending_invite');
@@ -721,22 +1065,32 @@ onAuthStateChanged(auth, async (user) => {
         const codeRef = _doc(db, 'invite_codes', pendingCode);
         const snap = await _getDoc(codeRef);
         if (snap.exists() && snap.data().active && !snap.data().used_by) {
-          const plan = snap.data().plan || 'pro';
-          // 標記邀請碼已使用
-          await updateDoc(codeRef, { used_by: user.email, used_at: serverTimestamp(), active: false });
-          // 寫入用戶方案
-          await window.saveToCloud(user.uid, { fumei_plan: plan, fumei_plan_source: 'invite:' + pendingCode });
-          localStorage.setItem('fumei_plan', plan);
+          const codeData = snap.data();
+          const creditsToAdd = codeData.credits || 20;
+          // 標記邀請碼已使用，同時記錄 uid
+          await updateDoc(codeRef, {
+            used_by: user.email,
+            used_uid: user.uid,
+            used_at: serverTimestamp(),
+            active: false
+          });
+          // 補充點數（syncCreditsFromCloud 已先跑，這裡再加）
+          await window.addCredits(creditsToAdd, 'invite:' + pendingCode);
+          await window.saveToCloud(user.uid, {
+            fumei_invite_last: pendingCode,
+            fumei_invite_last_at: new Date().toISOString(),
+          });
           localStorage.removeItem('fumei_pending_invite');
-          setTimeout(() => alert(`🎉 邀請碼兌換成功！已解鎖 Pro 方案`), 500);
+          document.getElementById('welcomeModal').style.display = 'none';
+          setTimeout(() => alert(`🎉 邀請碼兌換成功！已補充 ${creditsToAdd} 點`), 500);
         } else {
           localStorage.removeItem('fumei_pending_invite');
         }
       } catch(e) { console.error('邀請碼套用失敗', e); localStorage.removeItem('fumei_pending_invite'); }
     }
 
-    // 從雲端讀取方案狀態
-    if (data?.fumei_plan) { localStorage.setItem('fumei_plan', data.fumei_plan); }
+    // 換登入方式偵測（舊邀請碼帳號合併，保留向後相容）
+    await window._checkInviteMergeByEmail(user);
 
     // 登入成功時關閉所有 modal
     document.getElementById('onboardingModal').style.display = 'none';
@@ -747,9 +1101,15 @@ onAuthStateChanged(auth, async (user) => {
     // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
     document.getElementById('guestBtn').style.display = 'flex';
+    const fbTab2 = document.getElementById('feedbackTab');
+    if (fbTab2) fbTab2.style.display = 'none';
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
+    localStorage.removeItem('fumei_credits');
+    window.updateCreditsUI(-1);
+    // 登入後清除訪客模式標記
+    if (!window._guestMode) localStorage.removeItem('fumei_guest_mode');
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱，避免舊 localStorage 殘留影響
     document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
@@ -757,6 +1117,10 @@ onAuthStateChanged(auth, async (user) => {
     applyGuestRestrictions();
     if (window._guestMode) {
       showGuestUI();
+      // 刷新後：顯示訪客角色名（從 localStorage）
+      if (window.updateCharNameUI) window.updateCharNameUI();
+      // 確保 userInfo 隱藏
+      document.getElementById('userInfo').style.display = 'none';
     } else {
       // 自動跳出登入選擇視窗
       setTimeout(() => document.getElementById('welcomeModal').style.display = 'flex', 300);
@@ -775,44 +1139,61 @@ window._fingerprint = '';
 })();
 
 // ── 訪客模式 ──────────────────────────────────────
-window._guestMode = false;
-window._guestScanRemaining = 5;
-window._guestScriptRemaining = 10;
+window._guestMode = localStorage.getItem('fumei_guest_mode') === '1';
 window._guestToken = null;
-window._guestTokenExpires = 0;
+const GUEST_INIT_CREDITS = 20;
 
-// 每次訪客操作前呼叫，type='scan' 或 'script'，每次都扣一次次數
-window.acquireGuestToken = async function(type = 'scan') {
+// 訪客點數快取（避免每次都打 API）
+window._guestCreditsCache = null;
+
+// 從後端取得/初始化訪客點數
+async function fetchGuestCredits() {
+  const fp = await waitForFingerprint();
+  const r = await fetch('/api/guest-check?type=credits', {
+    headers: { 'x-fingerprint': fp }
+  });
+  const d = await r.json();
+  window._guestCreditsCache = d.credits ?? 0;
+  return window._guestCreditsCache;
+}
+
+// 等 fingerprint 初始化
+function waitForFingerprint() {
+  return new Promise(resolve => {
+    const check = () => {
+      if (window._fingerprint) resolve(window._fingerprint);
+      else setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+// 訪客扣點（後端扣），回傳剩餘點數
+window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   if (!window._guestMode) return null;
-  // 等 fingerprint 初始化完成（最多等 3 秒）
-  let waited = 0;
-  while (!window._fingerprint && waited < 3000) {
-    await new Promise(r => setTimeout(r, 100));
-    waited += 100;
+  // 先檢查快取
+  const current = window._guestCreditsCache ?? await fetchGuestCredits();
+  if (current < cost) {
+    if (confirm('⚡ 訪客點數已用完！\n\n登入後可獲得完整點數，要現在登入嗎？')) loginGoogle();
+    throw new Error('點數不足，請登入繼續使用');
   }
-  const fp = window._fingerprint || '';
-  if (!fp) throw new Error('無法識別裝置，請重新整理後再試');
-  try {
-    const r = await fetch(`/api/guest-check?type=${type}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
-    });
-    const d = await r.json();
-    if (!r.ok) {
-      if (d.needLogin) {
-        if (confirm(`${d.error}\n\n要現在登入嗎？`)) loginGoogle();
-      }
-      throw new Error(d.error || '次數已用完');
+  const fp = window._fingerprint;
+  const r = await fetch('/api/guest-check?type=deduct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
+    body: JSON.stringify({ cost })
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    if (d.needLogin) {
+      if (confirm(d.error + '\n\n要現在登入嗎？')) loginGoogle();
     }
-    window._guestToken = d.token;
-    window._guestTokenType = type;
-    window._guestTokenExpires = Date.now() + 5 * 60 * 1000;
-    if (type === 'scan') window.updateGuestRemaining(d.remaining, 'scan');
-    else window.updateGuestRemaining(d.remaining, 'script');
-    return d.token;
-  } catch(e) {
-    throw e;
+    throw new Error(d.error || '點數不足');
   }
+  window._guestCreditsCache = d.credits;
+  window.updateGuestRemaining(d.credits);
+  window._guestToken = 'guest_' + Date.now();
+  return window._guestToken;
 };
 
 window.enterGuestMode = function() {
@@ -835,8 +1216,9 @@ function showGuestIntro() {
         <div style="background:#faf4ff;border-radius:14px;padding:14px 16px;margin-bottom:20px">
           <div style="font-size:0.82rem;font-weight:800;color:#764ba2;margin-bottom:10px">✅ 訪客可以使用</div>
           <div style="font-size:0.82rem;color:#666;line-height:2">
-            📰 話題掃描（非時事類，每次間隔1分鐘）<br>
-            ✍️ 腳本生成（每日 10 次）
+            ⚡ 免費體驗點數 20 點<br>
+            📰 話題掃描（⚡1點，非時事類）<br>
+            ✍️ 腳本生成（⚡1點）
           </div>
           <div style="height:1px;background:#eee;margin:10px 0"></div>
           <div style="font-size:0.82rem;font-weight:800;color:#ccc;margin-bottom:8px">🔒 需要登入才能使用</div>
@@ -847,7 +1229,7 @@ function showGuestIntro() {
           </div>
         </div>
         <div style="background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:0.8rem;color:#b8860b;font-weight:700;text-align:center">
-          ⚡ 每日體驗上限 5 次，登入後無限使用
+          ⚡ 訪客送 20 點體驗，登入後可繼續累積點數
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif">👀 以訪客身份進入</button>
@@ -861,19 +1243,41 @@ function showGuestIntro() {
   }
 }
 
-window.confirmGuestMode = function() {
+window.confirmGuestMode = async function() {
   document.getElementById('guestIntroModal')?.remove();
   document.getElementById('welcomeModal').style.display = 'none';
-  window._guestMode = true;
-  // 有設定過角色 → 直接進
-  if (localStorage.getItem('fumei_chars') && localStorage.getItem('fumei_onboarded')) {
-    showGuestUI();
-    applyGuestRestrictions();
-  } else {
-    // 沒設定過 → 先走 Onboarding
-    showOnboarding();
-    window._pendingGuestActivation = true;
+
+  // ⚠️ 如果有登入用戶，先把資料存回雲端再清除 localStorage
+  if (window._currentUid) {
+    try {
+      await window.saveToCloud(window._currentUid, {
+        fumei_chars:         localStorage.getItem('fumei_chars') || '',
+        fumei_tasks:         localStorage.getItem('fumei_tasks') || '[]',
+        fumei_history:       localStorage.getItem('fumei_history') || '[]',
+        fumei_studio_name:   localStorage.getItem('fumei_studio_name') || '',
+        fumei_avatar_emoji:  localStorage.getItem('fumei_avatar_emoji') || '',
+        fumei_avatar_img:    localStorage.getItem('fumei_avatar_img') || '',
+        fumei_custom_topics: localStorage.getItem('fumei_custom_topics') || '',
+        fumei_social_ig:     localStorage.getItem('fumei_social_ig') || '',
+        fumei_social_fb:     localStorage.getItem('fumei_social_fb') || '',
+        fumei_social_threads:localStorage.getItem('fumei_social_threads') || '',
+      });
+    } catch(e) { console.warn('confirmGuestMode: saveToCloud failed', e); }
   }
+
+  window._guestMode = true;
+  localStorage.setItem('fumei_guest_mode', '1');
+  // 清除登入帳號殘留的所有資料，訪客應該是全新狀態
+  [
+    'fumei_credits','fumei_chars','fumei_tasks','fumei_history',
+    'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+    'fumei_theme','fumei_view','fumei_custom_topics','fumei_onboarded',
+    'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+    'fumei_img_prompt_still','fumei_img_prompt_video'
+  ].forEach(k => localStorage.removeItem(k));
+  // 訪客一律走 Onboarding 設定自己的角色
+  showOnboarding();
+  window._pendingGuestActivation = true;
 };
 
 function showGuestUI() {
@@ -881,31 +1285,18 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   if (window.updateCharNameUI) window.updateCharNameUI();
-  // 從後端查詢兩種真實剩餘次數
-  const doCheck = () => {
-    const fp = window._fingerprint || '';
-    if (!fp) { setTimeout(doCheck, 300); return; }
-    Promise.all([
-      fetch(`/api/guest-check?type=scan`, { headers: { 'x-fingerprint': fp } }).then(r => r.json()),
-      fetch(`/api/guest-check?type=script`, { headers: { 'x-fingerprint': fp } }).then(r => r.json()),
-    ]).then(([scan, script]) => {
-      window._guestScanRemaining = scan.remaining ?? 5;
-      window._guestScriptRemaining = script.remaining ?? 10;
-      const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
-    }).catch(() => {
-      const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
-    });
-  };
-  doCheck();
+  // 確保 userInfo 區塊隱藏（清掉殘留的 Google 頭像）
+  document.getElementById('userInfo').style.display = 'none';
+  const avatarEl = document.getElementById('userAvatar');
+  if (avatarEl) avatarEl.src = '';
+  // 從後端取得訪客點數（防私密瀏覽刷新）
+  window.updateGuestRemaining('...');
+  fetchGuestCredits().then(c => window.updateGuestRemaining(c)).catch(() => window.updateGuestRemaining('?'));
 }
 
-window.updateGuestRemaining = function(n, type) {
-  if (type === 'script') window._guestScriptRemaining = n;
-  else window._guestScanRemaining = n;
+window.updateGuestRemaining = function(n) {
   const el = document.getElementById('guestRemaining');
-  if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
+  if (el) el.innerHTML = '👀 ⚡' + n + ' 點';
 };
 
 // 訪客掃描冷卻（1分鐘）— 定義移至主 script block
@@ -935,6 +1326,15 @@ function applyGuestRestrictions() {
     // 預設選職場
     topicCat.value = '職場';
   }
+  // 鎖定產腳本的時事反應選項
+  const scriptType = document.getElementById('scriptType');
+  if (scriptType) {
+    const newsTypeOpt = scriptType.querySelector('option[value="時事反應"]');
+    if (newsTypeOpt) newsTypeOpt.remove();
+    if (scriptType.value === '時事反應') scriptType.value = '職場梗';
+  }
+  // 更新按鈕點數標示（選項被移除後重新計算）
+  if (window.updateCostBadges) window.updateCostBadges();
 }
 
 window.showLoginPrompt = function(msg) {
@@ -982,32 +1382,41 @@ window.syncToCloud = async () => {
 </script>
 </head>
 <body>
+<div id="creditsToast"></div>
 
 <!-- ── 歡迎登入頁（未登入時全螢幕顯示）── -->
 
 <header>
   <div class="header-inner">
-  <div class="logo-icon">🐾</div>
-  <div class="logo-text">
-    <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.11</span></p>
-  </div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
-    <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:6px;background:white;border:none;color:#764ba2;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">🔑 Google 登入</button>
-    <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
-    <div id="guestInfo" style="display:none;align-items:center;gap:6px">
-      <span id="guestRemaining" style="font-size:0.72rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:20px"></span>
-      <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
+    <div class="logo-icon">🐾</div>
+    <div class="logo-text">
+      <h1>Fumei Studio</h1>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.3</span></p>
     </div>
-    <div id="userInfo" style="display:none;align-items:center;gap:6px">
-      <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
-      <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-      <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
+
+    <!-- 右側整體容器：不換行，緊湊排列 -->
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0">
+      <span id="syncStatus" style="font-size:0.65rem;color:rgba(255,255,255,0.85);font-weight:700;white-space:nowrap"></span>
+
+      <!-- 未登入 -->
+      <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:5px;background:white;border:none;color:#764ba2;padding:6px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">🔑 Google 登入</button>
+      <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:6px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
+      <div id="guestInfo" style="display:none;align-items:center;gap:5px">
+        <span id="guestRemaining" style="font-size:0.7rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:20px;white-space:nowrap"></span>
+        <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
+      </div>
+
+      <!-- 已登入 -->
+      <div id="userInfo" style="display:none;align-items:center;gap:5px;min-width:0">
+        <img id="userAvatar" style="width:26px;height:26px;border-radius:50%;border:2px solid white;flex-shrink:0" src="">
+        <span id="userName" style="font-size:0.72rem;color:white;font-weight:700;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額">⚡ <span id="creditsNum">-</span></span>
+        <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;flex-shrink:0">登出</button>
+      </div>
+
+      <button class="settings-btn" onclick="openSettings()" title="設定" style="flex-shrink:0">⚙️</button>
+      <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">📱 手機版</button>
     </div>
-    <button class="settings-btn" onclick="openSettings()" title="設定">⚙️</button>
-    <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
-  </div>
   </div>
 </header>
 
@@ -1016,6 +1425,7 @@ window.syncToCloud = async () => {
   <button class="tab" onclick="switchTab('topics',this)">💡 話題掃描</button>
   <button class="tab" onclick="switchTab('script',this)">✍️ 產腳本</button>
   <button class="tab" onclick="switchTab('history',this)">📖 歷史紀錄</button>
+  <button class="tab" id="feedbackTab" style="display:none" onclick="switchTab('feedback',this)">💬 回饋</button>
 </nav>
 
 <main>
@@ -1054,14 +1464,14 @@ window.syncToCloud = async () => {
     <div class="card-title">🔍 今日話題掃描</div>
     <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 <span class="char-name-ui">角色</span> 的梗圖靈感</p>
     <div class="row" style="margin-bottom:14px">
-      <select id="topicCat">
+      <select id="topicCat" onchange="updateCostBadges()">
         <option value="時事">🗞️ 今日時事</option>
         <option value="職場">💼 職場話題</option>
         <option value="單身生活">💅 單身生活</option>
         <option value="日常趣事">😂 日常趣事</option>
         <option value="旅遊">✈️ 旅遊話題</option>
       </select>
-      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題</button>
+      <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡2</span></button>
     </div>
     <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在尋找靈感中...</div>
     <div class="err" id="scanErr"></div>
@@ -1089,7 +1499,7 @@ window.syncToCloud = async () => {
     <div class="hint-box">💡 <strong>話題框可以留空！</strong> 系統會自動搜尋當日時事，幫 <span class="char-name-ui">角色</span> 找題目 ✨</div>
     <textarea id="scriptTopic" rows="3" placeholder="（可留空，系統自動找話題）&#10;或輸入指定話題，例如：&#10;老闆突然說要開臨時會議&#10;颱風假到底放不放" oninput="if(!this.value.trim())unlockScriptType()"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center" class="row">
-      <select id="scriptType">
+      <select id="scriptType" onchange="updateCostBadges()">
         <option value="職場梗">💼 職場梗</option>
         <option value="單身日常">💅 單身日常</option>
         <option value="旅遊心得">✈️ 旅遊心得</option>
@@ -1101,8 +1511,8 @@ window.syncToCloud = async () => {
         <option value="影片15">🎬 影片腳本 15秒</option>
         <option value="影片30">🎬 影片腳本 30秒</option>
       </select>
-      <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本</button>
-      <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想</button>
+      <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本 <span class="cost-badge">⚡1</span></button>
+      <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想 <span class="cost-badge" style="background:rgba(255,255,255,0.25)">⚡2</span></button>
     </div>
     <!-- 三AI發想區塊 -->
     <div id="inspoArea" style="display:none;margin-top:20px">
@@ -1124,6 +1534,19 @@ window.syncToCloud = async () => {
       <div id="sub-script">
         <div class="result show" id="scriptResult"></div>
         <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
+
+        <!-- 腳本改寫區 -->
+        <div id="rewriteArea" style="margin-top:16px;border-top:1px solid #f0e8ff;padding-top:14px">
+          <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:10px">✏️ 改寫腳本</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="rewrite-chip" onclick="rewriteScript('更誇張、更戲劇化，情緒拉到最高點')">🔥 更誇張</button>
+            <button class="rewrite-chip" onclick="rewriteScript('更溫和、更日常，語氣輕鬆不用力')">🌸 更溫和</button>
+            <button class="rewrite-chip" onclick="rewriteScript('改成適合 Instagram Reels 的節奏，短句、斷行、有畫面感，每句話都要抓眼球')">⚡ Reels 節奏</button>
+            <button class="rewrite-chip" onclick="rewriteScript('更台味、更接地氣，用台灣人日常說話方式')">🇹🇼 更台味</button>
+          </div>
+          <div id="rewriteLoading" style="display:none;margin-top:10px;font-size:0.83rem;color:var(--pink-deep);font-weight:700">✨ 改寫中...</div>
+          <div id="rewriteErr" class="err"></div>
+        </div>
       </div>
       <div id="sub-prompt" style="display:none">
         <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 <span class="char-name-ui">角色</span> 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
@@ -1149,6 +1572,23 @@ window.syncToCloud = async () => {
       還沒有產出過腳本，去「✍️ 產腳本」試試看吧！
     </div>
     <div id="historyList"></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-feedback">
+  <div class="card">
+    <div class="card-title">💬 意見回饋</div>
+    <div style="background:#faf7ff;border-radius:14px;padding:16px;border:1.5px solid #e8d5f5">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="feedback-type-btn active" data-type="bug" onclick="selectFeedbackType(this)">🐛 Bug 回報</button>
+        <button class="feedback-type-btn" data-type="suggest" onclick="selectFeedbackType(this)">💡 功能建議</button>
+        <button class="feedback-type-btn" data-type="other" onclick="selectFeedbackType(this)">💬 其他</button>
+      </div>
+      <textarea id="feedbackText" rows="5" class="settings-input" placeholder="描述你遇到的問題或建議..." style="resize:vertical;font-size:0.88rem;line-height:1.6"></textarea>
+      <button onclick="submitFeedback()" id="feedbackSubmitBtn" style="width:100%;margin-top:12px;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.92rem;cursor:pointer;font-family:'Nunito',sans-serif">📤 送出回饋</button>
+      <div id="feedbackMsg" style="font-size:0.82rem;font-weight:700;min-height:20px;margin-top:10px;text-align:center"></div>
+    </div>
+    <p style="font-size:0.8rem;color:#bbb;text-align:center;margin-top:14px">感謝你的回饋，每一則都會被認真閱讀 💕</p>
   </div>
 </div>
 
@@ -1201,7 +1641,7 @@ const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
 function getImgPromptStill() {
   const custom = localStorage.getItem('fumei_img_prompt_still') || '';
   const charName = (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
-  return custom.trim() || `不要用同套服裝，要換服裝，表情要豐富
+  return custom.trim() || `換服裝換場景，表情要豐富
 不要更換提供的原人物的材質
 依照提供圖片材質出圖`;
 }
@@ -1301,10 +1741,145 @@ let lastGeminiPrompt = '';
 
 // expose globals for Firebase module
 window._renderTasks = function() { renderTasks(); };
-window._renderHistory = function() { renderHistory(); };
+window._renderHistory = function() {
+  // 從 window.scriptHistory 同步回 let scriptHistory（跨 script block）
+  if (window.scriptHistory !== undefined) scriptHistory = window.scriptHistory;
+  else scriptHistory = JSON.parse(localStorage.getItem('fumei_history') || '[]');
+  renderHistory();
+};
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.11';
+const APP_VERSION = '4.0.3';
+
+// ══════════════════════════════════════════════
+// ⚡ CREDITS SYSTEM
+// ══════════════════════════════════════════════
+// ── 動態更新按鈕點數標示 ─────────────────────────
+window.updateCostBadges = () => {
+  const cat = document.getElementById('topicCat');
+  const scanBadge = document.querySelector('#scanBtn .cost-badge');
+  if (cat && scanBadge) {
+    scanBadge.textContent = cat.value === '時事' ? '⚡2' : '⚡1';
+  }
+  const type = document.getElementById('scriptType');
+  const scriptBadge = document.querySelector('#scriptBtn .cost-badge');
+  if (type && scriptBadge) {
+    scriptBadge.textContent = type.value === '時事反應' ? '⚡2' : '⚡1';
+  }
+};
+
+const CREDITS_NEW_USER = 20;
+const CREDIT_COST = { scan: 1, script: 1, inspo: 2, news: 2 };
+
+// 讀取目前點數（本地緩存）
+window.getCredits = () => parseInt(localStorage.getItem('fumei_credits') ?? '-1');
+
+// 更新 Header 點數顯示
+window.updateCreditsUI = (credits) => {
+  const num = document.getElementById('creditsNum');
+  if (!num) return;
+  num.textContent = credits >= 0 ? credits : '…';
+  const display = document.getElementById('creditsDisplay');
+  if (display) {
+    display.style.background = (credits >= 0 && credits <= 3)
+      ? 'rgba(232,93,138,0.7)'
+      : 'rgba(255,255,255,0.2)';
+  }
+  const infoNum = document.getElementById('creditsInfoNum');
+  if (infoNum) {
+    infoNum.textContent = credits >= 0 ? credits : '…';
+    infoNum.style.color = (credits >= 0 && credits <= 3) ? '#e85d8a' : '#764ba2';
+  }
+};
+
+// 顯示扣點 Toast
+window.showCreditToast = (cost, remaining) => {
+  // 靜默扣點，不顯示 toast
+};
+
+// 從雲端同步點數（登入後呼叫）
+window.syncCreditsFromCloud = async (uid) => {
+  try {
+    const { doc, getDoc, setDoc, serverTimestamp } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const ref = doc(window.db, 'users', uid);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : null;
+
+    let credits;
+    if (!snap.exists()) {
+      // 真正的新帳號（文件不存在）才初始化 20 點
+      credits = CREDITS_NEW_USER;
+      await setDoc(ref, { fumei_credits: credits, fumei_credits_init_at: serverTimestamp() }, { merge: true });
+    } else {
+      credits = data.fumei_credits;
+      // 文件存在但沒有 credits 欄位（舊帳號）：補 20 點
+      if (credits === undefined || credits === null) {
+        credits = CREDITS_NEW_USER;
+        await setDoc(ref, { fumei_credits: credits }, { merge: true });
+      }
+    }
+    localStorage.setItem('fumei_credits', String(credits));
+    window.updateCreditsUI(credits);
+    return credits;
+  } catch(e) {
+    // 顯示錯誤碼讓手機用戶也能回報
+    const code = e?.code || e?.message || String(e);
+    console.error('[Credits] sync failed', code);
+    const syncEl = document.getElementById('syncStatus');
+    if (syncEl) syncEl.textContent = '⚠️ ' + code;
+    // 雲端失敗：至少顯示 localStorage 緩存值，沒有就顯示 0
+    const cached = window.getCredits();
+    const fallback = cached >= 0 ? cached : 0;
+    localStorage.setItem('fumei_credits', String(fallback));
+    window.updateCreditsUI(fallback);
+    return fallback;
+  }
+};
+
+// 扣點（先扣本地，再同步雲端）
+window.deductCredits = async (cost, feature) => {
+  if (!window._currentUid) return { ok: false, reason: 'notLoggedIn' };
+  const current = window.getCredits();
+  if (current < 0) return { ok: false, reason: 'notSynced' };
+  if (current < cost) return { ok: false, reason: 'insufficient', remaining: current };
+
+  const newVal = current - cost;
+  localStorage.setItem('fumei_credits', String(newVal));
+  window.updateCreditsUI(newVal);
+  window.showCreditToast(cost, newVal);
+
+  // 非同步寫回雲端（不等待，避免阻塞 UI）
+  (async () => {
+    try {
+      const { doc, updateDoc, increment } =
+        await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await updateDoc(doc(window.db, 'users', window._currentUid), {
+        fumei_credits: newVal,
+        ['fumei_credits_last_use']: new Date().toISOString(),
+      });
+    } catch(e) { console.error('[Credits] cloud write failed', e); }
+  })();
+
+  return { ok: true, remaining: newVal };
+};
+
+// 補充點數（邀請碼兌換）
+window.addCredits = async (amount, source) => {
+  if (!window._currentUid) return;
+  const current = window.getCredits();
+  const newVal = (current < 0 ? 0 : current) + amount;
+  localStorage.setItem('fumei_credits', String(newVal));
+  window.updateCreditsUI(newVal);
+  try {
+    const { doc, updateDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await updateDoc(doc(window.db, 'users', window._currentUid), {
+      fumei_credits: newVal,
+      ['fumei_credits_added_' + Date.now()]: { amount, source, at: new Date().toISOString() },
+    });
+  } catch(e) { console.error('[Credits] addCredits failed', e); }
+};
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -1319,6 +1894,7 @@ window.onload = () => {
   rebuildTopicSelects();
   renderVersion();
   updateCharNameUI(); // 更新所有角色名稱顯示
+  updateCostBadges(); // ⚡ 初始化按鈕點數標示
   // 恢復上次的版面偏好
   const savedView = localStorage.getItem('fumei_view');
   const btn = document.getElementById('viewToggleBtn');
@@ -1797,12 +2373,29 @@ async function scanTopics() {
   const err = document.getElementById('scanErr');
   err.classList.remove('show');
 
-  // 訪客：冷卻時間檢查（在 disable btn 之前）
+  // 訪客：先扣點再執行
   if (window._guestMode && !window._currentUid) {
-    const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
-    if (left > 0) {
-      err.textContent = `⏳ 請等待 ${left} 秒後再掃描`;
+    const isNewsCheck = (document.getElementById('topicCat')?.value === '時事');
+    const cost = isNewsCheck ? 2 : 1;
+    try {
+      await window.acquireGuestToken('scan', cost);
+    } catch(e) {
+      err.textContent = e.message || '點數不足';
       err.classList.add('show');
+      return;
+    }
+  }
+
+  // ⚡ 登入用戶：點數檢查（今日時事扣2點，其他1點）
+  if (window._currentUid) {
+    const isNewsCheck = (document.getElementById('topicCat')?.value === '時事');
+    const cost = isNewsCheck ? CREDIT_COST.news : CREDIT_COST.scan;
+    const result = await window.deductCredits(cost, 'scan');
+    if (!result.ok) {
+      if (result.reason === 'insufficient') {
+        err.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請兌換邀請碼補充點數。`;
+        err.classList.add('show');
+      }
       return;
     }
   }
@@ -1833,8 +2426,19 @@ async function scanTopics() {
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            window._rssItems = newsData.items;
-            newsHeadlines = newsData.items.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
+            // 每家最多3筆，然後洗牌，讓來源多元
+            const capPerSource = {};
+            const balanced = newsData.items.filter(item => {
+              capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
+              return capPerSource[item.source] <= 3;
+            });
+            // Fisher-Yates shuffle
+            for (let i = balanced.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [balanced[i], balanced[j]] = [balanced[j], balanced[i]];
+            }
+            window._rssItems = balanced;
+            newsHeadlines = balanced.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
           }
         }
       } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
@@ -1893,16 +2497,13 @@ ${newsHeadlines}
     });
     document.getElementById('topicsCard').style.display = 'block';
 
-    // 訪客：掃描成功後啟動冷卻
+    // 訪客：掃描成功（點數已在前面扣除）
     if (window._guestMode && !window._currentUid) {
       load.classList.remove('show');
-      startCooldown('scanBtn', '🔍 掃描話題', 60);
       return;
     }
   } catch(e) {
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
-      // 訪客 API 錯誤也要啟動冷卻
-      if (window._guestMode && !window._currentUid) startCooldown('scanBtn', '🔍 掃描話題', 60);
       return;
     }
     const msg = e.message || '';
@@ -2027,7 +2628,7 @@ async function callGemini(prompt, feature='script', systemPrompt='') {
   }
   const body = {
     model: 'gemini-2.5-flash',
-    generationConfig: { temperature: 1.0, maxOutputTokens: 2000 },
+    generationConfig: { temperature: 1.0, maxOutputTokens: 800 },
     contents: [{ parts: [{ text: prompt }] }]
   };
   if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
@@ -2052,7 +2653,7 @@ async function callGPT(prompt, feature='script') {
   }
   const r = await fetch('/api/gpt', {
     method: 'POST', headers,
-    body: JSON.stringify({model:'gpt-4o-mini', temperature:1.0, max_tokens:2000, messages:[{role:'user', content:prompt}]})
+    body: JSON.stringify({model:'gpt-4o-mini', temperature:1.0, max_tokens:400, messages:[{role:'user', content:prompt}]})
   });
   const d = await r.json();
   if (!r.ok) { const err = new Error(d.error?.message || 'ChatGPT 錯誤'); if (d.needLogin) err.needLogin = true; throw err; }
@@ -2081,6 +2682,20 @@ async function genInspo() {
     btn.disabled = false;
     showLoginPrompt('三AI發想需要登入才能使用 🔒');
     return;
+  }
+
+  // ⚡ 點數檢查（2點）
+  {
+    const result = await window.deductCredits(CREDIT_COST.inspo, 'inspo');
+    if (!result.ok) {
+      btn.disabled = false;
+      if (result.reason === 'insufficient') {
+        const e = document.getElementById('inspoErr');
+        e.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請兌換邀請碼補充點數。`;
+        e.classList.add('show');
+      }
+      return;
+    }
   }
 
   // 先顯示 loading 占位卡片
@@ -2148,14 +2763,15 @@ async function genInspo() {
       </div>`;
     }
     const text = res.value || '';
-    // 嘗試解析格式，Gemini 有時不帶「方向：」前綴
-    let dir = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
-    let why = (text.match(/原因[：:]\s*(.+)/) || [])[1]?.trim() || '';
-    // fallback：如果解析不到，把整段文字當方向，原因留空提示
+    // 解析「方向：」— 支援跨行內容（取到下一個標籤前）
+    let dir = (text.match(/方向[：:]\s*([\s\S]+?)(?=原因[：:]|$)/) || [])[1]?.replace(/\n/g,' ').trim() || '';
+    // 解析「原因：」— 同樣支援跨行
+    let why = (text.match(/原因[：:]\s*([\s\S]+?)$/) || [])[1]?.replace(/\n/g,' ').trim() || '';
+    // fallback：整段文字分行
     if (!dir) {
       const lines = text.split('\n').filter(l => l.trim());
       dir = lines[0]?.trim() || '（無法解析）';
-      why = lines[1]?.trim() || '（AI 未依格式回覆）';
+      why = lines.slice(1).join(' ').trim() || '';
     }
     return `<div class="inspo-card" data-dir="${dir.replace(/"/g,'&quot;')}">
       <span class="inspo-badge ${badge}">${emoji} ${label}</span>
@@ -2175,6 +2791,54 @@ async function genInspo() {
   });
 
   btn.disabled = false;
+}
+
+async function rewriteScript(direction) {
+  const current = document.getElementById('scriptResult').textContent.trim();
+  if (!current) return;
+  await _doRewrite(direction);
+}
+
+async function _doRewrite(direction) {
+  const current = document.getElementById('scriptResult').textContent.trim();
+  if (!current) return;
+
+  const loading = document.getElementById('rewriteLoading');
+  const err = document.getElementById('rewriteErr');
+  const rewriteArea = document.getElementById('rewriteArea');
+  loading.style.display = 'block';
+  err.classList.remove('show');
+
+  try {
+    const charCtx = buildCharPrompt();
+    const prompt = `以下是一份梗圖腳本，請依照指定方向改寫，保留原本的話題和角色精神，但調整風格和節奏。
+
+原始腳本：
+${current}
+
+改寫方向：${direction}
+
+請直接輸出改寫後的腳本，不要說明、不要前言。`;
+
+    const result = await claude(charCtx, prompt, true);
+    document.getElementById('scriptResult').textContent = result;
+
+    // 同步加入歷史紀錄
+    const topic = document.getElementById('scriptTopic').value.trim() || '（改寫）';
+    const charName = getCharName();
+    const entry = { topic, script: result, char: charName, ts: Date.now() };
+    scriptHistory.unshift(entry);
+    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if (window.syncToCloud) window.syncToCloud();
+    renderHistory();
+
+  } catch(e) {
+    err.textContent = '❌ ' + (e.message || '改寫失敗');
+    err.classList.add('show');
+  } finally {
+    loading.style.display = 'none';
+  }
 }
 
 function pickInspo(el, direction) {
@@ -2198,6 +2862,12 @@ async function genScript() {
   const used = document.getElementById('autoUsed');
   const isAuto = !topic && type === '時事反應';
 
+  // 訪客：不允許時事反應
+  if (!window._currentUid && type === '時事反應') {
+    if (confirm('🔒 時事反應需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+    return;
+  }
+
   // 訪客：冷卻時間檢查
   if (window._guestMode && !window._currentUid) {
     const left = Math.ceil((window._guestScriptCooldownUntil - Date.now()) / 1000);
@@ -2208,13 +2878,26 @@ async function genScript() {
     }
   }
 
+  // ⚡ 登入用戶：點數檢查（時事反應扣2點，其他1點）
+  if (window._currentUid) {
+    const scriptCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
+    const result = await window.deductCredits(scriptCost, 'script');
+    if (!result.ok) {
+      if (result.reason === 'insufficient') {
+        err.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請兌換邀請碼補充點數。`;
+        err.classList.add('show');
+      }
+      return;
+    }
+  }
+
   btn.disabled=true; load.classList.add('show'); area.style.display='none';
   err.classList.remove('show'); notice.style.display='none'; used.style.display='none';
   document.getElementById('inspoArea').style.display = 'none';
 
-  // 訪客：先取 session token（扣一次產腳本次數）
+  // 訪客：扣點數
   if (window._guestMode && !window._currentUid) {
-    try { await window.acquireGuestToken('script'); }
+    try { await window.acquireGuestToken('script', CREDIT_COST.script); }
     catch(e) { btn.disabled=false; load.classList.remove('show'); return; }
   }
 
@@ -2660,15 +3343,31 @@ function clearAllHistory() {
     <button onclick="loginGoogle();document.getElementById('welcomeModal').style.display='none'" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px">
       <img src="https://www.google.com/favicon.ico" style="width:18px;height:18px"> Google 登入
     </button>
+    <button onclick="toggleEmailForm()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#555;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:10px">
+      📧 Email 登入 ／ 註冊
+    </button>
+    <!-- Email 登入表單 -->
+    <div id="emailFormArea" style="display:none;margin-bottom:10px;text-align:left">
+      <div style="background:#faf7ff;border-radius:16px;padding:16px;border:1.5px solid #e8d5f5">
+        <div style="display:flex;gap:0;margin-bottom:14px;border-radius:10px;overflow:hidden;border:1.5px solid #e8d5f5">
+          <button id="tabLogin" onclick="switchEmailTab('login')" style="flex:1;padding:8px;border:none;background:#764ba2;color:white;font-weight:800;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">登入</button>
+          <button id="tabRegister" onclick="switchEmailTab('register')" style="flex:1;padding:8px;border:none;background:white;color:#764ba2;font-weight:800;font-size:0.82rem;cursor:pointer;font-family:'Nunito',sans-serif">註冊</button>
+        </div>
+        <input id="emailInput" type="email" placeholder="電子郵件" class="settings-input" style="margin:0 0 8px 0;font-size:0.85rem">
+        <input id="passwordInput" type="password" placeholder="密碼（至少 6 位）" class="settings-input" style="margin:0 0 12px 0;font-size:0.85rem">
+        <button onclick="submitEmailAuth()" id="emailSubmitBtn" style="width:100%;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif">登入</button>
+        <div id="emailAuthMsg" style="font-size:0.78rem;margin-top:8px;min-height:16px;text-align:center;font-weight:700"></div>
+      </div>
+    </div>
     <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:16px">
       👀 訪客體驗
     </button>
     <!-- 邀請碼區塊 -->
     <div style="border-top:1px solid #f0e8ff;padding-top:16px">
       <div style="font-size:0.78rem;color:#bbb;margin-bottom:8px;font-weight:700">🎟️ 有邀請碼？</div>
-      <div style="display:flex;gap:8px">
-        <input id="inviteCodeInput" placeholder="輸入邀請碼" style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555">
-        <button onclick="redeemInviteCode()" style="padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="inviteCodeInput" placeholder="輸入邀請碼" style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;height:42px;box-sizing:border-box">
+        <button onclick="redeemInviteCode()" style="height:42px;padding:0 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">兌換</button>
       </div>
       <div id="inviteCodeMsg" style="font-size:0.78rem;margin-top:8px;min-height:18px"></div>
     </div>
@@ -3013,7 +3712,7 @@ function clearAllHistory() {
         <div style="margin-bottom:14px">
           <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">🎨 一格 / 兩格梗圖指令</div>
           <textarea id="imgPromptStill" rows="4" class="settings-input" style="margin:0;resize:vertical;font-size:0.82rem;line-height:1.6" placeholder="留空使用預設。例如：
-不要用同套服裝，要換服裝，表情要豐富
+換服裝換場景，表情要豐富
 不要更換原人物材質
 輸出尺寸 9:16"></textarea>
         </div>
@@ -3034,8 +3733,35 @@ function clearAllHistory() {
       <div class="settings-section" id="accountSection" style="display:none">
         <div class="settings-label">帳號</div>
         <div id="accountInfo" style="font-size:0.85rem;color:#888;margin-bottom:10px"></div>
+        <div id="creditsInfo" style="display:flex;align-items:center;justify-content:space-between;background:#faf7ff;border-radius:14px;padding:14px 16px;border:1.5px solid #e8d5f5;margin-bottom:12px">
+          <div>
+            <div style="font-size:0.75rem;color:#bbb;font-weight:800;margin-bottom:3px">⚡ 點數餘額</div>
+            <div style="font-size:1.5rem;font-weight:900;color:#764ba2;line-height:1"><span id="creditsInfoNum">-</span> <span style="font-size:0.8rem;color:#bbb;font-weight:700">點</span></div>
+            <div style="font-size:0.72rem;color:#bbb;margin-top:4px">掃描 ⚡1點・時事/三AI ⚡2點</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:0.72rem;color:#bbb;margin-bottom:6px">有邀請碼可補充點數</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="settingsInviteInput" placeholder="輸入邀請碼" style="padding:8px 12px;border-radius:10px;border:1.5px solid #e0d0f0;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;width:130px">
+              <button onclick="redeemFromSettings()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
+            </div>
+            <div id="settingsInviteMsg" style="font-size:0.75rem;font-weight:700;min-height:16px;margin-top:6px;text-align:right"></div>
+          </div>
+        </div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
+      </div>
+
+      <!-- 管理員：意見回饋總覽（僅管理員顯示）-->
+      <div class="settings-section" id="adminFeedbackSection" style="display:none">
+        <hr class="settings-divider">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="settings-label" style="color:#764ba2;margin-bottom:0">💬 意見回饋總覽（管理員）</div>
+          <button onclick="adminLoadFeedback()" style="padding:6px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">🔄 重新載入</button>
+        </div>
+        <div id="adminFeedbackList" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <div style="text-align:center;color:#ccc;font-size:0.85rem;padding:20px">點「重新載入」查看回饋</div>
+        </div>
       </div>
 
       <!-- 管理員：邀請碼管理（僅特定帳號顯示）-->
@@ -3046,6 +3772,11 @@ function clearAllHistory() {
           <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">新增邀請碼</div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input id="adminCodeInput" class="settings-input" placeholder="留空自動產生" style="margin:0;flex:1;font-family:'Nunito',sans-serif;font-size:0.85rem;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            <div style="display:flex;align-items:center;gap:5px;background:white;border:1.5px solid #e0d0f0;border-radius:12px;padding:0 12px">
+              <span style="font-size:0.8rem;color:#bbb;white-space:nowrap">⚡</span>
+              <input id="adminCodeCredits" type="number" min="1" value="20" style="width:55px;border:none;outline:none;font-size:0.9rem;font-weight:800;color:#764ba2;font-family:'Nunito',sans-serif;text-align:center;background:transparent">
+              <span style="font-size:0.75rem;color:#bbb">點</span>
+            </div>
             <button onclick="adminCreateInviteCode()" style="padding:10px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">＋ 新增</button>
           </div>
           <div id="adminCodeMsg" style="font-size:0.8rem;font-weight:700;min-height:18px;margin-bottom:10px;padding:0 2px"></div>
@@ -3476,7 +4207,7 @@ ${emoji} 名稱：${name}
 確定送出，讓 AI 分析嗎？`
     );
     if (!confirmed) return;
-    obStartAnalysis();
+    await obStartAnalysis();
   }
 
   obGoTo(step);
@@ -3541,7 +4272,10 @@ async function obStartAnalysis() {
       focus    = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
       boldness = (text.match(/尺度[：:]\s*(.+)/) || [])[1]?.trim() || '';
     }
-  } catch(e) { /* 分析失敗不影響流程 */ }
+  } catch(e) {
+    console.error('AI分析失敗', e);
+    // 分析失敗仍繼續，tone/focus/boldness 保持空白
+  }
 
   if (!aiValid) {
     // AI 判定亂填，退回 Step 2
@@ -3603,8 +4337,13 @@ function openSettings() {
   document.getElementById('accountSection').style.display = 'block';
   if (window._currentUid) {
     document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
+    // 直接從 localStorage 讀（syncCreditsFromCloud 已在登入時 await 完成）
+    const credits = window.getCredits();
+    window.updateCreditsUI(credits >= 0 ? credits : 0);
   } else {
     document.getElementById('accountInfo').textContent = '尚未登入 Google 帳號';
+    const infoNum = document.getElementById('creditsInfoNum');
+    if (infoNum) infoNum.textContent = '-';
   }
   // image prompt settings
   document.getElementById('imgPromptStill').value = localStorage.getItem('fumei_img_prompt_still') || '';
