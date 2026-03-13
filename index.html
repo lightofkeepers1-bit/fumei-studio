@@ -1272,7 +1272,7 @@ function showGuestUI() {
   if (avatarEl) avatarEl.src = '';
   // 從後端取得訪客點數（防私密瀏覽刷新）
   window.updateGuestRemaining('...');
-  fetchGuestCredits().then(c => window.updateGuestRemaining(c)).catch(() => window.updateGuestRemaining(GUEST_INIT_CREDITS));
+  fetchGuestCredits().then(c => window.updateGuestRemaining(c)).catch(() => window.updateGuestRemaining('?'));
 }
 
 window.updateGuestRemaining = function(n) {
@@ -1372,7 +1372,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1730,7 +1730,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.9';
+const APP_VERSION = '4.0.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2354,11 +2354,14 @@ async function scanTopics() {
   const err = document.getElementById('scanErr');
   err.classList.remove('show');
 
-  // 訪客：冷卻時間檢查（在 disable btn 之前）
+  // 訪客：先扣點再執行
   if (window._guestMode && !window._currentUid) {
-    const left = Math.ceil((window._guestScanCooldownUntil - Date.now()) / 1000);
-    if (left > 0) {
-      err.textContent = `⏳ 請等待 ${left} 秒後再掃描`;
+    const isNewsCheck = (document.getElementById('topicCat')?.value === '時事');
+    const cost = isNewsCheck ? 2 : 1;
+    try {
+      await window.acquireGuestToken('scan', cost);
+    } catch(e) {
+      err.textContent = e.message || '點數不足';
       err.classList.add('show');
       return;
     }
@@ -2475,16 +2478,13 @@ ${newsHeadlines}
     });
     document.getElementById('topicsCard').style.display = 'block';
 
-    // 訪客：掃描成功後啟動冷卻
+    // 訪客：掃描成功（點數已在前面扣除）
     if (window._guestMode && !window._currentUid) {
       load.classList.remove('show');
-      startCooldown('scanBtn', '🔍 掃描話題', 60);
       return;
     }
   } catch(e) {
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
-      // 訪客 API 錯誤也要啟動冷卻
-      if (window._guestMode && !window._currentUid) startCooldown('scanBtn', '🔍 掃描話題', 60);
       return;
     }
     const msg = e.message || '';
