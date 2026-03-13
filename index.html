@@ -415,11 +415,6 @@ window.registerEmail = async () => {
 };
 
 window.logoutUser = async () => {
-  // 只清帳號專屬資料，保留訪客可繼續使用的角色設定
-  ['fumei_plan','fumei_tasks','fumei_history',
-   'fumei_social_ig','fumei_social_fb','fumei_social_threads',
-   'fumei_img_prompt_still','fumei_img_prompt_video'
-  ].forEach(k => localStorage.removeItem(k));
   await signOut(auth);
 };
 
@@ -675,7 +670,6 @@ onAuthStateChanged(auth, async (user) => {
     window._guestMode = false;
     document.getElementById('guestBtn').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
-    restoreAfterLogin();
 
     const data = await window.loadFromCloud(user.uid);
     if (data) {
@@ -784,21 +778,22 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
     document.getElementById('syncStatus').textContent = '';
-    // 等 fingerprint 就緒後再套限制，避免第一次載入需要重整
-    (window._fingerprintReady || Promise.resolve()).then(() => {
-      applyGuestRestrictions();
-      if (window._guestMode) {
-        showGuestUI();
-      } else {
-        setTimeout(() => document.getElementById('welcomeModal').style.display = 'flex', 300);
-      }
-    });
+    // 未登入時固定顯示預設名稱，避免舊 localStorage 殘留影響
+    document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
+    // 未登入一律套用功能限制（不管有沒有選訪客模式）
+    applyGuestRestrictions();
+    if (window._guestMode) {
+      showGuestUI();
+    } else {
+      // 自動跳出登入選擇視窗
+      setTimeout(() => document.getElementById('welcomeModal').style.display = 'flex', 300);
+    }
   }
 });
 
 // ── Fingerprint 初始化 ─────────────────────────────
 window._fingerprint = '';
-window._fingerprintReady = (async () => {
+(async () => {
   try {
     const fp = await FingerprintJS.load();
     const result = await fp.get();
@@ -912,9 +907,6 @@ function showGuestUI() {
   document.getElementById('loginBtn').style.display = 'none';
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
-  // 先顯示預設值，避免 API 回來前出現 undefined
-  const el = document.getElementById('guestRemaining');
-  if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining ?? 10}次`;
   if (window.updateCharNameUI) window.updateCharNameUI();
   // 從後端查詢兩種真實剩餘次數
   const doCheck = () => {
@@ -930,7 +922,7 @@ function showGuestUI() {
       if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
     }).catch(() => {
       const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining ?? 10}次`;
+      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
     });
   };
   doCheck();
@@ -961,38 +953,14 @@ function applyGuestRestrictions() {
     inspoBtn.title = '三AI發想需要登入才能使用';
     inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
   }
-  // 鎖定時事類別：用 disabled 而不是刪掉，才能登入後恢復
+  // 鎖定時事類別，強制切換到職場
   const topicCat = document.getElementById('topicCat');
   if (topicCat) {
+    // 移除今日時事選項
     const newsOpt = topicCat.querySelector('option[value="時事"]');
-    if (newsOpt) newsOpt.disabled = true;
-    // 若目前選的是時事，切到職場
-    if (topicCat.value === '時事') topicCat.value = '職場';
-  }
-}
-
-function restoreAfterLogin() {
-  // 恢復歷史紀錄 tab
-  document.querySelectorAll('.tab').forEach(btn => {
-    if (btn.textContent.includes('歷史')) {
-      btn.style.opacity = '';
-      btn.style.cursor = '';
-      btn.onclick = null; // 恢復原本的 switchTab
-      btn.setAttribute('onclick', `switchTab('history')`);
-    }
-  });
-  // 恢復三AI發想按鈕
-  const inspoBtn = document.getElementById('inspoBtn');
-  if (inspoBtn) {
-    inspoBtn.style.opacity = '';
-    inspoBtn.title = '';
-    inspoBtn.onclick = () => genInspo();
-  }
-  // 恢復時事選項
-  const topicCat = document.getElementById('topicCat');
-  if (topicCat) {
-    const newsOpt = topicCat.querySelector('option[value="時事"]');
-    if (newsOpt) newsOpt.disabled = false;
+    if (newsOpt) newsOpt.remove();
+    // 預設選職場
+    topicCat.value = '職場';
   }
 }
 
@@ -1363,7 +1331,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.4';
+const APP_VERSION = '5.1';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
