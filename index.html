@@ -957,10 +957,15 @@ onAuthStateChanged(auth, async (user) => {
     await window.syncCreditsFromCloud(user.uid);
 
     // 從雲端載入資料
-    const wasGuest = window._guestMode;
-    const guestChars = wasGuest ? localStorage.getItem('fumei_chars') : null; // 先備份訪客設定
     window._guestMode = false;
     localStorage.removeItem('fumei_guest_mode');
+    // 先清除所有可能殘留的訪客資料，避免在雲端資料回來前顯示訪客角色
+    ['fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
+     'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+     'fumei_theme','fumei_custom_topics','fumei_onboarded',
+     'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+     'fumei_img_prompt_still','fumei_img_prompt_video'
+    ].forEach(k => localStorage.removeItem(k));
     document.getElementById('guestBtn').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
 
@@ -1391,7 +1396,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1749,7 +1754,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.8';
+const APP_VERSION = '4.0.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
