@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       RSS_SOURCES.map(async (source) => {
         const r = await fetch(source.url, {
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FumeiBot/1.0)' },
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(8000)
         });
         if (!r.ok) throw new Error(`${source.name} HTTP ${r.status}`);
         const xml = await r.text();
@@ -70,9 +70,14 @@ export default async function handler(req, res) {
     // 洗牌讓各來源混合，避免 Claude 偏選同一家媒體
     shuffle(allItems);
 
+    // 統計各來源筆數
+    const sourceCounts = {};
+    allItems.forEach(i => { sourceCounts[i.source] = (sourceCounts[i.source]||0)+1; });
+
     return res.status(200).json({
       items: allItems,
       total: allItems.length,
+      sources: sourceCounts,
       errors: errors.length ? errors : undefined,
       fetchedAt: new Date().toISOString()
     });
