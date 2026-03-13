@@ -1267,7 +1267,8 @@ window.confirmGuestMode = async function() {
 
   window._guestMode = true;
   localStorage.setItem('fumei_guest_mode', '1');
-  // 清除登入帳號殘留的所有資料，訪客應該是全新狀態
+  // 清除登入帳號殘留的所有資料前，先記住目前的版面設定
+  const currentView = localStorage.getItem('fumei_view');
   [
     'fumei_credits','fumei_chars','fumei_tasks','fumei_history',
     'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
@@ -1275,6 +1276,8 @@ window.confirmGuestMode = async function() {
     'fumei_social_ig','fumei_social_fb','fumei_social_threads',
     'fumei_img_prompt_still','fumei_img_prompt_video'
   ].forEach(k => localStorage.removeItem(k));
+  // 版面設定保留（訪客跟原本一樣，不用重設）
+  if (currentView) localStorage.setItem('fumei_view', currentView);
   // 訪客一律走 Onboarding 設定自己的角色
   showOnboarding();
   window._pendingGuestActivation = true;
@@ -1391,7 +1394,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1749,7 +1752,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.3';
+const APP_VERSION = '4.0.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
