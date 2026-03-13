@@ -334,7 +334,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.js';
 
@@ -387,33 +387,6 @@ window.loginGoogle = async () => {
     await signInWithPopup(auth, provider);
   } catch(e) { console.error(e); }
 };
-window.loginEmail = async () => {
-  const email = document.getElementById('emailInput')?.value?.trim();
-  const password = document.getElementById('passwordInput')?.value;
-  const msg = document.getElementById('emailLoginMsg');
-  if (!email || !password) { if(msg) msg.textContent = '請填寫 Email 和密碼'; return; }
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-    document.getElementById('welcomeModal').style.display = 'none';
-  } catch(e) {
-    if(msg) msg.textContent = '登入失敗：' + (e.code === 'auth/wrong-password' ? '密碼錯誤' : e.code === 'auth/user-not-found' ? '帳號不存在' : e.message);
-  }
-};
-
-window.registerEmail = async () => {
-  const email = document.getElementById('emailInput')?.value?.trim();
-  const password = document.getElementById('passwordInput')?.value;
-  const msg = document.getElementById('emailLoginMsg');
-  if (!email || !password) { if(msg) msg.textContent = '請填寫 Email 和密碼'; return; }
-  if (password.length < 6) { if(msg) msg.textContent = '密碼至少需要 6 個字元'; return; }
-  try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    document.getElementById('welcomeModal').style.display = 'none';
-  } catch(e) {
-    if(msg) msg.textContent = '註冊失敗：' + (e.code === 'auth/email-already-in-use' ? 'Email 已被使用' : e.message);
-  }
-};
-
 window.logoutUser = async () => {
   await signOut(auth);
 };
@@ -1017,7 +990,7 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.11</span></p>
   </div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
@@ -1331,7 +1304,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.1';
+const APP_VERSION = '4.9.11';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2680,28 +2653,13 @@ function clearAllHistory() {
 <!-- ONBOARDING MODAL -->
 <!-- WELCOME / LOGIN MODAL -->
 <div id="welcomeModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;padding:20px">
-  <div style="background:white;border-radius:28px;padding:28px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto">
+  <div style="background:white;border-radius:28px;padding:36px 28px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
     <div style="font-size:3.5rem;margin-bottom:12px">🎨</div>
     <h2 style="font-size:1.4rem;font-weight:900;color:#764ba2;font-family:'Nunito',sans-serif;margin-bottom:8px">歡迎來到 Fumei Studio</h2>
     <p style="font-size:0.88rem;color:#aaa;margin-bottom:24px;line-height:1.6">AI 驅動的社群梗圖創作工具<br>登入以儲存你的設定與紀錄</p>
-    <button onclick="window.loginGoogle()" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <button onclick="loginGoogle();document.getElementById('welcomeModal').style.display='none'" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px">
       <img src="https://www.google.com/favicon.ico" style="width:18px;height:18px"> Google 登入
     </button>
-    <!-- Email 登入 -->
-    <div id="emailLoginArea" style="margin-bottom:10px">
-      <button onclick="document.getElementById('emailLoginFields').style.display=document.getElementById('emailLoginFields').style.display==='none'?'block':'none'" style="width:100%;padding:11px;border-radius:16px;border:1.5px solid #e0d0f0;background:white;color:#764ba2;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif">
-        ✉️ Email 登入
-      </button>
-      <div id="emailLoginFields" style="display:none;margin-top:8px">
-        <input id="emailInput" type="email" placeholder="Email" style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;margin-bottom:6px;box-sizing:border-box">
-        <input id="passwordInput" type="password" placeholder="密碼" style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid #e0d0f0;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;margin-bottom:6px;box-sizing:border-box">
-        <div style="display:flex;gap:6px">
-          <button onclick="window.loginEmail()" style="flex:1;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入</button>
-          <button onclick="window.registerEmail()" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid #e0d0f0;background:white;color:#764ba2;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif">註冊</button>
-        </div>
-        <div id="emailLoginMsg" style="font-size:0.78rem;margin-top:6px;min-height:16px;color:#e85d8a"></div>
-      </div>
-    </div>
     <button onclick="confirmGuestMode()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:16px">
       👀 訪客體驗
     </button>
