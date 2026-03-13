@@ -415,6 +415,13 @@ window.registerEmail = async () => {
 };
 
 window.logoutUser = async () => {
+  // 登出時清除本帳相關的 localStorage，避免訪客模式殘留資料
+  ['fumei_chars','fumei_char_active','fumei_onboarded','fumei_plan',
+   'fumei_avatar_img','fumei_avatar_emoji','fumei_studio_name',
+   'fumei_tasks','fumei_history','fumei_custom_topics',
+   'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+   'fumei_img_prompt_still','fumei_img_prompt_video','fumei_theme'
+  ].forEach(k => localStorage.removeItem(k));
   await signOut(auth);
 };
 
@@ -909,6 +916,17 @@ function showGuestUI() {
   document.getElementById('loginBtn').style.display = 'none';
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
+  // 先顯示預設值，避免 API 回來前出現 undefined
+  const el = document.getElementById('guestRemaining');
+  if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining ?? 10}次`;
+  // 清除登出後殘留的 localStorage 角色資料，訪客模式使用預設名稱
+  localStorage.removeItem('fumei_chars');
+  localStorage.removeItem('fumei_char_active');
+  localStorage.removeItem('fumei_onboarded');
+  localStorage.removeItem('fumei_plan');
+  localStorage.removeItem('fumei_avatar_img');
+  localStorage.removeItem('fumei_avatar_emoji');
+  localStorage.removeItem('fumei_studio_name');
   if (window.updateCharNameUI) window.updateCharNameUI();
   // 從後端查詢兩種真實剩餘次數
   const doCheck = () => {
@@ -924,7 +942,7 @@ function showGuestUI() {
       if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
     }).catch(() => {
       const el = document.getElementById('guestRemaining');
-      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining}次`;
+      if (el) el.innerHTML = `👀 腳本 ${window._guestScriptRemaining ?? 10}次`;
     });
   };
   doCheck();
@@ -1357,7 +1375,7 @@ window._renderTasks = function() { renderTasks(); };
 window._renderHistory = function() { renderHistory(); };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.2';
+const APP_VERSION = '5.3';
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
