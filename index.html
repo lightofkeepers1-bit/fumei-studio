@@ -959,6 +959,9 @@ onAuthStateChanged(auth, async (user) => {
     const wasGuest = window._guestMode;
     const guestChars = wasGuest ? localStorage.getItem('fumei_chars') : null; // 先備份訪客設定
     window._guestMode = false;
+    localStorage.removeItem('fumei_guest_mode');
+    // 移除訪客頭像 emoji
+    document.getElementById('guestAvatarEmoji')?.remove();
     document.getElementById('guestBtn').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
 
@@ -1107,6 +1110,8 @@ onAuthStateChanged(auth, async (user) => {
     window._currentUid = null;
     localStorage.removeItem('fumei_credits');
     window.updateCreditsUI(-1);
+    // 登入後清除訪客模式標記
+    if (!window._guestMode) localStorage.removeItem('fumei_guest_mode');
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱，避免舊 localStorage 殘留影響
     document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
@@ -1114,6 +1119,11 @@ onAuthStateChanged(auth, async (user) => {
     applyGuestRestrictions();
     if (window._guestMode) {
       showGuestUI();
+      // 刷新後：顯示訪客角色名（從 localStorage）
+      if (window.updateCharNameUI) window.updateCharNameUI();
+      // 隱藏 Google 頭像，顯示訪客預設頭像
+      const avatarEl = document.getElementById('userAvatar');
+      if (avatarEl) { avatarEl.src = ''; avatarEl.style.display = 'none'; }
     } else {
       // 自動跳出登入選擇視窗
       setTimeout(() => document.getElementById('welcomeModal').style.display = 'flex', 300);
@@ -1132,7 +1142,7 @@ window._fingerprint = '';
 })();
 
 // ── 訪客模式 ──────────────────────────────────────
-window._guestMode = false;
+window._guestMode = localStorage.getItem('fumei_guest_mode') === '1';
 window._guestToken = null;
 const GUEST_INIT_CREDITS = 20;
 
@@ -1215,6 +1225,7 @@ window.confirmGuestMode = function() {
   document.getElementById('guestIntroModal')?.remove();
   document.getElementById('welcomeModal').style.display = 'none';
   window._guestMode = true;
+  localStorage.setItem('fumei_guest_mode', '1');
   // 訪客一律走 Onboarding 設定自己的角色（不沿用登入帳號的設定）
   showOnboarding();
   window._pendingGuestActivation = true;
@@ -1225,6 +1236,17 @@ function showGuestUI() {
   document.getElementById('guestBtn').style.display = 'none';
   document.getElementById('guestInfo').style.display = 'flex';
   if (window.updateCharNameUI) window.updateCharNameUI();
+  // 隱藏 Google 頭像，改顯示訪客 emoji 頭像
+  const avatarEl = document.getElementById('userAvatar');
+  if (avatarEl) { avatarEl.src = ''; avatarEl.style.display = 'none'; }
+  const logoIcon = document.querySelector('.logo-icon');
+  if (logoIcon && !document.getElementById('guestAvatarEmoji')) {
+    const em = document.createElement('div');
+    em.id = 'guestAvatarEmoji';
+    em.textContent = '👀';
+    em.style.cssText = 'width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:2px solid rgba(255,255,255,0.6);flex-shrink:0';
+    avatarEl?.parentNode?.insertBefore(em, avatarEl);
+  }
   // 等 fingerprint 後初始化訪客點數（新訪客給20點）
   const doInit = () => {
     if (!window._fingerprint) { setTimeout(doInit, 300); return; }
@@ -1331,7 +1353,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.9.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1689,7 +1711,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.9.5';
+const APP_VERSION = '3.9.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
