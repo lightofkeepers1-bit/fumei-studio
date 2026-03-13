@@ -876,7 +876,13 @@ onAuthStateChanged(auth, async (user) => {
     // 已登入
     document.getElementById('loginBtn').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
-    document.getElementById('userAvatar').src = user.photoURL || '';
+    // 大頭照：先用緩存，Google photoURL 有時需要延遲
+    const avatarEl = document.getElementById('userAvatar');
+    if (user.photoURL) {
+      avatarEl.src = user.photoURL;
+      // 若圖片載入失敗（CORS/緩存），1秒後重試一次
+      avatarEl.onerror = () => setTimeout(() => { avatarEl.src = user.photoURL + '?t=' + Date.now(); }, 1000);
+    }
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
 
@@ -1285,9 +1291,9 @@ window.syncToCloud = async () => {
   <div class="logo-icon">🐾</div>
   <div class="logo-text">
     <h1>Fumei Studio</h1>
-    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.2</span></p>
+    <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.7.3</span></p>
   </div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
     <span id="syncStatus" style="font-size:0.72rem;color:rgba(255,255,255,0.85);font-weight:700"></span>
     <button id="loginBtn" onclick="loginGoogle()" style="display:flex;align-items:center;gap:6px;background:white;border:none;color:#764ba2;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">🔑 Google 登入</button>
     <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
@@ -1295,11 +1301,15 @@ window.syncToCloud = async () => {
       <span id="guestRemaining" style="font-size:0.72rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:20px"></span>
       <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
     </div>
-    <div id="userInfo" style="display:none;align-items:center;gap:6px">
-      <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
-      <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-      <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情" style="display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap;line-height:1">⚡ <span id="creditsNum">-</span></span>
-      <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
+    <div id="userInfo" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+      <div style="display:flex;align-items:center;gap:6px">
+        <img id="userAvatar" style="width:28px;height:28px;border-radius:50%;border:2px solid white" src="">
+        <span id="userName" style="font-size:0.78rem;color:white;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額，點擊查看詳情" style="display:none;align-items:center;gap:3px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:900;cursor:pointer;white-space:nowrap;line-height:1">⚡ <span id="creditsNum">-</span></span>
+        <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登出</button>
+      </div>
     </div>
     <button class="settings-btn" onclick="openSettings()" title="設定">⚙️</button>
     <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:7px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;white-space:nowrap">📱 手機版</button>
@@ -1610,10 +1620,15 @@ let lastGeminiPrompt = '';
 
 // expose globals for Firebase module
 window._renderTasks = function() { renderTasks(); };
-window._renderHistory = function() { renderHistory(); };
+window._renderHistory = function() {
+  // 從 window.scriptHistory 同步回 let scriptHistory（跨 script block）
+  if (window.scriptHistory !== undefined) scriptHistory = window.scriptHistory;
+  else scriptHistory = JSON.parse(localStorage.getItem('fumei_history') || '[]');
+  renderHistory();
+};
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.7.2';
+const APP_VERSION = '3.7.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
