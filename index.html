@@ -1003,7 +1003,8 @@ onAuthStateChanged(auth, async (user) => {
           if (newChars.length > 0) {
             const merged = [...existingList, ...newChars];
             localStorage.setItem('fumei_chars', JSON.stringify(merged));
-            // 顯示提示
+            // 合併後立刻存回雲端，避免重整後被覆蓋
+            await window.saveToCloud(user.uid, { fumei_chars: JSON.stringify(merged) });
             document.getElementById('syncStatus').textContent = `☁️ 已合併 ${newChars.length} 個新角色`;
             setTimeout(() => {
               if (document.getElementById('syncStatus'))
@@ -1245,9 +1246,16 @@ function showGuestIntro() {
 
 window.confirmGuestMode = async function() {
   document.getElementById('guestIntroModal')?.remove();
+
+  // 已登入用戶不應進入訪客模式，直接關閉
+  if (window._currentUid) {
+    document.getElementById('welcomeModal').style.display = 'none';
+    return;
+  }
+
   document.getElementById('welcomeModal').style.display = 'none';
 
-  // ⚠️ 如果有登入用戶，先把資料存回雲端再清除 localStorage
+  // ⚠️ 如果有登入用戶，先把資料存回雲端再清除 localStorage（保險用，理論上不會走到這）
   if (window._currentUid) {
     try {
       await window.saveToCloud(window._currentUid, {
@@ -1394,7 +1402,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.0.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1752,7 +1760,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.0.4';
+const APP_VERSION = '4.0.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
