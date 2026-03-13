@@ -369,6 +369,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+window.db = db; // 讓其他 script block 可以存取
 const provider = new GoogleAuthProvider();
 
 // ── 登入 / 登出 ──
@@ -1307,7 +1308,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v3.8.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1665,7 +1666,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '3.8.2';
+const APP_VERSION = '3.8.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1694,8 +1695,7 @@ window.getCredits = () => parseInt(localStorage.getItem('fumei_credits') ?? '-1'
 window.updateCreditsUI = (credits) => {
   const num = document.getElementById('creditsNum');
   if (!num) return;
-  // debug：顯示每次被呼叫的值（堆疊追蹤）
-  num.textContent = credits + '|' + (new Error().stack || '').split('\n')[1]?.trim().slice(0,30);
+  num.textContent = credits >= 0 ? credits : '…';
   const display = document.getElementById('creditsDisplay');
   if (display) {
     display.style.background = (credits >= 0 && credits <= 3)
@@ -1724,14 +1724,11 @@ window.syncCreditsFromCloud = async (uid) => {
   try {
     const { doc, getDoc, setDoc, serverTimestamp } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const ref = doc(db, 'users', uid);
+    const ref = doc(window.db, 'users', uid);
     const snap = await getDoc(ref);
     const data = snap.exists() ? snap.data() : {};
 
     let credits = data.fumei_credits;
-    // debug：直接顯示原始值在 creditsNum
-    const dbgNum = document.getElementById('creditsNum');
-    if (dbgNum) dbgNum.textContent = 'raw=' + credits + '(' + typeof credits + ')';
     // 新帳號：初始化 20 點
     if (credits === undefined || credits === null) {
       credits = CREDITS_NEW_USER;
@@ -1772,7 +1769,7 @@ window.deductCredits = async (cost, feature) => {
     try {
       const { doc, updateDoc, increment } =
         await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      await updateDoc(doc(db, 'users', window._currentUid), {
+      await updateDoc(doc(window.db, 'users', window._currentUid), {
         fumei_credits: newVal,
         ['fumei_credits_last_use']: new Date().toISOString(),
       });
@@ -1792,7 +1789,7 @@ window.addCredits = async (amount, source) => {
   try {
     const { doc, updateDoc } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await updateDoc(doc(db, 'users', window._currentUid), {
+    await updateDoc(doc(window.db, 'users', window._currentUid), {
       fumei_credits: newVal,
       ['fumei_credits_added_' + Date.now()]: { amount, source, at: new Date().toISOString() },
     });
