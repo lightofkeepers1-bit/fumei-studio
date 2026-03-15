@@ -46,30 +46,58 @@ async function createTask(apiKey, model, input) {
   return taskId;
 }
 
+// 從任務回應中抽出圖片 URL
+function extractImages(task) {
+  // 嘗試各種可能的結構
+  const candidates = [
+    task?.output?.images,
+    task?.result?.images,
+    task?.images,
+    task?.output?.imageUrl,
+    task?.result?.imageUrl,
+    task?.imageUrl,
+    task?.output?.url,
+    task?.result?.url,
+    task?.url,
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    if (Array.isArray(c) && c.length > 0) {
+      return c.map(u => ({ url: typeof u === 'string' ? u : (u.url || String(u)) }));
+    }
+    if (typeof c === 'string' && c.startsWith('http')) {
+      return [{ url: c }];
+    }
+  }
+  return [];
+}
+
 async function pollTask(apiKey, taskId, maxWaitMs = 120000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 4000));
+
     const r = await fetch(`${KIE_BASE}/api/v1/jobs/queryTask?taskId=${taskId}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
-    const data = await r.json();
-    const task = data.data || data;
-    const status = (task.status || task.state || '').toLowerCase();
+    const raw = await r.json();
+    console.log('[image] queryTask raw:', JSON.stringify(raw).slice(0, 500));
 
-    if (status === 'success' || status === 'completed' || status === 'finish') {
-      const output = task.output || task.result || task;
-      let images = [];
-      if (Array.isArray(output.images))        images = output.images.map(u => ({ url: typeof u === 'string' ? u : (u.url || u) }));
-      else if (Array.isArray(output.imageUrl)) images = output.imageUrl.map(u => ({ url: u }));
-      else if (output.imageUrl)                images = [{ url: output.imageUrl }];
-      else if (output.url)                     images = [{ url: output.url }];
-      if (!images.length) throw new Error('生圖完成但找不到圖片網址');
+    // KIE 回傳結構：{ code, data: { status, output, ... } }
+    const task = raw?.data || raw;
+    const statusRaw = task?.status ?? task?.state ?? '';
+    const status = String(statusRaw).toLowerCase();
+
+    if (status === 'success' || status === 'completed' || status === 'finish' || statusRaw === 1 || statusRaw === '1') {
+      const images = extractImages(task);
+      if (!images.length) throw new Error('生圖完成但找不到圖片網址，請稍後再試');
       return images;
     }
-    if (status === 'fail' || status === 'failed' || status === 'error') {
-      throw new Error(task.errorMessage || task.error || task.msg || '生圖失敗');
+
+    if (status === 'fail' || status === 'failed' || status === 'error' || statusRaw === -1 || statusRaw === 2) {
+      throw new Error(task?.errorMessage || task?.error || task?.msg || '生圖失敗，請稍後再試');
     }
+    // pending / running / 0 → 繼續等
   }
   throw new Error('生圖逾時（超過 120 秒），請稍後再試');
 }
@@ -92,7 +120,6 @@ export default async function handler(req, res) {
   const { quality = 'std', prompt, ratio = '9:16', refs = [] } = req.body;
   if (!prompt) return res.status(400).json({ error: '請提供 prompt' });
 
-  // ✅ 正確 model 名稱（官方文件確認）
   const model = quality === 'pro' ? 'nano-banana-pro' : 'nano-banana-2';
   const input = {
     prompt,
@@ -104,6 +131,7 @@ export default async function handler(req, res) {
 
   try {
     const taskId = await createTask(KIE_API_KEY, model, input);
+    console.log('[image] taskId:', taskId);
     const images = await pollTask(KIE_API_KEY, taskId);
     fsIncrement(`users/${uid}`, 'usage_image').catch(() => {});
     return res.status(200).json({ images });
