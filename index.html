@@ -1475,7 +1475,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1962,7 +1962,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.4';
+const APP_VERSION = '4.3.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5330,6 +5330,28 @@ async function generateImage() {
   };
 
   try {
+    // ✅ 扣點後立刻先存佔位（此時還沒 taskId，但點數已扣，刷新不會消失）
+    var _imgPendingId = null;
+    if (window._currentUid && !window._guestMode) {
+      _imgPendingId = Date.now();
+      const prePendingEntry = {
+        id: _imgPendingId,
+        topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
+        format: '生圖中',
+        type: _imgQuality === 'pro' ? '高品質' : '一般品質',
+        script: '⏳ 建立生圖任務中...',
+        imageUrls: [],
+        taskId: '',
+        prompt: '',
+        date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      };
+      scriptHistory.unshift(prePendingEntry);
+      if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window.syncToCloud) window.syncToCloud();
+      renderHistory();
+    }
+
     // Step 1：建立任務
     const postRes = await fetch('/api/image', {
       method: 'POST',
@@ -5345,26 +5367,16 @@ async function generateImage() {
     const taskId = postData.taskId;
     statusTxt.textContent = '生圖中，請稍候...';
 
-    // ✅ 立刻存「生圖中」佔位到歷史（含 taskId，刷新後可繼續輪詢）
-    var _imgPendingId = null;
-    if (window._currentUid && !window._guestMode) {
-      _imgPendingId = Date.now();
-      const pendingImgEntry = {
-        id: _imgPendingId,
-        topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
-        format: '生圖中',
-        type: _imgQuality === 'pro' ? '高品質' : '一般品質',
-        script: '⏳ 生圖中，請稍候...\n\n刷新頁面後可在這裡繼續等待結果。',
-        imageUrls: [],
-        taskId: taskId,
-        prompt: '',
-        date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-      };
-      scriptHistory.unshift(pendingImgEntry);
-      if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
-      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-      if (window.syncToCloud) window.syncToCloud();
-      renderHistory();
+    // ✅ 拿到 taskId 後更新佔位（加入 taskId，刷新後可繼續輪詢）
+    if (_imgPendingId && window._currentUid && !window._guestMode) {
+      const idx = scriptHistory.findIndex(h => h.id === _imgPendingId);
+      if (idx !== -1) {
+        scriptHistory[idx].taskId = taskId;
+        scriptHistory[idx].script = '⏳ 生圖中，請稍候...\n\n刷新頁面後可在這裡繼續等待結果。';
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
     }
 
     // Step 2：前端輪詢（每 4 秒，最多 3 分鐘）
@@ -5775,7 +5787,7 @@ window.addEventListener('load', () => {
   const _now = Date.now();
   let _cleaned = false;
   scriptHistory = scriptHistory.filter(h => {
-    if ((h.format === '生成中' || (h.format === '生圖中' && !h.taskId)) && (_now - h.id) > _staleThreshold) { _cleaned = true; return false; }
+    if ((h.format === '生成中' || h.format === '生圖中') && (_now - h.id) > _staleThreshold) { _cleaned = true; return false; }
     return true;
   });
   if (_cleaned) {
