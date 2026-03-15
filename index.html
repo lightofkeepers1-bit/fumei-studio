@@ -1474,7 +1474,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1654,77 +1654,106 @@ window.syncToCloud = async () => {
 <!-- REPLY -->
 <!-- IMAGE GEN -->
 <div class="panel" id="panel-image">
-  <div class="card">
-    <div class="card-title">🎨 AI 生圖</div>
+  <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
 
-    <!-- 品質選擇 -->
-    <div style="display:flex;gap:10px;margin-bottom:16px">
-      <div id="imgQualityStd" onclick="selectImgQuality('std')"
-        style="flex:1;border:2px solid var(--pink-deep);border-radius:14px;padding:12px 14px;cursor:pointer;background:#fff5f8;transition:all 0.2s;text-align:center">
-        <div style="font-size:1.2rem">⚡</div>
-        <div style="font-weight:900;font-size:0.88rem;color:var(--pink-deep);font-family:'Nunito',sans-serif">一般品質</div>
-        <div style="font-size:0.75rem;color:#bbb;margin-top:2px">Nano Banana</div>
-        <div style="margin-top:6px;background:var(--pink-deep);color:white;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡1點 / 張</div>
-      </div>
-      <div id="imgQualityPro" onclick="selectImgQuality('pro')"
-        style="flex:1;border:2px solid #f0d8e0;border-radius:14px;padding:12px 14px;cursor:pointer;background:white;transition:all 0.2s;text-align:center">
-        <div style="font-size:1.2rem">💎</div>
-        <div style="font-weight:900;font-size:0.88rem;color:#764ba2;font-family:'Nunito',sans-serif">高品質</div>
-        <div style="font-size:0.75rem;color:#bbb;margin-top:2px">Nano Banana Pro</div>
-        <div style="margin-top:6px;background:#764ba2;color:white;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡5點 / 張</div>
+    <!-- 左側：輸入區 -->
+    <div style="flex:1;min-width:280px">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title">🎨 生圖設定</div>
+
+        <!-- 品質選擇 -->
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <div id="imgQualityStd" onclick="selectImgQuality('std')"
+            style="flex:1;border:2px solid var(--pink-deep);border-radius:12px;padding:10px 12px;cursor:pointer;background:#fff5f8;text-align:center;transition:all 0.2s">
+            <div style="font-size:1rem">⚡</div>
+            <div style="font-weight:900;font-size:0.82rem;color:var(--pink-deep);font-family:'Nunito',sans-serif">一般品質</div>
+            <div style="font-size:0.7rem;color:#bbb">Nano Banana 2</div>
+            <div style="margin-top:5px;background:var(--pink-deep);color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡1點</div>
+          </div>
+          <div id="imgQualityPro" onclick="selectImgQuality('pro')"
+            style="flex:1;border:2px solid #f0d8e0;border-radius:12px;padding:10px 12px;cursor:pointer;background:white;text-align:center;transition:all 0.2s">
+            <div style="font-size:1rem">💎</div>
+            <div style="font-weight:900;font-size:0.82rem;color:#764ba2;font-family:'Nunito',sans-serif">高品質</div>
+            <div style="font-size:0.7rem;color:#bbb">Nano Banana Pro</div>
+            <div style="margin-top:5px;background:#764ba2;color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡5點</div>
+          </div>
+        </div>
+
+        <!-- 比例 -->
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.75rem;font-weight:800;color:#bbb;margin-bottom:6px">📐 比例</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="img-ratio-btn active" data-ratio="9:16" onclick="selectRatio(this)">9:16<br><span style="font-size:0.6rem;opacity:0.8">限時動態</span></button>
+            <button class="img-ratio-btn" data-ratio="3:4" onclick="selectRatio(this)">3:4<br><span style="font-size:0.6rem;opacity:0.8">兩格梗圖</span></button>
+            <button class="img-ratio-btn" data-ratio="1:1" onclick="selectRatio(this)">1:1<br><span style="font-size:0.6rem;opacity:0.8">方形</span></button>
+            <button class="img-ratio-btn" data-ratio="4:3" onclick="selectRatio(this)">4:3<br><span style="font-size:0.6rem;opacity:0.8">橫式</span></button>
+          </div>
+        </div>
+
+        <!-- 參考圖 -->
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.75rem;font-weight:800;color:#bbb;margin-bottom:6px">🖼️ 參考圖（選填，最多 4 張）</div>
+          <div id="imgRefZone" onclick="document.getElementById('imgRefInput').click()"
+            style="border:2px dashed #f0d8e0;border-radius:12px;padding:12px;text-align:center;cursor:pointer;background:#fffbfd;font-size:0.8rem;color:#ccc"
+            ondragover="event.preventDefault();this.style.borderColor='var(--pink)'"
+            ondragleave="this.style.borderColor='#f0d8e0'"
+            ondrop="handleImgRefDrop(event)">
+            📁 點擊或拖拉上傳
+            <input type="file" id="imgRefInput" accept="image/*" multiple style="display:none" onchange="handleImgRefFiles(this.files)">
+          </div>
+          <div id="imgRefPreviews" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+        </div>
+
+        <!-- Prompt -->
+        <div style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-size:0.75rem;font-weight:800;color:#bbb">✏️ Prompt</div>
+            <button onclick="fillImgPromptFromScript()" style="font-size:0.68rem;padding:2px 8px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">從腳本帶入 ↑</button>
+          </div>
+          <textarea id="imgPromptInput" rows="6" placeholder="輸入生圖指令，例如：&#10;給我一隻可愛的貓咪&#10;&#10;或從腳本頁帶入 Gemini Prompt" style="width:100%;border:2px solid #f0d8e0;border-radius:12px;padding:12px;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;resize:vertical;background:#fffbfd;color:var(--brown)"></textarea>
+        </div>
+
+        <!-- 生成按鈕 -->
+        <button class="btn" onclick="generateImage()" id="imgGenBtn" style="width:100%;justify-content:center">
+          🎨 開始生圖 <span class="cost-badge" id="imgCostBadge">⚡1</span>
+        </button>
+        <div class="err" id="imgErr" style="margin-top:8px"></div>
       </div>
     </div>
 
-    <!-- 比例選擇 -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">📐 圖片比例</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="img-ratio-btn active" data-ratio="9:16" onclick="selectRatio(this)">9:16<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">限時動態</span></button>
-        <button class="img-ratio-btn" data-ratio="3:4" onclick="selectRatio(this)">3:4<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">兩格梗圖</span></button>
-        <button class="img-ratio-btn" data-ratio="1:1" onclick="selectRatio(this)">1:1<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">方形</span></button>
-        <button class="img-ratio-btn" data-ratio="4:3" onclick="selectRatio(this)">4:3<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">橫式</span></button>
+    <!-- 右側：預覽區 -->
+    <div style="flex:1;min-width:280px">
+      <div class="card" style="margin-bottom:0;min-height:400px;display:flex;flex-direction:column">
+        <div class="card-title">🖼️ 預覽</div>
+
+        <!-- 待機狀態 -->
+        <div id="imgPreviewIdle" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#ddd;gap:12px;padding:40px 20px;text-align:center">
+          <div style="font-size:3rem">🖼️</div>
+          <div style="font-size:0.85rem;color:#ccc">生成的圖片會顯示在這裡</div>
+        </div>
+
+        <!-- 生成中狀態 -->
+        <div id="imgPreviewLoading" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 20px">
+          <div class="dots" style="display:flex;gap:6px"><span></span><span></span><span></span></div>
+          <div style="font-size:0.85rem;color:var(--pink-deep);font-weight:700" id="imgStatusTxt">建立任務中...</div>
+          <div id="imgProgressBar" style="width:100%;max-width:200px;height:4px;background:#f0d8e0;border-radius:4px;overflow:hidden">
+            <div id="imgProgressFill" style="height:100%;background:linear-gradient(135deg,var(--pink),var(--pink-deep));border-radius:4px;width:0%;transition:width 0.5s"></div>
+          </div>
+          <div id="imgElapsedTxt" style="font-size:0.75rem;color:#bbb">已等待 0 秒</div>
+        </div>
+
+        <!-- 結果 -->
+        <div id="imgPreviewResult" style="display:none;flex-direction:column;gap:10px">
+          <div id="imgResultArea"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-sm" onclick="downloadImgResult()">💾 下載圖片</button>
+            <button class="btn-sm" onclick="generateImage()" style="background:#f8f4ff;color:#764ba2">🔄 重新生成</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- 參考圖上傳 -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">🖼️ 角色參考圖（選填，最多 4 張）</div>
-      <div id="imgRefZone" onclick="document.getElementById('imgRefInput').click()"
-        style="border:2px dashed #f0d8e0;border-radius:14px;padding:16px;text-align:center;cursor:pointer;background:#fffbfd;transition:all 0.2s;min-height:60px"
-        ondragover="event.preventDefault();this.style.borderColor='var(--pink)'"
-        ondragleave="this.style.borderColor='#f0d8e0'"
-        ondrop="handleImgRefDrop(event)">
-        <div style="font-size:0.85rem;color:#ccc">📁 點擊或拖拉上傳角色參考圖</div>
-        <input type="file" id="imgRefInput" accept="image/*" multiple style="display:none" onchange="handleImgRefFiles(this.files)">
-      </div>
-      <div id="imgRefPreviews" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
-    </div>
-
-    <!-- Prompt 輸入 -->
-    <div style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div style="font-size:0.78rem;font-weight:800;color:#bbb">✏️ 生圖 Prompt</div>
-        <button onclick="fillImgPromptFromScript()" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">從腳本帶入 ↑</button>
-      </div>
-      <textarea id="imgPromptInput" rows="5" placeholder="輸入生圖指令，例如：&#10;用這個角色（富美），換服裝換場景&#10;表情要豐富，不要更換原人物材質&#10;主題：老闆突然說要開臨時會議&#10;給我兩格梗圖，輸出尺寸 3:4" style="width:100%;border:2px solid #f0d8e0;border-radius:14px;padding:14px;font-size:0.88rem;font-family:'Noto Sans TC',sans-serif;outline:none;resize:vertical;background:#fffbfd;color:var(--brown)"></textarea>
-    </div>
-
-    <!-- 生成按鈕 -->
-    <button class="btn" onclick="generateImage()" id="imgGenBtn" style="width:100%;justify-content:center">
-      🎨 開始生圖 <span class="cost-badge" id="imgCostBadge">⚡1</span>
-    </button>
-    <div class="loading" id="imgLoading" style="margin-top:12px"><div class="dots"><span></span><span></span><span></span></div><span id="imgLoadTxt">生圖中，請稍候（約 15～30 秒）...</span></div>
-    <div class="err" id="imgErr" style="margin-top:8px"></div>
-  </div>
-
-  <!-- 生成結果 -->
-  <div class="card" id="imgResultCard" style="display:none">
-    <div class="card-title">✨ 生成結果</div>
-    <div id="imgResultArea" style="display:flex;flex-direction:column;gap:12px"></div>
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-      <button class="btn-sm" onclick="downloadImgResult()">💾 下載圖片</button>
-      <button class="btn-sm" onclick="generateImage()" style="background:#f8f4ff;color:#764ba2">🔄 重新生成</button>
-    </div>
   </div>
 </div>
 
@@ -1932,7 +1961,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.0';
+const APP_VERSION = '4.3.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5224,23 +5253,21 @@ function fillImgPromptFromScript() {
   document.getElementById('imgPromptInput').value = val;
 }
 
-// 主生圖函式
+// 主生圖函式（前端輪詢版）
 async function generateImage() {
   if (!window._currentUid) {
     if (confirm('🔒 生圖功能需要登入\n\n要現在登入嗎？')) loginGoogle();
     return;
   }
   const prompt = document.getElementById('imgPromptInput').value.trim();
-  if (!prompt) {
-    const err = document.getElementById('imgErr');
-    err.textContent = '❌ 請輸入生圖 Prompt'; err.classList.add('show'); return;
-  }
+  const err = document.getElementById('imgErr');
+  if (!prompt) { err.textContent = '❌ 請輸入生圖 Prompt'; err.classList.add('show'); return; }
+  err.classList.remove('show');
 
   const cost = IMG_COST[_imgQuality];
   const result = await window.deductCredits(cost, 'image_' + _imgQuality);
   if (!result.ok) {
     if (result.reason === 'insufficient') {
-      const err = document.getElementById('imgErr');
       err.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請購買點數繼續生圖。`;
       err.classList.add('show');
     }
@@ -5251,61 +5278,107 @@ async function generateImage() {
   }
 
   const btn = document.getElementById('imgGenBtn');
-  const load = document.getElementById('imgLoading');
-  const err  = document.getElementById('imgErr');
-  const resultCard = document.getElementById('imgResultCard');
-  btn.disabled = true; load.classList.add('show'); err.classList.remove('show');
-  resultCard.style.display = 'none';
+  btn.disabled = true;
+
+  // 切換到 loading 狀態
+  document.getElementById('imgPreviewIdle').style.display = 'none';
+  document.getElementById('imgPreviewResult').style.display = 'none';
+  const loadingEl = document.getElementById('imgPreviewLoading');
+  loadingEl.style.display = 'flex';
+  const statusTxt = document.getElementById('imgStatusTxt');
+  const progressFill = document.getElementById('imgProgressFill');
+  const elapsedTxt = document.getElementById('imgElapsedTxt');
+  statusTxt.textContent = '建立任務中...';
+  progressFill.style.width = '5%';
+
+  const startTime = Date.now();
+  let elapsedTimer = setInterval(() => {
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    elapsedTxt.textContent = `已等待 ${s} 秒`;
+    // 假進度條（最多到 90%）
+    const fakeProgress = Math.min(90, 5 + s * 1.2);
+    progressFill.style.width = fakeProgress + '%';
+  }, 1000);
+
+  const resetUI = (errMsg) => {
+    clearInterval(elapsedTimer);
+    btn.disabled = false;
+    loadingEl.style.display = 'none';
+    if (errMsg) {
+      document.getElementById('imgPreviewIdle').style.display = 'flex';
+      err.textContent = '❌ ' + errMsg;
+      err.classList.add('show');
+      // 退點
+      const refunded = (window.getCredits() < 0 ? 0 : window.getCredits()) + cost;
+      localStorage.setItem('fumei_credits', String(refunded));
+      window.updateCreditsUI(refunded);
+      if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
+      try {
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({ doc, updateDoc }) => {
+          updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+        });
+      } catch(_) {}
+      const toast = document.getElementById('creditsToast');
+      if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
+    }
+  };
 
   try {
-    const body = {
-      quality: _imgQuality,
-      prompt,
-      ratio: _imgRatio,
-      refs: _imgRefs.map(r => ({ base64: r.base64, mimeType: r.mimeType })),
-    };
-    const res = await fetch('/api/image', {
+    // Step 1：建立任務
+    const postRes = await fetch('/api/image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        quality: _imgQuality, prompt, ratio: _imgRatio,
+        refs: _imgRefs.map(r => ({ base64: r.base64, mimeType: r.mimeType })),
+      }),
     });
-    if (!res.ok) {
-      const e = await res.json();
-      throw new Error(e.error || '生圖失敗');
-    }
-    const data = await res.json();
-    // data.images = [{url: '...'}] 或 data.url
-    const imgs = data.images || (data.url ? [{ url: data.url }] : []);
-    if (!imgs.length) throw new Error('沒有收到生圖結果');
+    const postData = await postRes.json();
+    if (!postRes.ok || !postData.taskId) throw new Error(postData.error || '建立任務失敗');
 
-    // 顯示結果
-    const area = document.getElementById('imgResultArea');
-    area.innerHTML = imgs.map(img => `
-      <div class="img-result-item">
-        <img src="${img.url}" alt="生成圖片" loading="lazy">
-      </div>`).join('');
-    // 儲存最後結果 URL 供下載
-    window._lastImgUrls = imgs.map(i => i.url);
-    resultCard.style.display = 'block';
-    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const taskId = postData.taskId;
+    statusTxt.textContent = '生圖中，請稍候...';
+
+    // Step 2：前端輪詢（每 4 秒，最多 3 分鐘）
+    const maxWait = 180000;
+    const pollStart = Date.now();
+
+    while (Date.now() - pollStart < maxWait) {
+      await new Promise(r => setTimeout(r, 4000));
+      const getRes = await fetch(`/api/image?taskId=${taskId}`, {
+        headers: { 'x-firebase-uid': window._currentUid },
+      });
+      const getData = await getRes.json();
+
+      if (getData.status === 'success' && getData.images?.length) {
+        clearInterval(elapsedTimer);
+        progressFill.style.width = '100%';
+        statusTxt.textContent = '生圖完成！';
+
+        setTimeout(() => {
+          loadingEl.style.display = 'none';
+          const resultEl = document.getElementById('imgPreviewResult');
+          const areaEl = document.getElementById('imgResultArea');
+          areaEl.innerHTML = getData.images.map(img => `
+            <div class="img-result-item"><img src="${img.url}" alt="生成圖片" loading="lazy" style="border-radius:12px;width:100%"></div>`).join('');
+          window._lastImgUrls = getData.images.map(i => i.url);
+          resultEl.style.display = 'flex';
+          btn.disabled = false;
+        }, 500);
+        return;
+      }
+
+      if (getData.status === 'failed') {
+        resetUI(getData.error || '生圖失敗');
+        return;
+      }
+      // pending → 繼續等
+    }
+    resetUI('生圖逾時（超過 3 分鐘），請稍後再試');
 
   } catch(e) {
-    // 失敗退點
-    const refunded = (window.getCredits() < 0 ? 0 : window.getCredits()) + cost;
-    localStorage.setItem('fumei_credits', String(refunded));
-    window.updateCreditsUI(refunded);
-    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
-    try {
-      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-    } catch(_) {}
-    const toast = document.getElementById('creditsToast');
-    if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
-    err.textContent = '❌ ' + (e.message || '生圖失敗，請稍後再試');
-    err.classList.add('show');
+    resetUI(e.message || '生圖失敗');
   }
-
-  btn.disabled = false; load.classList.remove('show');
 }
 
 // 下載圖片
