@@ -134,9 +134,17 @@
   .hb-2{background:#f0f4ff;color:#1565c0}
   .hb-v{background:#f0fff8;color:#2d6a4f}
   .hb-scan{background:#f0f0ff;color:#7c4dff}
+  .hb-pending{background:#fff8e1;color:#f57f17}
+  .hb-failed{background:#fce4ec;color:#c62828}
   .history-actions { display:flex;gap:8px;flex-shrink:0 }
-  .history-body { display:none;padding:18px;white-space:pre-wrap;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
+  .history-body { display:none;padding:18px;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
   .history-body.open { display:block }
+  .history-script-content { white-space:pre-wrap }
+  .history-prompt-block { margin-top:14px;border-top:1px dashed #e8d5f5;padding-top:12px }
+  .history-prompt-label { font-size:0.72rem;font-weight:900;color:#C9B8E8;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between }
+  .history-prompt-text { background:#1e1e2e;color:#cdd6f4;border-radius:10px;padding:12px 14px;font-family:monospace;font-size:0.78rem;line-height:1.6;white-space:pre-wrap;position:relative }
+  .history-prompt-copy { background:var(--pink);color:white;border:none;padding:3px 10px;border-radius:8px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif }
+  .history-prompt-copy:hover { background:var(--pink-deep) }
   .del-btn { background:#fce4ec;color:#c2185b;border:none;padding:6px 12px;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
   .del-btn:hover { background:#f8bbd0 }
 
@@ -303,7 +311,66 @@
   body.force-pc .task-item { flex-wrap:nowrap !important }
 
 
-  /* ── Settings Modal ── */
+  /* ── 生圖 Panel ── */
+  .img-ratio-btn { padding:8px 14px;border-radius:12px;border:2px solid #f0d8e0;background:white;color:#aaa;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s;text-align:center;line-height:1.4 }
+  .img-ratio-btn.active { border-color:var(--pink-deep);background:#fff5f8;color:var(--pink-deep) }
+  .img-ratio-btn:hover:not(.active) { border-color:var(--pink);color:var(--pink-deep) }
+  .img-ref-thumb { position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:2px solid #f0d8e0;flex-shrink:0 }
+  .img-ref-thumb img { width:100%;height:100%;object-fit:cover }
+  .img-ref-thumb .del { position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.5);color:white;border:none;width:18px;height:18px;border-radius:50%;font-size:0.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1 }
+  .img-result-item { border-radius:16px;overflow:hidden;border:1.5px solid #f0d8e0 }
+  .img-result-item img { width:100%;display:block }
+
+  .help-modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1200;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto }
+  .help-modal-overlay.show { display:flex }
+  .help-modal-box { background:white;border-radius:28px;width:100%;max-width:480px;margin:auto;box-shadow:0 24px 64px rgba(0,0,0,0.22);overflow:hidden }
+  .help-modal-header { background:linear-gradient(135deg,#F4A7B9,#C9B8E8);padding:22px 24px 18px;position:relative }
+  .help-modal-close { position:absolute;top:14px;right:16px;background:rgba(255,255,255,0.3);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center }
+  .help-modal-close:hover { background:rgba(255,255,255,0.5) }
+  /* 說明卡片 */
+  .help-card { border:1.5px solid #f0d8e0;border-radius:16px;margin-bottom:12px;overflow:hidden;transition:all 0.2s }
+  .help-card-header { display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;background:white;user-select:none }
+  .help-card-header:hover { background:#fff5f8 }
+  .help-card-icon { width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0 }
+  .help-card-title { flex:1 }
+  .help-card-title strong { font-size:0.92rem;font-weight:800;color:var(--brown);display:block }
+  .help-card-title span { font-size:0.75rem;color:#bbb;font-weight:600 }
+  .help-card-arrow { font-size:0.75rem;color:#ccc;transition:transform 0.2s;flex-shrink:0 }
+  .help-card-arrow.open { transform:rotate(180deg) }
+  .help-card-body { display:none;padding:0 16px 16px;border-top:1.5px dashed #f0d8e0 }
+  .help-card-body.open { display:block }
+  /* 步驟條 */
+  .help-step { display:flex;gap:12px;margin-bottom:14px;align-items:flex-start }
+  .help-step-num { width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);color:white;font-size:0.72rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:'Nunito',sans-serif }
+  .help-step-content { flex:1;font-size:0.85rem;color:var(--brown);line-height:1.6 }
+  .help-step-content strong { color:var(--pink-deep) }
+  /* 示意圖（emoji 版） */
+  .help-mockup { background:linear-gradient(135deg,#fff8fc,#f8f4ff);border:1.5px solid #f0d8e0;border-radius:14px;padding:14px 16px;margin:10px 0;font-size:0.82rem;line-height:1.9;color:#888 }
+  .help-mockup-row { display:flex;align-items:center;gap:8px;padding:4px 0 }
+  .help-mockup-row.active { background:#fff0f5;border-radius:8px;padding:4px 8px;color:var(--brown);font-weight:700 }
+  .help-badge-demo { display:inline-block;padding:2px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif }
+  /* 比較表 */
+  .help-compare { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 }
+  .help-compare-col { border-radius:12px;padding:12px 14px;font-size:0.8rem;line-height:1.8 }
+  .help-tip { background:#fff8e1;border:1.5px solid #ffe4b5;border-radius:10px;padding:10px 12px;font-size:0.8rem;color:#7a4500;margin-top:8px;line-height:1.6 }
+
+  .buy-modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1200;align-items:center;justify-content:center;padding:16px }
+  .buy-modal-overlay.show { display:flex }
+  .buy-modal-box { background:white;border-radius:28px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.22) }
+  .buy-modal-header { background:linear-gradient(135deg,#F4A7B9,#C9B8E8);border-radius:28px 28px 0 0;padding:24px 24px 20px;text-align:center;position:relative }
+  .buy-modal-close { position:absolute;top:14px;right:16px;background:rgba(255,255,255,0.3);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1 }
+  .buy-modal-close:hover { background:rgba(255,255,255,0.5) }
+  .plan-card { border:2px solid #f0d8e0;border-radius:18px;padding:16px 18px;cursor:pointer;transition:all 0.18s;position:relative;background:white }
+  .plan-card:hover { border-color:var(--pink);transform:translateY(-2px);box-shadow:0 6px 20px rgba(244,167,185,0.25) }
+  .plan-card.selected { border-color:var(--pink-deep);background:#fff5f8;box-shadow:0 4px 16px rgba(224,122,149,0.3) }
+  .plan-badge { position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FFD700,#FFA500);color:white;font-size:0.7rem;font-weight:900;padding:3px 12px;border-radius:20px;font-family:'Nunito',sans-serif;white-space:nowrap }
+  .plan-price { font-family:'Nunito',sans-serif;font-size:1.5rem;font-weight:900;color:var(--brown) }
+  .plan-points { font-size:0.82rem;color:#888;margin-top:2px }
+  .plan-per { font-size:0.72rem;color:var(--pink-deep);font-weight:800;margin-top:3px }
+  .buy-confirm-btn { width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);color:white;font-weight:900;font-size:1rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-top:4px }
+  .buy-confirm-btn:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(224,122,149,0.4) }
+  .buy-confirm-btn:disabled { opacity:0.6;cursor:not-allowed;transform:none }
+
   .settings-btn { background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;width:36px;height:36px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0 }
   .settings-btn:hover { background:rgba(255,255,255,0.4);transform:rotate(45deg) }
   .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;align-items:center;justify-content:center;padding:16px }
@@ -1013,6 +1080,7 @@ onAuthStateChanged(auth, async (user) => {
     if (window.updateCharNameUI) window.updateCharNameUI();
     renderTasks();
     renderHistory();
+    if (window.renderHeaderCharBar) window.renderHeaderCharBar();
 
     // 管理員檢查
     window.checkAdminAccess(user.email);
@@ -1406,7 +1474,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.1.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1425,20 +1493,29 @@ window.syncToCloud = async () => {
       <div id="userInfo" style="display:none;align-items:center;gap:5px;min-width:0">
         <img id="userAvatar" style="width:26px;height:26px;border-radius:50%;border:2px solid white;flex-shrink:0" src="">
         <span id="userName" style="font-size:0.72rem;color:white;font-weight:700;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-        <span id="creditsDisplay" onclick="openSettings()" title="點數餘額">⚡ <span id="creditsNum">-</span></span>
+        <span id="creditsDisplay" onclick="openBuyModal()" title="點擊購買點數">⚡ <span id="creditsNum">-</span></span>
         <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;flex-shrink:0">登出</button>
       </div>
 
+      <button class="settings-btn" onclick="openHelp()" title="使用說明" style="flex-shrink:0">❓</button>
       <button class="settings-btn" onclick="openSettings()" title="設定" style="flex-shrink:0">⚙️</button>
       <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">📱 手機版</button>
     </div>
   </div>
 </header>
 
+<!-- 角色快速切換 bar（多角色時顯示）-->
+<div id="charSwitchBar" style="display:none;background:rgba(244,167,185,0.12);border-bottom:1.5px solid #f0d8e0;padding:6px 20px;overflow-x:auto;white-space:nowrap">
+  <span style="font-size:0.72rem;color:#bbb;font-weight:800;margin-right:8px;vertical-align:middle">角色</span>
+  <span id="charSwitchBtns"></span>
+  <button onclick="openSettings()" style="background:rgba(118,75,162,0.1);border:1.5px dashed #C9B8E8;color:#764ba2;padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;vertical-align:middle;margin-left:4px">＋ 管理角色</button>
+</div>
+
 <nav>
   <button class="tab active" onclick="switchTab('daily',this)">📅 每日任務</button>
   <button class="tab" onclick="switchTab('topics',this)">💡 話題掃描</button>
   <button class="tab" onclick="switchTab('script',this)">✍️ 產腳本</button>
+  <button class="tab" onclick="switchTab('image',this)">🎨 生圖</button>
   <button class="tab" onclick="switchTab('history',this)">📖 歷史紀錄</button>
   <button class="tab" id="feedbackTab" style="display:none" onclick="switchTab('feedback',this)">💬 回饋</button>
 </nav>
@@ -1575,13 +1652,104 @@ window.syncToCloud = async () => {
 </div>
 
 <!-- REPLY -->
+<!-- IMAGE GEN -->
+<div class="panel" id="panel-image">
+  <div class="card">
+    <div class="card-title">🎨 AI 生圖</div>
+
+    <!-- 品質選擇 -->
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <div id="imgQualityStd" onclick="selectImgQuality('std')"
+        style="flex:1;border:2px solid var(--pink-deep);border-radius:14px;padding:12px 14px;cursor:pointer;background:#fff5f8;transition:all 0.2s;text-align:center">
+        <div style="font-size:1.2rem">⚡</div>
+        <div style="font-weight:900;font-size:0.88rem;color:var(--pink-deep);font-family:'Nunito',sans-serif">一般品質</div>
+        <div style="font-size:0.75rem;color:#bbb;margin-top:2px">Nano Banana</div>
+        <div style="margin-top:6px;background:var(--pink-deep);color:white;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡1點 / 張</div>
+      </div>
+      <div id="imgQualityPro" onclick="selectImgQuality('pro')"
+        style="flex:1;border:2px solid #f0d8e0;border-radius:14px;padding:12px 14px;cursor:pointer;background:white;transition:all 0.2s;text-align:center">
+        <div style="font-size:1.2rem">💎</div>
+        <div style="font-weight:900;font-size:0.88rem;color:#764ba2;font-family:'Nunito',sans-serif">高品質</div>
+        <div style="font-size:0.75rem;color:#bbb;margin-top:2px">Nano Banana Pro</div>
+        <div style="margin-top:6px;background:#764ba2;color:white;border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡5點 / 張</div>
+      </div>
+    </div>
+
+    <!-- 比例選擇 -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">📐 圖片比例</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="img-ratio-btn active" data-ratio="9:16" onclick="selectRatio(this)">9:16<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">限時動態</span></button>
+        <button class="img-ratio-btn" data-ratio="3:4" onclick="selectRatio(this)">3:4<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">兩格梗圖</span></button>
+        <button class="img-ratio-btn" data-ratio="1:1" onclick="selectRatio(this)">1:1<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">方形</span></button>
+        <button class="img-ratio-btn" data-ratio="4:3" onclick="selectRatio(this)">4:3<br><span style="font-size:0.65rem;color:inherit;opacity:0.8">橫式</span></button>
+      </div>
+    </div>
+
+    <!-- 參考圖上傳 -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">🖼️ 角色參考圖（選填，最多 4 張）</div>
+      <div id="imgRefZone" onclick="document.getElementById('imgRefInput').click()"
+        style="border:2px dashed #f0d8e0;border-radius:14px;padding:16px;text-align:center;cursor:pointer;background:#fffbfd;transition:all 0.2s;min-height:60px"
+        ondragover="event.preventDefault();this.style.borderColor='var(--pink)'"
+        ondragleave="this.style.borderColor='#f0d8e0'"
+        ondrop="handleImgRefDrop(event)">
+        <div style="font-size:0.85rem;color:#ccc">📁 點擊或拖拉上傳角色參考圖</div>
+        <input type="file" id="imgRefInput" accept="image/*" multiple style="display:none" onchange="handleImgRefFiles(this.files)">
+      </div>
+      <div id="imgRefPreviews" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+    </div>
+
+    <!-- Prompt 輸入 -->
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb">✏️ 生圖 Prompt</div>
+        <button onclick="fillImgPromptFromScript()" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">從腳本帶入 ↑</button>
+      </div>
+      <textarea id="imgPromptInput" rows="5" placeholder="輸入生圖指令，例如：&#10;用這個角色（富美），換服裝換場景&#10;表情要豐富，不要更換原人物材質&#10;主題：老闆突然說要開臨時會議&#10;給我兩格梗圖，輸出尺寸 3:4" style="width:100%;border:2px solid #f0d8e0;border-radius:14px;padding:14px;font-size:0.88rem;font-family:'Noto Sans TC',sans-serif;outline:none;resize:vertical;background:#fffbfd;color:var(--brown)"></textarea>
+    </div>
+
+    <!-- 生成按鈕 -->
+    <button class="btn" onclick="generateImage()" id="imgGenBtn" style="width:100%;justify-content:center">
+      🎨 開始生圖 <span class="cost-badge" id="imgCostBadge">⚡1</span>
+    </button>
+    <div class="loading" id="imgLoading" style="margin-top:12px"><div class="dots"><span></span><span></span><span></span></div><span id="imgLoadTxt">生圖中，請稍候（約 15～30 秒）...</span></div>
+    <div class="err" id="imgErr" style="margin-top:8px"></div>
+  </div>
+
+  <!-- 生成結果 -->
+  <div class="card" id="imgResultCard" style="display:none">
+    <div class="card-title">✨ 生成結果</div>
+    <div id="imgResultArea" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn-sm" onclick="downloadImgResult()">💾 下載圖片</button>
+      <button class="btn-sm" onclick="generateImage()" style="background:#f8f4ff;color:#764ba2">🔄 重新生成</button>
+    </div>
+  </div>
+</div>
+
 <!-- HISTORY -->
 <div class="panel" id="panel-history">
   <div class="card">
     <div class="card-title">📖 歷史腳本紀錄</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
       <p style="font-size:0.88rem;color:#888">所有產出過的腳本都會自動儲存在這裡</p>
       <button class="btn-sm" onclick="clearAllHistory()" style="background:#fce4ec;color:#c2185b">🗑️ 清除全部</button>
+    </div>
+    <!-- 搜尋 & 篩選列 -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:150px;position:relative">
+        <input type="text" id="historySearch" placeholder="🔍 搜尋話題或內容..." oninput="renderHistory()"
+          style="width:100%;border:2px solid #f0d8e0;border-radius:12px;padding:9px 14px;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;background:#fffbfd;color:var(--brown)">
+      </div>
+      <select id="historyFilter" onchange="renderHistory()"
+        style="border:2px solid #f0d8e0;border-radius:12px;padding:9px 12px;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;background:#fffbfd;color:var(--brown);cursor:pointer">
+        <option value="all">全部</option>
+        <option value="star">⭐ 收藏</option>
+        <option value="一格梗圖">一格梗圖</option>
+        <option value="兩格梗圖">兩格梗圖</option>
+        <option value="影片腳本">影片腳本</option>
+        <option value="話題掃描">話題掃描</option>      </select>
     </div>
     <div id="historyEmpty" style="text-align:center;padding:40px;color:#ccc;font-size:0.9rem;display:none">
       還沒有產出過腳本，去「✍️ 產腳本」試試看吧！
@@ -1764,7 +1932,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.1.1';
+const APP_VERSION = '4.3.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -1864,6 +2032,12 @@ window.deductCredits = async (cost, feature) => {
   window.updateCreditsUI(newVal);
   window.showCreditToast(cost, newVal);
 
+  // 記錄消耗明細
+  const featureLabel = { scan:'話題掃描', script:'產腳本', inspo:'三AI發想', news:'時事掃描' };
+  if (window.addCreditLogEntry) {
+    window.addCreditLogEntry({ action: featureLabel[feature] || feature, delta: -cost, ts: Date.now() });
+  }
+
   // 非同步寫回雲端（不等待，避免阻塞 UI）
   (async () => {
     try {
@@ -1895,6 +2069,102 @@ window.addCredits = async (amount, source) => {
     });
   } catch(e) { console.error('[Credits] addCredits failed', e); }
 };
+// ── 每日簽到補點 ──────────────────────────────────
+window.dailyCheckin = async () => {
+  if (!window._currentUid) return;
+  const btn = document.getElementById('dailyCheckinBtn');
+  const msg = document.getElementById('dailyCheckinMsg');
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const lastKey = 'fumei_checkin_last';
+  const lastDate = localStorage.getItem(lastKey);
+  if (lastDate === today) {
+    msg.style.color = '#bbb';
+    msg.textContent = '今日已簽到 ✓';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳ 領取中...';
+  try {
+    const DAILY_BONUS = 3;
+    await window.addCredits(DAILY_BONUS, 'daily_checkin');
+    localStorage.setItem(lastKey, today);
+    // 記入 credit log
+    addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now() });
+    msg.style.color = '#2d6a4f';
+    msg.textContent = `🎉 +${DAILY_BONUS} 點！明天再來 ✨`;
+    btn.textContent = '✅ 已簽到';
+    document.getElementById('creditsInfoNum').textContent = window.getCredits();
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '🎁 每日簽到 +3點';
+    msg.style.color = '#e85d8a';
+    msg.textContent = '領取失敗，請再試';
+  }
+};
+
+// 初始化簽到按鈕狀態
+window.initCheckinBtn = () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const lastDate = localStorage.getItem('fumei_checkin_last');
+  const btn = document.getElementById('dailyCheckinBtn');
+  const msg = document.getElementById('dailyCheckinMsg');
+  if (!btn) return;
+  if (lastDate === today) {
+    btn.disabled = true;
+    btn.textContent = '✅ 今日已簽到';
+    btn.style.background = '#ddd';
+    if (msg) { msg.style.color = '#bbb'; msg.textContent = '明天再來 ✨'; }
+  } else {
+    btn.disabled = false;
+    btn.textContent = '🎁 每日簽到 +3點';
+    btn.style.background = 'linear-gradient(135deg,#FFD700,#FFA500)';
+  }
+};
+
+// ── 點數消耗明細 ──────────────────────────────────
+function getCreditLog() {
+  try { return JSON.parse(localStorage.getItem('fumei_credit_log') || '[]'); }
+  catch { return []; }
+}
+function addCreditLogEntry(entry) {
+  const log = getCreditLog();
+  log.unshift(entry);
+  if (log.length > 30) log.splice(30);
+  localStorage.setItem('fumei_credit_log', JSON.stringify(log));
+}
+window.addCreditLogEntry = addCreditLogEntry;
+
+function toggleCreditLog() {
+  const area = document.getElementById('creditLogArea');
+  if (!area) return;
+  const isOpen = area.style.display !== 'none';
+  area.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderCreditLog();
+}
+
+function renderCreditLog() {
+  const list = document.getElementById('creditLogList');
+  if (!list) return;
+  const log = getCreditLog();
+  if (!log.length) {
+    list.innerHTML = '<div style="font-size:0.78rem;color:#ccc;padding:6px 0">暫無記錄</div>';
+    return;
+  }
+  list.innerHTML = log.map(e => {
+    const d = new Date(e.ts);
+    const time = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const color = e.delta > 0 ? '#2d6a4f' : '#c2185b';
+    const prefix = e.delta > 0 ? '+' : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:#fff;border-radius:8px;border:1px solid #f5f0ff">
+      <span style="font-size:0.78rem;color:#888">${e.action}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:0.75rem;color:${color};font-weight:800">${prefix}${e.delta}⚡</span>
+        <span style="font-size:0.7rem;color:#ccc">${time}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderVersion() {
   const el = document.getElementById('appVersion');
   if (el) el.textContent = 'v' + APP_VERSION;
@@ -2503,10 +2773,12 @@ ${newsHeadlines}
       return { title, sub, rssIndex };
     }).filter(item => item.title.length > 0);
     grid.innerHTML = topicList.map((item, i) =>
-      `<div class="topic-chip" data-idx="${i}" style="cursor:pointer">
+      `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
         <span class="topic-num">話題 ${i+1}</span>
         <strong>${item.title}</strong><br>
         <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+        <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題"
+          style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
       </div>`
     ).join('');
     grid.querySelectorAll('.topic-chip').forEach(el => {
@@ -2538,6 +2810,27 @@ ${newsHeadlines}
       return;
     }
   } catch(e) {
+    // ✅ 掃描失敗：退還點數（登入用戶）
+    if (window._currentUid && !window._guestMode) {
+      const isNewsRefund = (document.getElementById('topicCat')?.value === '時事');
+      const refundCost = isNewsRefund ? CREDIT_COST.news : CREDIT_COST.scan;
+      try {
+        const current = window.getCredits();
+        const refunded = (current < 0 ? 0 : current) + refundCost;
+        localStorage.setItem('fumei_credits', String(refunded));
+        window.updateCreditsUI(refunded);
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+        if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '掃描失敗退點', delta: +refundCost, ts: Date.now() });
+        const toast = document.getElementById('creditsToast');
+        if (toast) {
+          toast.textContent = `⚡ 掃描失敗，已退還 ${refundCost} 點（目前 ${refunded} 點）`;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+      } catch(refundErr) { console.error('[Refund] scan failed:', refundErr); }
+    }
+
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
       return;
     }
@@ -2556,7 +2849,6 @@ ${newsHeadlines}
     }
     err.textContent = '❌ ' + msg;
     err.classList.add('show');
-    // 訪客：失敗也啟動冷卻
     if (window._guestMode && !window._currentUid) {
       load.classList.remove('show');
       startCooldown('scanBtn', '🔍 掃描話題', 60);
@@ -2569,6 +2861,43 @@ ${newsHeadlines}
   load.classList.remove('show');
   btn.disabled = false;
 }
+// ── 刷新單一話題 ──────────────────────────────────
+async function refreshOneTopic(idx) {
+  const grid = document.getElementById('topicsGrid');
+  const chip = grid.querySelectorAll('.topic-chip')[idx];
+  if (!chip) return;
+  const origHtml = chip.innerHTML;
+  chip.style.opacity = '0.5';
+  chip.innerHTML = `<span class="topic-num">話題 ${idx+1}</span><div class="dots" style="display:flex;gap:4px;margin-top:4px"><span></span><span></span><span></span></div>`;
+
+  // 取得目前選的分類
+  const allTopics = getAllTopics();
+  const catVal = document.getElementById('topicCat')?.value || '職場';
+  const topic = allTopics.find(t => t.key === catVal) || allTopics[0];
+  const today = new Date();
+  const days = topic.timeRange || 14;
+  const rule = topic.rule || '自行判斷最適合的切入角度';
+
+  const prompt = `針對「${topic.name}」提供1個台灣熱門話題做梗圖。規則：${rule}，跟已有的不同切角。
+嚴格按照以下格式輸出一行：話題標題｜角色一句反應台詞
+只輸出1行，不要編號、不要其他說明。`;
+
+  try {
+    const txt = await claudeScan(prompt, false);
+    const line = txt.split('\n').find(l => l.includes('｜')) || '';
+    const sepIdx = line.indexOf('｜');
+    if (sepIdx === -1) { chip.innerHTML = origHtml; chip.style.opacity = '1'; return; }
+    const title = line.slice(0, sepIdx).trim();
+    const sub = line.slice(sepIdx + 1).trim();
+    chip.innerHTML = `<span class="topic-num">話題 ${idx+1}</span><strong>${title}</strong><br><span style="color:var(--pink-deep);font-size:0.81rem">${sub}</span><button onclick="event.stopPropagation();refreshOneTopic(${idx})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>`;
+    chip.style.opacity = '1';
+    chip.onclick = (e) => { if (e.target.tagName === 'BUTTON') return; pickTopic(title, -1); };
+  } catch(e) {
+    chip.innerHTML = origHtml;
+    chip.style.opacity = '1';
+  }
+}
+
 function pickTopic(t, rssIndex = -1) {
   currentTopic = t;
   document.getElementById('selectedText').textContent = '📌 ' + t;
@@ -2783,6 +3112,26 @@ async function genInspo() {
     callGPT(geminiGptPrompt('生活共鳴、情緒到位，說出大家心裡有口難言的話'))
   ]);
 
+  // 如果三個全部失敗，退還點數
+  const allFailed = results.every(r => r.status === 'rejected');
+  if (allFailed && window._currentUid) {
+    const current = window.getCredits();
+    const refunded = (current < 0 ? 0 : current) + CREDIT_COST.inspo;
+    localStorage.setItem('fumei_credits', String(refunded));
+    window.updateCreditsUI(refunded);
+    try {
+      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await updateDoc(doc(window.db, window._currentUid), { fumei_credits: refunded });
+    } catch(e) {}
+    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '三AI發想失敗退點', delta: +CREDIT_COST.inspo, ts: Date.now() });
+    const toast = document.getElementById('creditsToast');
+    if (toast) {
+      toast.textContent = `⚡ 三AI發想失敗，已退還 ${CREDIT_COST.inspo} 點`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+  }
+
   const aiMeta = [
     {label:'Claude', badge:'badge-claude', emoji:'🟣'},
     {label:'Gemini', badge:'badge-gemini', emoji:'🔵'},
@@ -2934,6 +3283,37 @@ async function genScript() {
   if (window._guestMode && !window._currentUid) {
     try { await window.acquireGuestToken('script', CREDIT_COST.script); }
     catch(e) { btn.disabled=false; load.classList.remove('show'); return; }
+  }
+
+  // 登入用戶：扣點後立刻存「生成中」佔位，避免刷新後點數白扣
+  var _pendingHistoryId = null;
+  if (window._currentUid && !window._guestMode) {
+    _pendingHistoryId = Date.now();
+    var _pendingEntry = {
+      id: _pendingHistoryId,
+      topic: topic || '（生成中）',
+      type: type,
+      format: '生成中',
+      script: '⏳ AI 正在生成腳本，請稍候…\n\n刷新頁面後可在這裡繼續查看進度。',
+      prompt: '',
+      date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+    };
+    scriptHistory.unshift(_pendingEntry);
+    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if (window.syncToCloud) window.syncToCloud();
+
+    // ✅ 自動切換到歷史頁，讓用戶看到生成中的佔位
+    const histTab = document.querySelector('.tab[onclick*="history"]');
+    if (histTab) switchTab('history', histTab);
+    renderHistory();
+    // 自動展開那筆佔位
+    setTimeout(() => {
+      const body = document.getElementById('hb-' + _pendingHistoryId);
+      if (body && !body.classList.contains('open')) body.classList.add('open');
+      const item = document.getElementById('hi-' + _pendingHistoryId);
+      if (item) item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
   }
 
   try {
@@ -3207,20 +3587,39 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
     setTimeout(() => area.scrollIntoView({ behavior:'smooth', block:'start' }), 100);
 
     // ── SAVE TO HISTORY ──
-    const formatLabels = {'一格':'一格梗圖','兩格':'兩格梗圖','影片':'影片腳本'};
-    scriptHistory.unshift({
-      id: Date.now(),
+    const formatLabelMap = {'一格':'一格梗圖','兩格':'兩格梗圖','影片15':'影片腳本 15秒','影片30':'影片腳本 30秒'};
+    const finalEntry = {
+      id: _pendingHistoryId || Date.now(),
       topic: topic,
       type: type,
-      format: formatLabels[format] || format,
+      format: formatLabelMap[format] || format,
       script: script,
       prompt: geminiPrompt,
       date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    });
+    };
+    // 如果有佔位記錄就取代它，否則新增
+    if (_pendingHistoryId) {
+      const idx = scriptHistory.findIndex(h => h.id === _pendingHistoryId);
+      if (idx !== -1) { scriptHistory[idx] = finalEntry; }
+      else { scriptHistory.unshift(finalEntry); }
+    } else {
+      scriptHistory.unshift(finalEntry);
+    }
     if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
     localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
     if(window.syncToCloud) window.syncToCloud();
     renderHistory();
+
+    // ✅ 生成完成：切回「產腳本」tab 顯示結果
+    if (window._currentUid && !window._guestMode) {
+      const scriptTab = document.querySelector('.tab[onclick*="script"]');
+      if (scriptTab) switchTab('script', scriptTab);
+      // 同時在歷史頁把那筆自動展開（背景更新）
+      setTimeout(() => {
+        const body = document.getElementById('hb-' + finalEntry.id);
+        if (body) body.classList.add('open');
+      }, 200);
+    }
 
     // 訪客：產腳本成功後啟動冷卻
     if (window._guestMode && !window._currentUid) {
@@ -3229,6 +3628,47 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
       return;
     }
   } catch(e) {
+    // ✅ 生成失敗：自動退還點數 + 刪除佔位紀錄
+    if (_pendingHistoryId && window._currentUid && !window._guestMode) {
+      // 刪除佔位
+      scriptHistory = scriptHistory.filter(h => h.id !== _pendingHistoryId);
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window.syncToCloud) window.syncToCloud();
+      renderHistory();
+
+      // 退還點數
+      const refundCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
+      try {
+        const current = window.getCredits();
+        const refunded = (current < 0 ? 0 : current) + refundCost;
+        localStorage.setItem('fumei_credits', String(refunded));
+        window.updateCreditsUI(refunded);
+        // 同步退點到雲端
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        await updateDoc(doc(window.db, 'users', window._currentUid), {
+          fumei_credits: refunded,
+          fumei_credits_last_refund: new Date().toISOString(),
+        });
+        // 記入消耗明細
+        if (window.addCreditLogEntry) {
+          window.addCreditLogEntry({ action: '生成失敗退點', delta: +refundCost, ts: Date.now() });
+        }
+        // 顯示退點 Toast
+        const toast = document.getElementById('creditsToast');
+        if (toast) {
+          toast.textContent = `⚡ 生成失敗，已退還 ${refundCost} 點（目前 ${refunded} 點）`;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+      } catch(refundErr) {
+        console.error('[Refund] failed:', refundErr);
+      }
+
+      // 切回產腳本頁顯示錯誤
+      const scriptTab = document.querySelector('.tab[onclick*="script"]');
+      if (scriptTab) switchTab('script', scriptTab);
+    }
+
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
       if (window._guestMode && !window._currentUid) startCooldown('scriptBtn', '✨ 產腳本', 60);
       return;
@@ -3311,14 +3751,33 @@ function fallbackCopy(text, btn) {
 function renderHistory() {
   const list = document.getElementById('historyList');
   const empty = document.getElementById('historyEmpty');
-  if (!scriptHistory.length) {
+  const searchEl = document.getElementById('historySearch');
+  const filterEl = document.getElementById('historyFilter');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const filter = filterEl ? filterEl.value : 'all';
+
+  let items = scriptHistory;
+  if (filter === 'star') {
+    items = items.filter(h => h.starred);
+  } else if (filter !== 'all') {
+    items = items.filter(h => (h.format || '').includes(filter));
+  }
+  if (q) {
+    items = items.filter(h =>
+      (h.topic || '').toLowerCase().includes(q) ||
+      (h.script || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (!items.length) {
     empty.style.display = 'block';
+    empty.textContent = scriptHistory.length ? '沒有符合條件的紀錄' : '還沒有產出過腳本，去「✍️ 產腳本」試試看吧！';
     list.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
-  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','話題掃描':'hb-scan'};
-  list.innerHTML = scriptHistory.map((h,i) => `
+  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed'};
+  list.innerHTML = items.map(h => `
     <div class="history-item" id="hi-${h.id}">
       <div class="history-header" onclick="toggleHistory(${h.id})">
         <div class="history-meta">
@@ -3326,16 +3785,37 @@ function renderHistory() {
           <div class="history-sub">
             <span>${h.date}</span>
             <span class="history-badge ${fmtBadge[h.format]||'hb-1'}">${h.format}</span>
-            <span style="color:#bbb">${h.type}</span>
+            <span style="color:#bbb">${h.type||''}</span>
           </div>
         </div>
         <div class="history-actions">
+          <button onclick="event.stopPropagation();toggleStar(${h.id})" title="${h.starred?'取消收藏':'加入收藏'}"
+            style="background:${h.starred?'#fff8dc':'#f9f9f9'};border:1.5px solid ${h.starred?'#f5c842':'#eee'};color:${h.starred?'#d4a017':'#ccc'};padding:5px 9px;border-radius:10px;font-size:0.85rem;cursor:pointer;transition:all 0.15s">${h.starred?'⭐':'☆'}</button>
           <button class="btn-sm" style="margin:0" onclick="event.stopPropagation();cpHistory(${h.id})">📋 複製</button>
           <button class="del-btn" onclick="event.stopPropagation();delHistory(${h.id})">🗑️ 刪除</button>
         </div>
       </div>
-      <div class="history-body" id="hb-${h.id}">${h.script}</div>
+      <div class="history-body" id="hb-${h.id}">
+        <div class="history-script-content">${h.script}</div>
+        ${h.prompt ? `
+        <div class="history-prompt-block">
+          <div class="history-prompt-label">
+            <span>🎨 ${(h.format||'').includes('影片') ? '影片 Prompt' : 'Gemini Prompt'}</span>
+            <button class="history-prompt-copy" onclick="cpHistoryPrompt(${h.id})">📋 複製</button>
+          </div>
+          <div class="history-prompt-text" id="hp-${h.id}">${h.prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        </div>` : ''}
+      </div>
     </div>`).join('');
+}
+
+function toggleStar(id) {
+  const idx = scriptHistory.findIndex(h => h.id === id);
+  if (idx === -1) return;
+  scriptHistory[idx].starred = !scriptHistory[idx].starred;
+  localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+  if (window.syncToCloud) window.syncToCloud();
+  renderHistory();
 }
 
 function toggleHistory(id) {
@@ -3349,6 +3829,18 @@ function cpHistory(id) {
   navigator.clipboard.writeText(item.script);
   const btn = document.querySelector(`#hi-${id} .btn-sm`);
   if (btn) { btn.textContent='✓ 已複製'; setTimeout(()=>btn.textContent='📋 複製',1500); }
+}
+
+function cpHistoryPrompt(id) {
+  const item = scriptHistory.find(h => h.id === id);
+  if (!item || !item.prompt) return;
+  const copy = () => {
+    navigator.clipboard.writeText(item.prompt).then(() => {
+      const btn = document.querySelector(`#hi-${id} .history-prompt-copy`);
+      if (btn) { btn.textContent='✓ 已複製'; setTimeout(()=>btn.textContent='📋 複製',1500); }
+    }).catch(() => fallbackCopy(item.prompt, document.querySelector(`#hi-${id} .history-prompt-copy`)));
+  };
+  copy();
 }
 
 function delHistory(id) {
@@ -3768,19 +4260,34 @@ function clearAllHistory() {
       <div class="settings-section" id="accountSection" style="display:none">
         <div class="settings-label">帳號</div>
         <div id="accountInfo" style="font-size:0.85rem;color:#888;margin-bottom:10px"></div>
-        <div id="creditsInfo" style="display:flex;align-items:center;justify-content:space-between;background:#faf7ff;border-radius:14px;padding:14px 16px;border:1.5px solid #e8d5f5;margin-bottom:12px">
-          <div>
-            <div style="font-size:0.75rem;color:#bbb;font-weight:800;margin-bottom:3px">⚡ 點數餘額</div>
-            <div style="font-size:1.5rem;font-weight:900;color:#764ba2;line-height:1"><span id="creditsInfoNum">-</span> <span style="font-size:0.8rem;color:#bbb;font-weight:700">點</span></div>
-            <div style="font-size:0.72rem;color:#bbb;margin-top:4px">掃描 ⚡1點・時事/三AI ⚡2點</div>
+        <div id="creditsInfo" style="display:flex;flex-direction:column;gap:10px;background:#faf7ff;border-radius:14px;padding:14px 16px;border:1.5px solid #e8d5f5;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:0.72rem;color:#bbb;margin-bottom:3px">⚡ 點數餘額</div>
+              <div style="font-size:1.5rem;font-weight:900;color:#764ba2;line-height:1"><span id="creditsInfoNum">-</span> <span style="font-size:0.8rem;color:#bbb;font-weight:700">點</span></div>
+              <div style="font-size:0.72rem;color:#bbb;margin-top:4px">掃描 ⚡1點・時事/三AI ⚡2點</div>
+            </div>
+            <div style="text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <button onclick="closeBuyModal();closeSettings();setTimeout(openBuyModal,150)" style="padding:8px 14px;border-radius:12px;border:none;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);color:white;font-weight:800;font-size:0.8rem;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">💳 購買點數</button>
+              <button id="dailyCheckinBtn" onclick="dailyCheckin()" style="padding:8px 14px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:white;font-weight:800;font-size:0.8rem;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">🎁 每日簽到 +3點</button>
+              <div id="dailyCheckinMsg" style="font-size:0.75rem;color:#aaa;font-weight:700;min-height:16px;text-align:right"></div>
+            </div>
           </div>
-          <div style="text-align:right">
-            <div style="font-size:0.72rem;color:#bbb;margin-bottom:6px">有邀請碼可補充點數</div>
+          <!-- 邀請碼兌換 -->
+          <div>
+            <div style="font-size:0.72rem;color:#bbb;margin-bottom:6px;font-weight:700">🎟️ 邀請碼補充點數</div>
             <div style="display:flex;gap:6px;align-items:center">
-              <input id="settingsInviteInput" placeholder="輸入邀請碼" style="padding:8px 12px;border-radius:10px;border:1.5px solid #e0d0f0;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;width:130px">
+              <input id="settingsInviteInput" placeholder="輸入邀請碼" style="padding:8px 12px;border-radius:10px;border:1.5px solid #e0d0f0;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;flex:1">
               <button onclick="redeemFromSettings()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
             </div>
-            <div id="settingsInviteMsg" style="font-size:0.75rem;font-weight:700;min-height:16px;margin-top:6px;text-align:right"></div>
+            <div id="settingsInviteMsg" style="font-size:0.75rem;font-weight:700;min-height:16px;margin-top:6px"></div>
+          </div>
+          <!-- 點數消耗明細（展開） -->
+          <div>
+            <button onclick="toggleCreditLog()" style="font-size:0.75rem;font-weight:800;color:#bbb;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif;padding:0">📊 消耗明細 ▾</button>
+            <div id="creditLogArea" style="display:none;margin-top:8px;max-height:160px;overflow-y:auto;display:none">
+              <div id="creditLogList" style="display:flex;flex-direction:column;gap:4px"></div>
+            </div>
           </div>
         </div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
@@ -3879,9 +4386,53 @@ function renderCharCards() {
   }).join('');
 }
 
+// ── Header 角色快速切換 bar ────────────────────────
+function renderHeaderCharBar() {
+  const chars = loadChars();
+  const bar = document.getElementById('charSwitchBar');
+  const btns = document.getElementById('charSwitchBtns');
+  if (!bar || !btns) return;
+  // 只有兩個以上角色才顯示
+  if (chars.length < 2) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+  const active = getActiveIdx();
+  const logoImg = localStorage.getItem('fumei_avatar_img') || '';
+  btns.innerHTML = chars.map((ch, i) => {
+    const isFirst = i === 0;
+    const thumb = (isFirst && logoImg)
+      ? `<img src="${logoImg}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px">`
+      : `<span style="margin-right:3px">${ch.emoji||'🐾'}</span>`;
+    const isActive = i === active;
+    return `<button onclick="quickSwitchChar(${i})"
+      style="display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;border:1.5px solid ${isActive?'#E07A95':'#f0d8e0'};background:${isActive?'white':'transparent'};color:${isActive?'#E07A95':'#bbb'};font-size:0.73rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-right:4px;transition:all 0.15s;vertical-align:middle">
+      ${thumb}${ch.name||'角色'}
+    </button>`;
+  }).join('');
+}
+
+window.renderHeaderCharBar = renderHeaderCharBar;
+
+window.quickSwitchChar = function(i) {
+  setActiveIdx(i);
+  renderHeaderCharBar();
+  renderCharCards();
+  updateCharNameUI();
+  if (window.syncToCloud) window.syncToCloud();
+  // 顯示小提示
+  const chars = loadChars();
+  const name = (chars[i] || {}).name || '角色';
+  const toast = document.getElementById('creditsToast');
+  if (toast) {
+    toast.textContent = `已切換到 ${name}`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+};
+
 function setPrimaryChar(i) {
   setActiveIdx(i);
   renderCharCards();
+  renderHeaderCharBar();
   updateCharNameUI();
   if (window.syncToCloud) window.syncToCloud();
 }
@@ -4385,6 +4936,13 @@ function openSettings() {
   document.getElementById('imgPromptVideo').value = localStorage.getItem('fumei_img_prompt_video') || '';
   document.getElementById('settingsModal').classList.add('show');
   initDropZone();
+  // 初始化簽到按鈕狀態
+  if (window.initCheckinBtn) window.initCheckinBtn();
+  // 重置消耗明細區塊
+  const logArea = document.getElementById('creditLogArea');
+  if (logArea) logArea.style.display = 'none';
+  // 初始化角色快速切換 bar
+  renderHeaderCharBar();
 }
 
 function closeSettings() {
@@ -4592,6 +5150,403 @@ async function deleteAccount() {
   } catch(e) { alert('刪除失敗：' + e.message); }
 }
 
+// ══════════════════════════════════════════════
+// 🎨 生圖功能
+// ══════════════════════════════════════════════
+let _imgQuality = 'std';     // 'std' | 'pro'
+let _imgRatio   = '9:16';
+let _imgRefs    = [];         // [{dataUrl, base64, mimeType}]
+const IMG_COST  = { std: 1, pro: 5 };
+
+function selectImgQuality(q) {
+  _imgQuality = q;
+  const stdEl = document.getElementById('imgQualityStd');
+  const proEl = document.getElementById('imgQualityPro');
+  stdEl.style.borderColor   = q === 'std' ? 'var(--pink-deep)' : '#f0d8e0';
+  stdEl.style.background    = q === 'std' ? '#fff5f8' : 'white';
+  proEl.style.borderColor   = q === 'pro' ? '#764ba2' : '#f0d8e0';
+  proEl.style.background    = q === 'pro' ? '#f8f4ff' : 'white';
+  document.getElementById('imgCostBadge').textContent = `⚡${IMG_COST[q]}`;
+}
+
+function selectRatio(el) {
+  document.querySelectorAll('.img-ratio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  _imgRatio = el.dataset.ratio;
+}
+
+// 參考圖上傳
+function handleImgRefFiles(files) {
+  [...files].slice(0, 4 - _imgRefs.length).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const base64  = dataUrl.split(',')[1];
+      _imgRefs.push({ dataUrl, base64, mimeType: file.type });
+      renderImgRefPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function handleImgRefDrop(e) {
+  e.preventDefault();
+  document.getElementById('imgRefZone').style.borderColor = '#f0d8e0';
+  handleImgRefFiles(e.dataTransfer.files);
+}
+
+function renderImgRefPreviews() {
+  const wrap = document.getElementById('imgRefPreviews');
+  const zone = document.getElementById('imgRefZone');
+  wrap.innerHTML = _imgRefs.map((r, i) => `
+    <div class="img-ref-thumb">
+      <img src="${r.dataUrl}">
+      <button class="del" onclick="removeImgRef(${i})">✕</button>
+    </div>`).join('');
+  zone.style.display = _imgRefs.length >= 4 ? 'none' : 'block';
+}
+
+function removeImgRef(i) {
+  _imgRefs.splice(i, 1);
+  renderImgRefPreviews();
+}
+
+// 從腳本帶入 prompt
+function fillImgPromptFromScript() {
+  const scriptEl = document.getElementById('promptContent');
+  const val = scriptEl ? (scriptEl.textContent || '').trim() : '';
+  if (!val) {
+    const toast = document.getElementById('creditsToast');
+    if (toast) { toast.textContent = '請先產出腳本再帶入 Prompt'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
+    return;
+  }
+  document.getElementById('imgPromptInput').value = val;
+}
+
+// 主生圖函式
+async function generateImage() {
+  if (!window._currentUid) {
+    if (confirm('🔒 生圖功能需要登入\n\n要現在登入嗎？')) loginGoogle();
+    return;
+  }
+  const prompt = document.getElementById('imgPromptInput').value.trim();
+  if (!prompt) {
+    const err = document.getElementById('imgErr');
+    err.textContent = '❌ 請輸入生圖 Prompt'; err.classList.add('show'); return;
+  }
+
+  const cost = IMG_COST[_imgQuality];
+  const result = await window.deductCredits(cost, 'image_' + _imgQuality);
+  if (!result.ok) {
+    if (result.reason === 'insufficient') {
+      const err = document.getElementById('imgErr');
+      err.textContent = `⚡ 點數不足（剩 ${result.remaining} 點）！請購買點數繼續生圖。`;
+      err.classList.add('show');
+    }
+    return;
+  }
+  if (window.addCreditLogEntry) {
+    window.addCreditLogEntry({ action: `生圖（${_imgQuality === 'pro' ? '高品質' : '一般'}）`, delta: -cost, ts: Date.now() });
+  }
+
+  const btn = document.getElementById('imgGenBtn');
+  const load = document.getElementById('imgLoading');
+  const err  = document.getElementById('imgErr');
+  const resultCard = document.getElementById('imgResultCard');
+  btn.disabled = true; load.classList.add('show'); err.classList.remove('show');
+  resultCard.style.display = 'none';
+
+  try {
+    const body = {
+      quality: _imgQuality,
+      prompt,
+      ratio: _imgRatio,
+      refs: _imgRefs.map(r => ({ base64: r.base64, mimeType: r.mimeType })),
+    };
+    const res = await fetch('/api/image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error || '生圖失敗');
+    }
+    const data = await res.json();
+    // data.images = [{url: '...'}] 或 data.url
+    const imgs = data.images || (data.url ? [{ url: data.url }] : []);
+    if (!imgs.length) throw new Error('沒有收到生圖結果');
+
+    // 顯示結果
+    const area = document.getElementById('imgResultArea');
+    area.innerHTML = imgs.map(img => `
+      <div class="img-result-item">
+        <img src="${img.url}" alt="生成圖片" loading="lazy">
+      </div>`).join('');
+    // 儲存最後結果 URL 供下載
+    window._lastImgUrls = imgs.map(i => i.url);
+    resultCard.style.display = 'block';
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch(e) {
+    // 失敗退點
+    const refunded = (window.getCredits() < 0 ? 0 : window.getCredits()) + cost;
+    localStorage.setItem('fumei_credits', String(refunded));
+    window.updateCreditsUI(refunded);
+    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
+    try {
+      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+    } catch(_) {}
+    const toast = document.getElementById('creditsToast');
+    if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
+    err.textContent = '❌ ' + (e.message || '生圖失敗，請稍後再試');
+    err.classList.add('show');
+  }
+
+  btn.disabled = false; load.classList.remove('show');
+}
+
+// 下載圖片
+async function downloadImgResult() {
+  const urls = window._lastImgUrls || [];
+  if (!urls.length) return;
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const res = await fetch(urls[i]);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `fumei-image-${Date.now()}-${i+1}.png`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch(e) {
+      window.open(urls[i], '_blank');
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+// ❓ 使用說明 Modal
+// ══════════════════════════════════════════════
+function openHelp() {
+  document.getElementById('helpModal').classList.add('show');
+}
+function closeHelp() {
+  document.getElementById('helpModal').classList.remove('show');
+}
+function closeHelpOutside(e) {
+  if (e.target === document.getElementById('helpModal')) closeHelp();
+}
+function toggleHelp(n) {
+  const body = document.getElementById('hb-help-' + n);
+  const arrow = document.getElementById('ha-' + n);
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  // 關閉其他所有
+  [1,2,3,4,5].forEach(i => {
+    const b = document.getElementById('hb-help-' + i);
+    const a = document.getElementById('ha-' + i);
+    if (b) b.classList.remove('open');
+    if (a) a.classList.remove('open');
+  });
+  // 切換當前
+  if (!isOpen) {
+    body.classList.add('open');
+    arrow.classList.add('open');
+  }
+}
+
+// ══════════════════════════════════════════════
+// 💳 購買點數 Modal
+// ══════════════════════════════════════════════
+
+const CREDIT_PLANS = {
+  starter: { label: 'NT$49 → 50點',  price: 49,  points: 50,  priceId: 'price_starter' },
+  basic:   { label: 'NT$99 → 120點', price: 99,  points: 120, priceId: 'price_basic'   },
+  pro:     { label: 'NT$199 → 300點',price: 199, points: 300, priceId: 'price_pro'     },
+  mega:    { label: 'NT$399 → 700點',price: 399, points: 700, priceId: 'price_mega'    },
+};
+
+let _selectedPlan = 'pro';
+
+function openBuyModal() {
+  if (!window._currentUid) {
+    // 未登入：直接提示，不開 modal
+    if (confirm('⚡ 購買點數需要先登入\n\n要現在登入嗎？')) loginGoogle();
+    return;
+  }
+  // 更新目前點數顯示
+  const credits = window.getCredits();
+  const el = document.getElementById('buyModalCredits');
+  if (el) el.textContent = credits >= 0 ? credits : '…';
+  // 重置選中狀態
+  _selectedPlan = 'pro';
+  document.querySelectorAll('.plan-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.plan === 'pro');
+  });
+  updatePlanSummary();
+  // 載入購買紀錄
+  loadPurchaseHistory();
+  document.getElementById('buyModal').classList.add('show');
+  document.getElementById('buyConfirmBtn').disabled = false;
+  document.getElementById('buyConfirmBtn').textContent = '💳 前往付款';
+}
+
+function closeBuyModal() {
+  document.getElementById('buyModal').classList.remove('show');
+}
+
+function closeBuyModalOutside(e) {
+  if (e.target === document.getElementById('buyModal')) closeBuyModal();
+}
+
+function selectPlan(el) {
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _selectedPlan = el.dataset.plan;
+  updatePlanSummary();
+}
+
+function updatePlanSummary() {
+  const plan = CREDIT_PLANS[_selectedPlan];
+  if (!plan) return;
+  const el = document.getElementById('planSummaryText');
+  if (el) el.textContent = `NT$${plan.price} → ⚡${plan.points} 點`;
+}
+
+async function startCheckout() {
+  if (!window._currentUid) {
+    document.getElementById('buyLoginHint').style.display = 'block';
+    return;
+  }
+  const plan = CREDIT_PLANS[_selectedPlan];
+  if (!plan) return;
+
+  const btn = document.getElementById('buyConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 建立付款中...';
+
+  try {
+    const res = await fetch('/api/stripe/create-checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-firebase-uid': window._currentUid,
+      },
+      body: JSON.stringify({
+        planId: _selectedPlan,
+        priceId: plan.priceId,
+        points: plan.points,
+        uid: window._currentUid,
+        successUrl: window.location.origin + window.location.pathname + '?payment=success&plan=' + _selectedPlan,
+        cancelUrl: window.location.origin + window.location.pathname + '?payment=cancel',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '建立付款失敗');
+    }
+
+    const data = await res.json();
+    if (data.url) {
+      // 跳轉到 Stripe Checkout
+      window.location.href = data.url;
+    } else {
+      throw new Error('沒有收到付款連結');
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '💳 前往付款';
+    // 顯示錯誤 toast
+    const toast = document.getElementById('creditsToast');
+    if (toast) {
+      toast.textContent = '❌ ' + (e.message || '付款失敗，請稍後再試');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+  }
+}
+
+// 付款完成後從 URL 參數處理結果
+function handlePaymentReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const payment = params.get('payment');
+  const plan = params.get('plan');
+  if (!payment) return;
+
+  // 清掉 URL 參數（不要讓人重整再觸發）
+  const cleanUrl = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, '', cleanUrl);
+
+  if (payment === 'success' && plan && CREDIT_PLANS[plan]) {
+    const p = CREDIT_PLANS[plan];
+    // 從雲端重新同步點數（Webhook 應已補充完成）
+    if (window._currentUid && window.syncCreditsFromCloud) {
+      window.syncCreditsFromCloud(window._currentUid).then(credits => {
+        const toast = document.getElementById('creditsToast');
+        if (toast) {
+          toast.textContent = `🎉 購買成功！已補充 ⚡${p.points} 點，目前 ${credits} 點`;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        // 記入消耗明細
+        if (window.addCreditLogEntry) {
+          window.addCreditLogEntry({ action: `購買 ${p.label}`, delta: +p.points, ts: Date.now() });
+        }
+      });
+    }
+  } else if (payment === 'cancel') {
+    const toast = document.getElementById('creditsToast');
+    if (toast) {
+      toast.textContent = '已取消付款';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+  }
+}
+
+// 購買紀錄（從 Firestore 讀取）
+async function loadPurchaseHistory() {
+  const el = document.getElementById('purchaseHistory');
+  if (!el || !window._currentUid) {
+    if (el) el.innerHTML = '<div style="font-size:0.78rem;color:#ddd;text-align:center;padding:8px 0">請先登入</div>';
+    return;
+  }
+  el.innerHTML = '<div style="font-size:0.78rem;color:#ddd;text-align:center;padding:8px 0">⏳ 載入中...</div>';
+  try {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDoc(doc(window.db, 'users', window._currentUid));
+    if (!snap.exists()) { el.innerHTML = '<div style="font-size:0.78rem;color:#ddd;text-align:center;padding:8px 0">尚無購買紀錄</div>'; return; }
+    const data = snap.data();
+    // 撈 fumei_purchase_* 欄位
+    const purchases = Object.entries(data)
+      .filter(([k]) => k.startsWith('fumei_purchase_'))
+      .map(([, v]) => v)
+      .sort((a, b) => (b.at || '').localeCompare(a.at || ''))
+      .slice(0, 10);
+    if (!purchases.length) {
+      el.innerHTML = '<div style="font-size:0.78rem;color:#ddd;text-align:center;padding:8px 0">尚無購買紀錄</div>';
+      return;
+    }
+    el.innerHTML = purchases.map(p => {
+      const d = p.at ? new Date(p.at) : null;
+      const time = d ? `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:#fafafa;border-radius:8px;border:1px solid #f5f0ff">
+        <span style="font-size:0.78rem;color:#888">NT$${p.price || '?'}</span>
+        <span style="font-size:0.78rem;font-weight:800;color:#2d6a4f">+${p.points || '?'}⚡</span>
+        <span style="font-size:0.7rem;color:#ccc">${time}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:0.78rem;color:#ddd;text-align:center;padding:8px 0">無法載入</div>';
+  }
+}
+
+// ── onload 時檢查付款 return ──────────────────────
+
 // 初始化設定
 window.addEventListener('load', () => {
   applyTheme(currentTheme);
@@ -4613,6 +5568,8 @@ window.addEventListener('load', () => {
   // avatar input listeners
   document.getElementById('avatarEmojiInput').addEventListener('input', updateAvatarPreview);
   initDropZone();
+  // 付款 return 處理（Stripe redirect 回來）
+  handlePaymentReturn();
 });
 </script>
 
@@ -4629,6 +5586,315 @@ window.addEventListener('load', () => {
   <div class="img-editor-btns">
     <button class="img-editor-btn img-editor-btn-cancel" onclick="cancelImgEditor()">取消</button>
     <button class="img-editor-btn img-editor-btn-ok" onclick="confirmImgEditor()">✓ 套用</button>
+  </div>
+</div>
+
+<!-- ── 使用說明 Modal ── -->
+<div class="help-modal-overlay" id="helpModal" onclick="closeHelpOutside(event)">
+  <div class="help-modal-box">
+
+    <!-- Header -->
+    <div class="help-modal-header">
+      <button class="help-modal-close" onclick="closeHelp()">✕</button>
+      <div style="font-size:1.8rem;margin-bottom:6px">📖</div>
+      <h2 style="font-family:'Nunito',sans-serif;font-size:1.2rem;font-weight:900;color:white;margin-bottom:4px">使用說明</h2>
+      <p style="font-size:0.8rem;color:rgba(255,255,255,0.85)">點擊卡片展開詳細說明 👇</p>
+    </div>
+
+    <div style="padding:16px">
+
+      <!-- 卡片 1：訪客 vs 登入 -->
+      <div class="help-card" id="hc-1">
+        <div class="help-card-header" onclick="toggleHelp(1)">
+          <div class="help-card-icon" style="background:linear-gradient(135deg,#fff0f5,#f8f0ff)">👀</div>
+          <div class="help-card-title">
+            <strong>訪客 vs 登入</strong>
+            <span>功能差異一覽</span>
+          </div>
+          <div class="help-card-arrow" id="ha-1">▾</div>
+        </div>
+        <div class="help-card-body" id="hb-help-1">
+          <div style="margin-top:14px">
+            <div class="help-compare">
+              <div class="help-compare-col" style="background:#fff8e1;border:1.5px solid #ffe4b5">
+                <div style="font-weight:900;color:#b8860b;margin-bottom:8px;font-size:0.82rem">👀 訪客模式</div>
+                <div>⚡ 免費 20 點</div>
+                <div>✅ 話題掃描</div>
+                <div>✅ 產腳本</div>
+                <div style="color:#ccc">❌ 今日時事</div>
+                <div style="color:#ccc">❌ 三AI發想</div>
+                <div style="color:#ccc">❌ 歷史紀錄</div>
+              </div>
+              <div class="help-compare-col" style="background:#f0fff8;border:1.5px solid #b5ead7">
+                <div style="font-weight:900;color:#2d6a4f;margin-bottom:8px;font-size:0.82rem">🔑 登入後</div>
+                <div>⚡ 點數可累積</div>
+                <div>✅ 話題掃描</div>
+                <div>✅ 產腳本</div>
+                <div>✅ 今日時事</div>
+                <div>✅ 三AI發想</div>
+                <div>✅ 歷史紀錄</div>
+              </div>
+            </div>
+            <div class="help-tip">💡 登入後資料儲存在雲端，換裝置也不會遺失！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片 2：角色設定 -->
+      <div class="help-card" id="hc-2">
+        <div class="help-card-header" onclick="toggleHelp(2)">
+          <div class="help-card-icon" style="background:linear-gradient(135deg,#f8f0ff,#ffe4f0)">🎭</div>
+          <div class="help-card-title">
+            <strong>角色設定教學</strong>
+            <span>設定你的專屬梗圖角色</span>
+          </div>
+          <div class="help-card-arrow" id="ha-2">▾</div>
+        </div>
+        <div class="help-card-body" id="hb-help-2">
+          <div style="margin-top:14px">
+            <div class="help-step">
+              <div class="help-step-num">1</div>
+              <div class="help-step-content">點右上角 <strong>⚙️ 設定</strong>，找到「角色管理」區塊</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">2</div>
+              <div class="help-step-content">填入角色名稱、外觀描述、個性特質、說話風格</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">3</div>
+              <div class="help-step-content">可上傳角色參考圖，讓 <strong>AI 自動分析外觀</strong>填入描述</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">4</div>
+              <div class="help-step-content">有多個角色時，用上方的 <strong>角色切換 Bar</strong> 快速切換</div>
+            </div>
+            <div class="help-mockup">
+              <div class="help-mockup-row">🐾 <span>角色名稱：富美（Fumei）</span></div>
+              <div class="help-mockup-row">👗 <span>外觀：3D卡通狗狗女孩，金色長髮、粉色洋裝</span></div>
+              <div class="help-mockup-row">✨ <span>個性：上班族、幽默自信、愛旅遊</span></div>
+              <div class="help-mockup-row">🗣️ <span>風格：台灣用語、誇張共鳴、偶爾神邏輯</span></div>
+            </div>
+            <div class="help-tip">💡 角色設定越詳細，AI 產出的腳本越貼近你的角色風格！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片 3：點數系統 -->
+      <div class="help-card" id="hc-3">
+        <div class="help-card-header" onclick="toggleHelp(3)">
+          <div class="help-card-icon" style="background:linear-gradient(135deg,#fff8dc,#ffe4b5)">⚡</div>
+          <div class="help-card-title">
+            <strong>點數系統說明</strong>
+            <span>怎麼得點、怎麼用點</span>
+          </div>
+          <div class="help-card-arrow" id="ha-3">▾</div>
+        </div>
+        <div class="help-card-body" id="hb-help-3">
+          <div style="margin-top:14px">
+            <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">💸 點數消耗</div>
+            <div class="help-mockup">
+              <div class="help-mockup-row">🔍 <span>話題掃描（非時事）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡1點</span></div>
+              <div class="help-mockup-row">🗞️ <span>今日時事掃描</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡2點</span></div>
+              <div class="help-mockup-row">✍️ <span>產腳本（一般）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡1點</span></div>
+              <div class="help-mockup-row">🗞️ <span>產腳本（時事反應）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡2點</span></div>
+              <div class="help-mockup-row">🤖 <span>三AI發想</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡2點</span></div>
+            </div>
+            <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin:12px 0 8px">🎁 點數來源</div>
+            <div class="help-mockup">
+              <div class="help-mockup-row">🆕 <span>新帳號註冊</span><span style="margin-left:auto;color:#2d6a4f;font-weight:800">+20點</span></div>
+              <div class="help-mockup-row">📅 <span>每日簽到（設定頁）</span><span style="margin-left:auto;color:#2d6a4f;font-weight:800">+3點</span></div>
+              <div class="help-mockup-row">🎟️ <span>兌換邀請碼</span><span style="margin-left:auto;color:#2d6a4f;font-weight:800">+N點</span></div>
+              <div class="help-mockup-row">💳 <span>購買點數包</span><span style="margin-left:auto;color:#2d6a4f;font-weight:800">+50～700點</span></div>
+            </div>
+            <div class="help-tip">⚡ 生成失敗會自動退還點數，不用擔心白扣！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片 4：話題掃描 -->
+      <div class="help-card" id="hc-4">
+        <div class="help-card-header" onclick="toggleHelp(4)">
+          <div class="help-card-icon" style="background:linear-gradient(135deg,#e8f4ff,#d0e8ff)">💡</div>
+          <div class="help-card-title">
+            <strong>話題掃描怎麼用</strong>
+            <span>找靈感的第一步</span>
+          </div>
+          <div class="help-card-arrow" id="ha-4">▾</div>
+        </div>
+        <div class="help-card-body" id="hb-help-4">
+          <div style="margin-top:14px">
+            <div class="help-step">
+              <div class="help-step-num">1</div>
+              <div class="help-step-content">點上方 <strong>💡 話題掃描</strong> tab</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">2</div>
+              <div class="help-step-content">選擇類別：<strong>今日時事 / 職場 / 單身 / 日常 / 旅遊</strong>，或在設定裡新增自訂類別</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">3</div>
+              <div class="help-step-content">點「🔍 掃描話題」，AI 會產出 6 個話題 + 角色反應台詞</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">4</div>
+              <div class="help-step-content">不喜歡某個話題？點右上角 <strong>🔄</strong> 單獨刷新那一格</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">5</div>
+              <div class="help-step-content">點喜歡的話題 → 點「✍️ 用這個話題產腳本」直接帶入</div>
+            </div>
+            <div class="help-mockup">
+              <div class="help-mockup-row" style="flex-wrap:wrap;gap:6px">
+                <span style="background:#fff0f5;border:1.5px solid #f0d8e0;border-radius:10px;padding:6px 10px;font-size:0.8rem;color:var(--brown)">
+                  <span style="font-size:0.7rem;color:var(--pink-deep);display:block;font-weight:800">話題 1</span>
+                  <strong>老闆突然宣布週六補班</strong><br>
+                  <span style="color:var(--pink-deep);font-size:0.78rem">「週末計畫瞬間灰飛煙滅」</span>
+                </span>
+                <span style="background:#fff0f5;border:2px solid var(--pink-deep);border-radius:10px;padding:6px 10px;font-size:0.8rem;color:var(--brown);position:relative">
+                  <span style="position:absolute;top:4px;right:6px;font-size:0.7rem;color:var(--pink-deep)">🔄</span>
+                  <span style="font-size:0.7rem;color:var(--pink-deep);display:block;font-weight:800">話題 2 ✓選中</span>
+                  <strong>颱風假到底放不放</strong><br>
+                  <span style="color:var(--pink-deep);font-size:0.78rem">「F5 重新整理等通知中」</span>
+                </span>
+              </div>
+            </div>
+            <div class="help-tip">💡 今日時事類別會從台灣新聞網站即時抓取，需要登入才能使用！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片 5：產腳本流程 -->
+      <div class="help-card" id="hc-5">
+        <div class="help-card-header" onclick="toggleHelp(5)">
+          <div class="help-card-icon" style="background:linear-gradient(135deg,#f0fff8,#d5f5e8)">✍️</div>
+          <div class="help-card-title">
+            <strong>產腳本完整流程</strong>
+            <span>從腳本到 Gemini 生圖</span>
+          </div>
+          <div class="help-card-arrow" id="ha-5">▾</div>
+        </div>
+        <div class="help-card-body" id="hb-help-5">
+          <div style="margin-top:14px">
+            <div class="help-step">
+              <div class="help-step-num">1</div>
+              <div class="help-step-content">點 <strong>✍️ 產腳本</strong> tab，話題欄可以留空（AI 自動找）或填入指定話題</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">2</div>
+              <div class="help-step-content">選擇類型（職場梗／單身日常／旅遊／生活趣事）和格式（一格／兩格／影片15秒／30秒）</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">3</div>
+              <div class="help-step-content">點「✨ 產出腳本」→ 系統自動跳到歷史頁，你可以看到「⏳ 生成中」</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">4</div>
+              <div class="help-step-content">生成完成 → 自動回到產腳本頁，可以用改寫功能調整風格（更誇張／更台味⋯）</div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">5</div>
+              <div class="help-step-content">點「🎨 Gemini Prompt」tab → <strong>複製整段 Prompt</strong></div>
+            </div>
+            <div class="help-step">
+              <div class="help-step-num">6</div>
+              <div class="help-step-content">開啟 <strong>Gemini（gemini.google.com）</strong>，上傳角色參考圖 + 貼上 Prompt → 生成梗圖！</div>
+            </div>
+            <div class="help-mockup">
+              <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">📋 Gemini Prompt 長這樣</div>
+              <div style="background:#1e1e2e;color:#cdd6f4;border-radius:10px;padding:10px 12px;font-family:monospace;font-size:0.75rem;line-height:1.7">
+                用這個角色（富美），換服裝換場景<br>
+                表情要豐富，不要更換原人物材質<br>
+                <span style="color:#f9e2af">主題：颱風假到底放不放</span><br>
+                給我兩格的梗圖...<br>
+                輸出尺寸為 3:4
+              </div>
+            </div>
+            <div class="help-tip">🤖 想要更多創意方向？先點「三AI發想」讓三個 AI 給你靈感，再選你喜歡的繼續產腳本！</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── 購買點數 Modal ── -->
+<div class="buy-modal-overlay" id="buyModal" onclick="closeBuyModalOutside(event)">
+  <div class="buy-modal-box">
+    <div class="buy-modal-header">
+      <button class="buy-modal-close" onclick="closeBuyModal()">✕</button>
+      <div style="font-size:2.2rem;margin-bottom:8px">⚡</div>
+      <h2 style="font-family:'Nunito',sans-serif;font-size:1.3rem;font-weight:900;color:white;margin-bottom:4px">購買點數</h2>
+      <p style="font-size:0.82rem;color:rgba(255,255,255,0.85)">目前餘額：<strong id="buyModalCredits">-</strong> 點</p>
+    </div>
+    <div style="padding:20px 20px 24px">
+
+      <!-- 方案說明 -->
+      <p style="font-size:0.78rem;color:#aaa;text-align:center;margin-bottom:16px">點數不會過期・買完立即補充・可累積</p>
+
+      <!-- 四個方案 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px" id="planGrid">
+
+        <div class="plan-card" data-plan="starter" onclick="selectPlan(this)" style="padding-top:18px">
+          <div class="plan-price">NT$49</div>
+          <div class="plan-points">⚡ 50 點</div>
+          <div class="plan-per">約 NT$0.98 / 點</div>
+        </div>
+
+        <div class="plan-card" data-plan="basic" onclick="selectPlan(this)" style="padding-top:18px">
+          <div class="plan-price">NT$99</div>
+          <div class="plan-points">⚡ 120 點</div>
+          <div class="plan-per">約 NT$0.83 / 點</div>
+        </div>
+
+        <div class="plan-card selected" data-plan="pro" onclick="selectPlan(this)" style="padding-top:22px">
+          <div class="plan-badge">🔥 最划算</div>
+          <div class="plan-price">NT$199</div>
+          <div class="plan-points">⚡ 300 點</div>
+          <div class="plan-per">約 NT$0.66 / 點</div>
+        </div>
+
+        <div class="plan-card" data-plan="mega" onclick="selectPlan(this)" style="padding-top:22px">
+          <div class="plan-badge">💎 超值包</div>
+          <div class="plan-price">NT$399</div>
+          <div class="plan-points">⚡ 700 點</div>
+          <div class="plan-per">約 NT$0.57 / 點</div>
+        </div>
+
+      </div>
+
+      <!-- 選中方案摘要 -->
+      <div id="planSummary" style="background:linear-gradient(135deg,#fff8fc,#f8f4ff);border:1.5px solid #f0d8e0;border-radius:14px;padding:12px 16px;margin-bottom:16px;text-align:center">
+        <span style="font-size:0.85rem;color:#888">已選：</span>
+        <span id="planSummaryText" style="font-weight:900;color:var(--pink-deep);font-size:0.95rem">NT$199 → ⚡300 點</span>
+      </div>
+
+      <!-- 購買按鈕 -->
+      <button class="buy-confirm-btn" id="buyConfirmBtn" onclick="startCheckout()">
+        💳 前往付款
+      </button>
+
+      <!-- 未登入提示 -->
+      <div id="buyLoginHint" style="display:none;margin-top:12px;text-align:center;font-size:0.82rem;color:#e85d8a;font-weight:700">
+        ⚠️ 請先登入才能購買點數
+      </div>
+
+      <!-- 安全說明 -->
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap">
+        <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">🔒 Stripe 安全付款</span>
+        <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">🧾 付款後立即補點</span>
+        <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">♾️ 點數永不過期</span>
+      </div>
+
+      <!-- 購買紀錄 -->
+      <div style="margin-top:16px;border-top:1px solid #f5f0ff;padding-top:14px">
+        <div style="font-size:0.75rem;font-weight:800;color:#bbb;margin-bottom:8px">📜 購買紀錄</div>
+        <div id="purchaseHistory" style="max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:0.78rem;color:#ddd;text-align:center;padding:8px 0">載入中...</div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
