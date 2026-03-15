@@ -35,22 +35,6 @@ function checkIpRate(ip) {
   entry.count++; ipCache.set(ip, entry); return true;
 }
 
-function extractImages(task) {
-  const candidates = [
-    task?.output?.images, task?.result?.images, task?.images,
-    task?.output?.imageUrl, task?.result?.imageUrl, task?.imageUrl,
-    task?.output?.url, task?.result?.url, task?.url,
-  ];
-  for (const c of candidates) {
-    if (!c) continue;
-    if (Array.isArray(c) && c.length > 0)
-      return c.map(u => ({ url: typeof u === 'string' ? u : (u.url || String(u)) }));
-    if (typeof c === 'string' && c.startsWith('http'))
-      return [{ url: c }];
-  }
-  return [];
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid');
@@ -63,28 +47,57 @@ export default async function handler(req, res) {
   if (!checkIpRate(ip)) return res.status(429).json({ error: '⚠️ 請求過於頻繁' });
 
   // ── GET：查詢任務狀態（前端輪詢用）──────────────────
+  // 正確 endpoint：/api/v1/jobs/recordInfo
+  // 正確回傳結構：{ code, data: { state, resultJson, failMsg } }
   if (req.method === 'GET') {
     const taskId = req.query.taskId;
     if (!taskId) return res.status(400).json({ error: '請提供 taskId' });
 
-    const r = await fetch(`${KIE_BASE}/api/v1/jobs/queryTask?taskId=${taskId}`, {
-      headers: { 'Authorization': `Bearer ${KIE_API_KEY}` },
-    });
-    const raw = await r.json();
-    const task = raw?.data || raw;
-    const statusRaw = task?.status ?? task?.state ?? '';
-    const status = String(statusRaw).toLowerCase();
+    try {
+      const r = await fetch(`${KIE_BASE}/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`, {
+        headers: { 'Authorization': `Bearer ${KIE_API_KEY}` },
+      });
+      const raw = await r.json();
+      const task = raw?.data || {};
+      const state = String(task?.state || '').toLowerCase();
 
-    if (status === 'success' || status === 'completed' || status === 'finish' || statusRaw === 1 || statusRaw === '1') {
-      const images = extractImages(task);
-      if (uid) fsIncrement(`users/${uid}`, 'usage_image').catch(() => {});
-      return res.status(200).json({ status: 'success', images });
+      // ✅ 成功：state === 'success'，圖片在 resultJson（JSON 字串需再 parse）
+      if (state === 'success') {
+        let images = [];
+        try {
+          const result = typeof task.resultJson === 'string'
+            ? JSON.parse(task.resultJson)
+            : task.resultJson;
+          // 格式：{ resultUrls: ['https://...'] }
+          const urls = result?.resultUrls || result?.images || result?.imageUrls || [];
+          images = Array.isArray(urls)
+            ? urls.map(u => ({ url: typeof u === 'string' ? u : u.url }))
+            : [];
+        } catch(e) {
+          console.error('[image] parse resultJson error:', e.message);
+        }
+        if (images.length === 0) {
+          return res.status(200).json({ status: 'failed', error: '生圖完成但找不到圖片網址' });
+        }
+        if (uid) fsIncrement(`users/${uid}`, 'usage_image').catch(() => {});
+        return res.status(200).json({ status: 'success', images });
+      }
+
+      // ❌ 失敗
+      if (state === 'fail' || state === 'failed' || state === 'error') {
+        return res.status(200).json({
+          status: 'failed',
+          error: task?.failMsg || task?.errorMessage || '生圖失敗，請稍後再試',
+        });
+      }
+
+      // ⏳ 排隊或生成中：waiting / queuing / generating
+      return res.status(200).json({ status: 'pending', state });
+
+    } catch(e) {
+      console.error('[image] recordInfo error:', e.message);
+      return res.status(500).json({ error: e.message });
     }
-    if (status === 'fail' || status === 'failed' || status === 'error' || statusRaw === -1) {
-      return res.status(200).json({ status: 'failed', error: task?.errorMessage || task?.msg || '生圖失敗' });
-    }
-    // 還在跑
-    return res.status(200).json({ status: 'pending' });
   }
 
   // ── POST：建立任務 ───────────────────────────────────
