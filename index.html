@@ -136,6 +136,7 @@
   .hb-scan{background:#f0f0ff;color:#7c4dff}
   .hb-pending{background:#fff8e1;color:#f57f17}
   .hb-failed{background:#fce4ec;color:#c62828}
+  .hb-img{background:#f3e5f5;color:#6a1b9a}
   .history-actions { display:flex;gap:8px;flex-shrink:0 }
   .history-body { display:none;padding:18px;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
   .history-body.open { display:block }
@@ -318,8 +319,8 @@
   .img-ref-thumb { position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:2px solid #f0d8e0;flex-shrink:0 }
   .img-ref-thumb img { width:100%;height:100%;object-fit:cover }
   .img-ref-thumb .del { position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.5);color:white;border:none;width:18px;height:18px;border-radius:50%;font-size:0.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1 }
-  .img-result-item { border-radius:16px;overflow:hidden;border:1.5px solid #f0d8e0 }
-  .img-result-item img { width:100%;display:block }
+  .img-result-item { border-radius:16px;overflow:hidden;border:1.5px solid #f0d8e0;background:#f8f8f8 }
+  .img-result-item img { width:100%;height:auto;display:block;max-height:70vh;object-fit:contain }
 
   .help-modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1200;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto }
   .help-modal-overlay.show { display:flex }
@@ -1474,7 +1475,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1722,8 +1723,8 @@ window.syncToCloud = async () => {
     </div>
 
     <!-- 右側：預覽區 -->
-    <div style="flex:1;min-width:280px">
-      <div class="card" style="margin-bottom:0;min-height:400px;display:flex;flex-direction:column">
+    <div style="flex:1;min-width:280px;position:sticky;top:80px;align-self:flex-start">
+      <div class="card" style="margin-bottom:0">
         <div class="card-title">🖼️ 預覽</div>
 
         <!-- 待機狀態 -->
@@ -1961,7 +1962,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.1';
+const APP_VERSION = '4.3.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3805,7 +3806,7 @@ function renderHistory() {
     return;
   }
   empty.style.display = 'none';
-  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed'};
+  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed','生圖':'hb-img','生圖中':'hb-pending'};
   list.innerHTML = items.map(h => `
     <div class="history-item" id="hi-${h.id}">
       <div class="history-header" onclick="toggleHistory(${h.id})">
@@ -3825,7 +3826,12 @@ function renderHistory() {
         </div>
       </div>
       <div class="history-body" id="hb-${h.id}">
-        <div class="history-script-content">${h.script}</div>
+        ${h.format === '生圖'
+          ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${
+              (h.imageUrls||[]).map(u=>`<img src="${u}" style="max-width:100%;max-height:240px;border-radius:10px;object-fit:contain;border:1.5px solid #f0d8e0">`).join('')
+            }</div><div style="font-size:0.82rem;color:#aaa;white-space:pre-wrap">${h.script}</div>`
+          : `<div class="history-script-content">${h.script}</div>`
+        }
         ${h.prompt ? `
         <div class="history-prompt-block">
           <div class="history-prompt-label">
@@ -5339,6 +5345,28 @@ async function generateImage() {
     const taskId = postData.taskId;
     statusTxt.textContent = '生圖中，請稍候...';
 
+    // ✅ 立刻存「生圖中」佔位到歷史（含 taskId，刷新後可繼續輪詢）
+    var _imgPendingId = null;
+    if (window._currentUid && !window._guestMode) {
+      _imgPendingId = Date.now();
+      const pendingImgEntry = {
+        id: _imgPendingId,
+        topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
+        format: '生圖中',
+        type: _imgQuality === 'pro' ? '高品質' : '一般品質',
+        script: '⏳ 生圖中，請稍候...\n\n刷新頁面後可在這裡繼續等待結果。',
+        imageUrls: [],
+        taskId: taskId,
+        prompt: '',
+        date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      };
+      scriptHistory.unshift(pendingImgEntry);
+      if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window.syncToCloud) window.syncToCloud();
+      renderHistory();
+    }
+
     // Step 2：前端輪詢（每 4 秒，最多 3 分鐘）
     const maxWait = 180000;
     const pollStart = Date.now();
@@ -5355,13 +5383,41 @@ async function generateImage() {
         progressFill.style.width = '100%';
         statusTxt.textContent = '生圖完成！';
 
+        const imgUrls = getData.images.map(i => i.url);
+
+        // ✅ 取代佔位，存完整圖片結果
+        if (window._currentUid && !window._guestMode) {
+          const finalImgEntry = {
+            id: _imgPendingId || Date.now(),
+            topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
+            format: '生圖',
+            type: _imgQuality === 'pro' ? '高品質' : '一般品質',
+            script: `Prompt：${prompt}`,
+            imageUrls: imgUrls,
+            taskId: '',
+            prompt: '',
+            date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+          };
+          if (_imgPendingId) {
+            const idx = scriptHistory.findIndex(h => h.id === _imgPendingId);
+            if (idx !== -1) scriptHistory[idx] = finalImgEntry;
+            else scriptHistory.unshift(finalImgEntry);
+          } else {
+            scriptHistory.unshift(finalImgEntry);
+          }
+          if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+          localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+          if (window.syncToCloud) window.syncToCloud();
+          renderHistory();
+        }
+
         setTimeout(() => {
           loadingEl.style.display = 'none';
           const resultEl = document.getElementById('imgPreviewResult');
           const areaEl = document.getElementById('imgResultArea');
-          areaEl.innerHTML = getData.images.map(img => `
-            <div class="img-result-item"><img src="${img.url}" alt="生成圖片" loading="lazy" style="border-radius:12px;width:100%"></div>`).join('');
-          window._lastImgUrls = getData.images.map(i => i.url);
+          areaEl.innerHTML = imgUrls.map(url => `
+            <div class="img-result-item"><img src="${url}" alt="生成圖片" loading="lazy" style="border-radius:12px;width:100%"></div>`).join('');
+          window._lastImgUrls = imgUrls;
           resultEl.style.display = 'flex';
           btn.disabled = false;
         }, 500);
@@ -5369,16 +5425,87 @@ async function generateImage() {
       }
 
       if (getData.status === 'failed') {
+        // 失敗：把佔位刪掉
+        if (_imgPendingId) {
+          scriptHistory = scriptHistory.filter(h => h.id !== _imgPendingId);
+          localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+          if (window.syncToCloud) window.syncToCloud();
+          renderHistory();
+        }
         resetUI(getData.error || '生圖失敗');
         return;
       }
       // pending → 繼續等
+    }
+    // 逾時：把佔位刪掉
+    if (_imgPendingId) {
+      scriptHistory = scriptHistory.filter(h => h.id !== _imgPendingId);
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window.syncToCloud) window.syncToCloud();
+      renderHistory();
     }
     resetUI('生圖逾時（超過 3 分鐘），請稍後再試');
 
   } catch(e) {
     resetUI(e.message || '生圖失敗');
   }
+}
+
+// ✅ 刷新後自動繼續輪詢未完成的生圖
+async function resumeImgPolling(histEntry) {
+  if (!window._currentUid || !histEntry.taskId) return;
+  const pendingId = histEntry.id;
+  const taskId = histEntry.taskId;
+  const maxWait = 180000;
+  const start = Date.now();
+
+  while (Date.now() - start < maxWait) {
+    await new Promise(r => setTimeout(r, 5000));
+    try {
+      const getRes = await fetch(`/api/image?taskId=${taskId}`, {
+        headers: { 'x-firebase-uid': window._currentUid },
+      });
+      const getData = await getRes.json();
+
+      if (getData.status === 'success' && getData.images?.length) {
+        const imgUrls = getData.images.map(i => i.url);
+        const idx = scriptHistory.findIndex(h => h.id === pendingId);
+        if (idx !== -1) {
+          scriptHistory[idx] = {
+            ...scriptHistory[idx],
+            format: '生圖',
+            script: `Prompt：${scriptHistory[idx].topic}`,
+            imageUrls: imgUrls,
+            taskId: '',
+          };
+          localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+          if (window.syncToCloud) window.syncToCloud();
+          renderHistory();
+          // Toast 通知
+          const toast = document.getElementById('creditsToast');
+          if (toast) {
+            toast.textContent = '🎨 生圖完成！請到歷史紀錄查看';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+          }
+        }
+        return;
+      }
+      if (getData.status === 'failed') {
+        // 失敗：刪佔位
+        scriptHistory = scriptHistory.filter(h => h.id !== pendingId);
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+        return;
+      }
+    } catch(e) { /* 繼續等 */ }
+  }
+  // 逾時：刪佔位
+  scriptHistory = scriptHistory.filter(h => h.id !== pendingId);
+  localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+  if (window.syncToCloud) window.syncToCloud();
+  renderHistory();
 }
 
 // 下載圖片
@@ -5643,6 +5770,22 @@ window.addEventListener('load', () => {
   initDropZone();
   // 付款 return 處理（Stripe redirect 回來）
   handlePaymentReturn();
+  // ✅ 清除超過 30 分鐘的「生成中」佔位（避免卡住）
+  const _staleThreshold = 30 * 60 * 1000;
+  const _now = Date.now();
+  let _cleaned = false;
+  scriptHistory = scriptHistory.filter(h => {
+    if ((h.format === '生成中' || (h.format === '生圖中' && !h.taskId)) && (_now - h.id) > _staleThreshold) { _cleaned = true; return false; }
+    return true;
+  });
+  if (_cleaned) {
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if (window.syncToCloud) window.syncToCloud();
+  }
+
+  // ✅ 自動繼續輪詢未完成的生圖任務（刷新後恢復）
+  const pendingImgTasks = scriptHistory.filter(h => h.format === '生圖中' && h.taskId && (_now - h.id) < _staleThreshold);
+  pendingImgTasks.forEach(h => resumeImgPolling(h));
 });
 </script>
 
