@@ -1475,7 +1475,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1962,7 +1962,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.5';
+const APP_VERSION = '4.3.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3315,36 +3315,26 @@ async function genScript() {
     catch(e) { btn.disabled=false; load.classList.remove('show'); return; }
   }
 
-  // 登入用戶：扣點後立刻存「生成中」佔位，避免刷新後點數白扣
-  var _pendingHistoryId = null;
-  if (window._currentUid && !window._guestMode) {
-    _pendingHistoryId = Date.now();
-    var _pendingEntry = {
-      id: _pendingHistoryId,
-      topic: topic || '（生成中）',
-      type: type,
-      format: '生成中',
-      script: '⏳ AI 正在生成腳本，請稍候…\n\n刷新頁面後可在這裡繼續查看進度。',
-      prompt: '',
-      date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    };
-    scriptHistory.unshift(_pendingEntry);
-    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
-    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-    if (window.syncToCloud) window.syncToCloud();
-
-    // ✅ 自動切換到歷史頁，讓用戶看到生成中的佔位
-    const histTab = document.querySelector('.tab[onclick*="history"]');
-    if (histTab) switchTab('history', histTab);
-    renderHistory();
-    // 自動展開那筆佔位
-    setTimeout(() => {
-      const body = document.getElementById('hb-' + _pendingHistoryId);
-      if (body && !body.classList.contains('open')) body.classList.add('open');
-      const item = document.getElementById('hi-' + _pendingHistoryId);
-      if (item) item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 120);
-  }
+    // ✅ 扣點後立刻存「生成中」佔位，背景靜默儲存（不跳頁）
+    var _pendingHistoryId = null;
+    if (window._currentUid && !window._guestMode) {
+      _pendingHistoryId = Date.now();
+      var _pendingEntry = {
+        id: _pendingHistoryId,
+        topic: topic || '（生成中）',
+        type: type,
+        format: '生成中',
+        script: '⏳ AI 正在生成腳本，請稍候…\n\n刷新頁面後可在這裡繼續查看進度。',
+        prompt: '',
+        date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      };
+      scriptHistory.unshift(_pendingEntry);
+      if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window.syncToCloud) window.syncToCloud();
+      // 背景更新歷史，不跳頁
+      renderHistory();
+    }
 
   try {
     const charName = getCharName();
@@ -3640,17 +3630,6 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
     if(window.syncToCloud) window.syncToCloud();
     renderHistory();
 
-    // ✅ 生成完成：切回「產腳本」tab 顯示結果
-    if (window._currentUid && !window._guestMode) {
-      const scriptTab = document.querySelector('.tab[onclick*="script"]');
-      if (scriptTab) switchTab('script', scriptTab);
-      // 同時在歷史頁把那筆自動展開（背景更新）
-      setTimeout(() => {
-        const body = document.getElementById('hb-' + finalEntry.id);
-        if (body) body.classList.add('open');
-      }, 200);
-    }
-
     // 訪客：產腳本成功後啟動冷卻
     if (window._guestMode && !window._currentUid) {
       load.classList.remove('show');
@@ -3658,45 +3637,39 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
       return;
     }
   } catch(e) {
-    // ✅ 生成失敗：自動退還點數 + 刪除佔位紀錄
+    // ✅ 生成失敗：更新佔位為「生成失敗」狀態，保留紀錄讓用戶知道
     if (_pendingHistoryId && window._currentUid && !window._guestMode) {
-      // 刪除佔位
-      scriptHistory = scriptHistory.filter(h => h.id !== _pendingHistoryId);
-      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-      if (window.syncToCloud) window.syncToCloud();
-      renderHistory();
+      const failIdx = scriptHistory.findIndex(h => h.id === _pendingHistoryId);
+      if (failIdx !== -1) {
+        scriptHistory[failIdx] = {
+          ...scriptHistory[failIdx],
+          format: '生成失敗',
+          script: '❌ 生成失敗（點數已退還）\n\n如持續發生問題，請透過意見回饋告知。',
+        };
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
+    }
 
-      // 退還點數
+    // ✅ 退還點數
+    if (window._currentUid && !window._guestMode) {
       const refundCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
       try {
         const current = window.getCredits();
         const refunded = (current < 0 ? 0 : current) + refundCost;
         localStorage.setItem('fumei_credits', String(refunded));
         window.updateCreditsUI(refunded);
-        // 同步退點到雲端
         const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        await updateDoc(doc(window.db, 'users', window._currentUid), {
-          fumei_credits: refunded,
-          fumei_credits_last_refund: new Date().toISOString(),
-        });
-        // 記入消耗明細
-        if (window.addCreditLogEntry) {
-          window.addCreditLogEntry({ action: '生成失敗退點', delta: +refundCost, ts: Date.now() });
-        }
-        // 顯示退點 Toast
+        await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+        if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生成失敗退點', delta: +refundCost, ts: Date.now() });
         const toast = document.getElementById('creditsToast');
         if (toast) {
-          toast.textContent = `⚡ 生成失敗，已退還 ${refundCost} 點（目前 ${refunded} 點）`;
+          toast.textContent = `⚡ 生成失敗，已退還 ${refundCost} 點`;
           toast.classList.add('show');
           setTimeout(() => toast.classList.remove('show'), 4000);
         }
-      } catch(refundErr) {
-        console.error('[Refund] failed:', refundErr);
-      }
-
-      // 切回產腳本頁顯示錯誤
-      const scriptTab = document.querySelector('.tab[onclick*="script"]');
-      if (scriptTab) switchTab('script', scriptTab);
+      } catch(refundErr) { console.error('[Refund] failed:', refundErr); }
     }
 
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
@@ -3806,7 +3779,7 @@ function renderHistory() {
     return;
   }
   empty.style.display = 'none';
-  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed','生圖':'hb-img','生圖中':'hb-pending'};
+  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed','生圖':'hb-img','生圖中':'hb-pending','生圖失敗':'hb-failed'};
   list.innerHTML = items.map(h => `
     <div class="history-item" id="hi-${h.id}">
       <div class="history-header" onclick="toggleHistory(${h.id})">
@@ -5437,24 +5410,32 @@ async function generateImage() {
       }
 
       if (getData.status === 'failed') {
-        // 失敗：把佔位刪掉
+        // 失敗：保留紀錄，改為「生圖失敗」
         if (_imgPendingId) {
-          scriptHistory = scriptHistory.filter(h => h.id !== _imgPendingId);
-          localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-          if (window.syncToCloud) window.syncToCloud();
-          renderHistory();
+          const fi = scriptHistory.findIndex(h => h.id === _imgPendingId);
+          if (fi !== -1) {
+            scriptHistory[fi] = { ...scriptHistory[fi], format: '生圖失敗', taskId: '',
+              script: `❌ 生圖失敗（點數已退還）\n\nPrompt：${prompt}` };
+            localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+            if (window.syncToCloud) window.syncToCloud();
+            renderHistory();
+          }
         }
         resetUI(getData.error || '生圖失敗');
         return;
       }
       // pending → 繼續等
     }
-    // 逾時：把佔位刪掉
+    // 逾時：保留紀錄，改為「生圖失敗」
     if (_imgPendingId) {
-      scriptHistory = scriptHistory.filter(h => h.id !== _imgPendingId);
-      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-      if (window.syncToCloud) window.syncToCloud();
-      renderHistory();
+      const ti = scriptHistory.findIndex(h => h.id === _imgPendingId);
+      if (ti !== -1) {
+        scriptHistory[ti] = { ...scriptHistory[ti], format: '生圖失敗', taskId: '',
+          script: `❌ 生圖逾時（點數已退還）\n\nPrompt：${prompt}` };
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
     }
     resetUI('生圖逾時（超過 3 分鐘），請稍後再試');
 
