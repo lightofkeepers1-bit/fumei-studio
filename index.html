@@ -1622,7 +1622,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2143,7 +2143,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.8';
+const APP_VERSION = '4.6.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3427,11 +3427,11 @@ async function genInspo() {
 
   const geminiPrompt = (style) => `請針對話題「${topic}」（類型：${type}），用「${style}」的角度提出一個梗圖創意方向。
 
-你的回覆只能有以下兩行，格式如下：
+你的回覆只能有以下兩行，絕對不能使用 markdown、粗體、符號，格式如下：
 方向：（梗圖切入點一句話，20字以內）
 原因：（為什麼台灣人會有共鳴或覺得好笑，30字以內）
 
-範例：
+範例（嚴格照這個格式，不要加任何符號）：
 方向：把老闆的晨會當成求生節目來拍
 原因：台灣上班族對無意義會議的共同痛苦，一看就懂`;
 
@@ -3476,16 +3476,21 @@ async function genInspo() {
       </div>`;
     }
     const text = res.value || '';
+    // 先清除 Gemini 常見的 markdown 格式（**粗體**、*斜體*）
+    const clean = text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, '').trim();
     // 解析「方向：」— 支援跨行內容（取到下一個標籤前）
-    let dir = (text.match(/方向[：:]\s*([\s\S]+?)(?=原因[：:]|$)/) || [])[1]?.replace(/\n/g,' ').trim() || '';
+    let dir = (clean.match(/方向[：:]\s*([\s\S]+?)(?=原因[：:]|$)/) || [])[1]?.replace(/\n/g,' ').trim() || '';
     // 解析「原因：」— 同樣支援跨行
-    let why = (text.match(/原因[：:]\s*([\s\S]+?)$/) || [])[1]?.replace(/\n/g,' ').trim() || '';
+    let why = (clean.match(/原因[：:]\s*([\s\S]+?)$/) || [])[1]?.replace(/\n/g,' ').trim() || '';
     // fallback：整段文字分行
     if (!dir) {
-      const lines = text.split('\n').filter(l => l.trim());
+      const lines = clean.split('\n').filter(l => l.trim());
       dir = lines[0]?.trim() || '（無法解析）';
       why = lines.slice(1).join(' ').trim() || '';
     }
+    // 清掉 dir/why 前後可能殘留的冒號
+    dir = dir.replace(/^[：:]\s*/, '').trim();
+    why = why.replace(/^[：:]\s*/, '').trim();
     return `<div class="inspo-card" data-dir="${dir.replace(/"/g,'&quot;')}">
       <span class="inspo-badge ${badge}">${emoji} ${label}</span>
       <div class="inspo-direction">${dir}</div>
