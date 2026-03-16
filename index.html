@@ -1619,7 +1619,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2116,7 +2116,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.0';
+const APP_VERSION = '4.6.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5176,19 +5176,36 @@ window.introNext = introNext;
 
 function introGoTo(page) {
   _introPage = page;
+  const CHARS = {
+    1: { bubble: '嗨！我是<strong>富美</strong> 👋<br>你的 AI 社群梗圖創作搭檔！' },
+    2: { bubble: '只要<strong>三步驟</strong>就能產出梗圖腳本！💪' },
+    3: { bubble: '準備好了嗎？一起來創作吧！🎉' },
+  };
+  const IMG_SRCS = [
+    null,
+    document.getElementById('intro-char-img')?.src || '',
+  ];
+
   for (let i = 1; i <= INTRO_TOTAL; i++) {
     const el = document.getElementById(`intro-p${i}`);
-    el.style.display = i === page ? 'flex' : 'none';
-    if (i === page) {
-      // re-trigger animations
-      el.querySelectorAll('.intro-char').forEach(c => { c.style.animation='none'; void c.offsetWidth; c.style.animation=''; });
-      el.querySelectorAll('.intro-content').forEach(c => { c.style.animation='none'; c.style.opacity='0'; void c.offsetWidth; c.style.animation=''; });
-    }
-    const dot = document.getElementById(`dot-${i}`);
-    if (dot) dot.classList.toggle('active', i === page);
+    if (el) el.style.display = i === page ? 'block' : 'none';
+    const dot = document.getElementById(`idot-${i}`);
+    if (dot) dot.classList.toggle('on', i === page);
   }
+
+  // 更新氣泡文字
+  const bubble = document.getElementById('intro-bubble');
+  if (bubble && CHARS[page]) {
+    bubble.style.animation = 'none';
+    bubble.style.opacity = '0';
+    void bubble.offsetWidth;
+    bubble.style.animation = 'introBubbleIn 0.35s ease forwards';
+    bubble.innerHTML = CHARS[page].bubble;
+  }
+
+  // 下一步按鈕
   const nextBtn = document.getElementById('intro-next-btn');
-  if (nextBtn) nextBtn.style.display = page < INTRO_TOTAL ? 'block' : 'none';
+  if (nextBtn) nextBtn.style.display = page < INTRO_TOTAL ? 'inline-block' : 'none';
 }
 
 // ── ONBOARDING ────────────────────────────────────
