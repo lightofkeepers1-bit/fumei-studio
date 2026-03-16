@@ -807,7 +807,7 @@ window.adminLoadInviteCodes = async () => {
           '<button data-delete="' + codeId + '" style="padding:4px 10px;border-radius:8px;border:1.5px solid #eee;background:#fafafa;color:#aaa;font-size:0.72rem;font-weight:800;cursor:pointer">🗑️</button>',
         '</div>'
       ].join('');
-      row.querySelector('[data-copy]')?.addEventListener('click', () => window.adminCopyCode(codeId));
+      row.querySelector('[data-copy]')?.addEventListener('click', function() { window.adminCopyCode(codeId, this); });
       row.querySelector('[data-deactivate]')?.addEventListener('click', () => window.adminDeactivateCode(codeId));
       row.querySelector('[data-delete]')?.addEventListener('click', () => window.adminDeleteCode(codeId));
       return row;
@@ -943,9 +943,23 @@ window.submitFeedback = async () => {
   }
 };
 
-window.adminCopyCode = async (code) => {
-  try { await navigator.clipboard.writeText(code); }
-  catch(e) { prompt('複製此邀請碼：', code); }
+window.adminCopyCode = async (code, btn) => {
+  try {
+    await navigator.clipboard.writeText(code);
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✅ 已複製';
+      btn.style.color = '#2d6a4f';
+      btn.style.borderColor = '#b7e4c7';
+      btn.style.background = '#f0fff4';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.color = '#764ba2';
+        btn.style.borderColor = '#e8d5f5';
+        btn.style.background = 'white';
+      }, 2000);
+    }
+  } catch(e) { prompt('複製此邀請碼：', code); }
 };
 
 window.adminDeleteCode = async (code) => {
@@ -1042,7 +1056,38 @@ onAuthStateChanged(auth, async (user) => {
     const data = await window.loadFromCloud(user.uid);
     if (data) {
       if (data.fumei_tasks)         { localStorage.setItem('fumei_tasks', data.fumei_tasks); window.tasks = JSON.parse(data.fumei_tasks); window._renderTasks(); }
-      if (data.fumei_history)       { localStorage.setItem('fumei_history', data.fumei_history); window.scriptHistory = JSON.parse(data.fumei_history); window._renderHistory(); }
+      if (data.fumei_history) {
+        // ✅ 合併雲端與本地歷史，不直接覆蓋（避免刷新時丟失還沒同步的本地資料）
+        try {
+          const cloudHistory = JSON.parse(data.fumei_history);
+          const localHistory = JSON.parse(localStorage.getItem('fumei_history') || '[]');
+          // 以 id 為 key，雲端 + 本地合併，id 相同時以較新的 format（雲端）為主，但本地有雲端沒有的也保留
+          const mergeMap = new Map();
+          // 先放雲端
+          cloudHistory.forEach(h => mergeMap.set(h.id, h));
+          // 本地的：如果雲端沒有這筆就加進去，如果有就看哪個較「完整」（非 pending 狀態優先）
+          localHistory.forEach(h => {
+            if (!mergeMap.has(h.id)) {
+              mergeMap.set(h.id, h);
+            } else {
+              const cloud = mergeMap.get(h.id);
+              const localIsBetter = (h.format !== '生成中' && h.format !== '生圖中') &&
+                                    (cloud.format === '生成中' || cloud.format === '生圖中');
+              if (localIsBetter) mergeMap.set(h.id, h);
+            }
+          });
+          const merged = Array.from(mergeMap.values())
+            .sort((a, b) => b.id - a.id)
+            .slice(0, 50);
+          localStorage.setItem('fumei_history', JSON.stringify(merged));
+          window.scriptHistory = merged;
+        } catch(e) {
+          // fallback：直接用雲端
+          localStorage.setItem('fumei_history', data.fumei_history);
+          window.scriptHistory = JSON.parse(data.fumei_history);
+        }
+        window._renderHistory();
+      }
       if (data.fumei_chars)         { localStorage.setItem('fumei_chars', data.fumei_chars); }
       if (data.fumei_char_active)   { localStorage.setItem('fumei_char_active', data.fumei_char_active); }
       if (data.fumei_onboarded)     { localStorage.setItem('fumei_onboarded', data.fumei_onboarded); }
@@ -1501,7 +1546,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1988,7 +2033,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.8';
+const APP_VERSION = '4.3.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
