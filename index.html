@@ -1608,7 +1608,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1758,21 +1758,21 @@ window.syncToCloud = async () => {
         <button class="sub-tab" id="promptTabBtn" onclick="showSub('prompt',this)">🎨 Gemini Prompt</button>
       </div>
       <div id="sub-script">
-        <div class="result show" id="scriptResult"></div>
-        <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
-
-        <!-- 腳本改寫區 -->
-        <div id="rewriteArea" style="margin-top:16px;border-top:1px solid #f0e8ff;padding-top:14px">
-          <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:10px">✏️ 改寫腳本</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <!-- 改寫快捷列：固定在腳本上方 -->
+        <div id="rewriteArea" style="margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:0.75rem;font-weight:800;color:#bbb;white-space:nowrap;flex-shrink:0">✏️ 改寫：</span>
             <button class="rewrite-chip" onclick="rewriteScript('更誇張、更戲劇化，情緒拉到最高點')">🔥 更誇張</button>
             <button class="rewrite-chip" onclick="rewriteScript('更溫和、更日常，語氣輕鬆不用力')">🌸 更溫和</button>
             <button class="rewrite-chip" onclick="rewriteScript('改成適合 Instagram Reels 的節奏，短句、斷行、有畫面感，每句話都要抓眼球')">⚡ Reels 節奏</button>
             <button class="rewrite-chip" onclick="rewriteScript('更台味、更接地氣，用台灣人日常說話方式')">🇹🇼 更台味</button>
           </div>
-          <div id="rewriteLoading" style="display:none;margin-top:10px;font-size:0.83rem;color:var(--pink-deep);font-weight:700">✨ 改寫中...</div>
+          <div id="rewriteLoading" style="display:none;margin-top:8px;font-size:0.83rem;color:var(--pink-deep);font-weight:700">✨ 改寫中...</div>
           <div id="rewriteErr" class="err"></div>
         </div>
+
+        <div class="result show" id="scriptResult"></div>
+        <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
       </div>
       <div id="sub-prompt" style="display:none">
         <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 <span class="char-name-ui">角色</span> 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
@@ -1810,6 +1810,7 @@ window.syncToCloud = async () => {
             <div style="font-weight:900;font-size:0.82rem;color:#764ba2;font-family:'Nunito',sans-serif">高品質</div>
             <div style="font-size:0.7rem;color:#bbb">Nano Banana Pro</div>
             <div style="margin-top:5px;background:#764ba2;color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡5點</div>
+            <div style="margin-top:5px;font-size:0.68rem;color:#a78bcc;font-weight:700">🈶 適合中文輸出</div>
           </div>
         </div>
 
@@ -2101,7 +2102,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.1';
+const APP_VERSION = '4.5.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5478,10 +5479,18 @@ function handleImgRefFiles(files) {
     if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = e => {
-      const dataUrl = e.target.result;
-      const base64  = dataUrl.split(',')[1];
-      _imgRefs.push({ dataUrl, base64, mimeType: file.type });
-      renderImgRefPreviews();
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const base64 = jpegDataUrl.split(',')[1];
+        _imgRefs.push({ dataUrl: jpegDataUrl, base64, mimeType: 'image/jpeg' });
+        renderImgRefPreviews();
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
