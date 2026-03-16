@@ -113,7 +113,7 @@ export default async function handler(req, res) {
     aspect_ratio:  ratio,
     resolution:    '1K',
     output_format: 'png',
-    image_input:   refs.length > 0 ? refs.map(r => `data:${r.mimeType};base64,${r.base64}`) : [],
+    image_input:   refs.length > 0 ? refs.map(r => r.base64) : undefined,
   };
 
   try {
