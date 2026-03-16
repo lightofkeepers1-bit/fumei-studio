@@ -1129,21 +1129,31 @@ onAuthStateChanged(auth, async (user) => {
     if (window.renderHeaderCharBar) window.renderHeaderCharBar();
 
     // ✅ 登入後自動繼續輪詢未完成的生圖任務（_currentUid 此時已確認存在）
-    setTimeout(() => {
+    setTimeout(async () => {
       const _stale = 30 * 60 * 1000;
-      const _scriptStale = 10 * 60 * 1000; // 腳本生成超過 10 分鐘必定已中斷
+      const _scriptStale = 3 * 60 * 1000;
       const _n = Date.now();
 
       // 生圖：繼續輪詢
       const pending = scriptHistory.filter(h => h.format === '生圖中' && h.taskId && (_n - h.id) < _stale);
       pending.forEach(h => { if (window.resumeImgPolling) window.resumeImgPolling(h); });
 
-      // 腳本：超過 10 分鐘的「生成中」直接標記失敗（刷新後無法繼續）
+      // 計算需要退點的佔位
+      const toRefund = scriptHistory.filter(h =>
+        (h.format === '生成中' && (_n - h.id) > _scriptStale) ||
+        (h.format === '掃描中' && (_n - h.id) > _scriptStale)
+      );
+
+      // 標記失敗
       let scriptFixed = false;
       scriptHistory = scriptHistory.map(h => {
         if (h.format === '生成中' && (_n - h.id) > _scriptStale) {
           scriptFixed = true;
           return { ...h, format: '生成失敗', script: '❌ 生成中斷（頁面已重新整理，點數已退還）\n\n請重新產出腳本。' };
+        }
+        if (h.format === '掃描中' && (_n - h.id) > _scriptStale) {
+          scriptFixed = true;
+          return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（頁面已重新整理，點數已退還）\n\n請重新掃描。' };
         }
         return h;
       });
@@ -1151,6 +1161,32 @@ onAuthStateChanged(auth, async (user) => {
         localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
         if (window.syncToCloud) window.syncToCloud();
         renderHistory();
+      }
+
+      // ✅ 退點（每筆失敗各退對應點數）
+      if (toRefund.length > 0) {
+        try {
+          let totalRefund = 0;
+          toRefund.forEach(h => {
+            if (h.format === '生成中') totalRefund += CREDIT_COST.script || 2;
+            if (h.format === '掃描中') totalRefund += CREDIT_COST.news || 2;
+          });
+          const cur = window.getCredits ? window.getCredits() : parseInt(localStorage.getItem('fumei_credits') || '0');
+          const refunded = Math.max(0, cur) + totalRefund;
+          localStorage.setItem('fumei_credits', String(refunded));
+          if (window.updateCreditsUI) window.updateCreditsUI(refunded);
+          if (window.addCreditLogEntry) window.addCreditLogEntry({ action: `中斷退點（${toRefund.length}筆）`, delta: +totalRefund, ts: Date.now() });
+          // 同步到雲端
+          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+          await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+          // Toast 通知
+          const toast = document.getElementById('creditsToast');
+          if (toast) {
+            toast.textContent = `⚡ 偵測到 ${toRefund.length} 筆中斷任務，已退還 ${totalRefund} 點`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 5000);
+          }
+        } catch(e) { console.error('[refund stale]', e); }
       }
     }, 1000);
 
@@ -1546,7 +1582,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.4.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2033,7 +2069,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.9';
+const APP_VERSION = '4.4.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2792,6 +2828,28 @@ async function scanTopics() {
   btn.disabled=true; load.classList.add('show'); grid.innerHTML='';
   document.getElementById('selectedCard').style.display='none';
   document.getElementById('topicsCard').style.display='none';
+
+  // ✅ 扣點後立刻存「掃描中」佔位（刷新後可看到，3 分鐘後自動標記失敗）
+  var _scanPendingId = null;
+  if (window._currentUid && !window._guestMode) {
+    _scanPendingId = Date.now();
+    const isNewsForPending = (document.getElementById('topicCat')?.value === '時事');
+    const scanPendingEntry = {
+      id: _scanPendingId,
+      topic: '📡 話題掃描｜' + (isNewsForPending ? '今日時事' : (topic.label || topic.name || '話題')),
+      format: '掃描中',
+      type: '',
+      script: '⏳ 掃描中，請稍候...\n\n刷新頁面後若此紀錄仍在，表示掃描未完成。',
+      prompt: '',
+      date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+    };
+    scriptHistory.unshift(scanPendingEntry);
+    if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if (window.syncToCloud) window.syncToCloud();
+    renderHistory();
+  }
+
   try {
     const isNews = !!topic.isNews;
     const today = new Date();
@@ -2888,24 +2946,30 @@ ${newsHeadlines}
     });
     document.getElementById('topicsCard').style.display = 'block';
 
-    // 登入用戶：把掃描結果存入歷史紀錄，刷新後不會遺失
+    // 登入用戶：把掃描結果存入歷史紀錄，取代佔位
     if (window._currentUid && !window._guestMode && topicList.length > 0) {
       var scanLines = topicList.map(function(item, i) {
         return '話題' + (i+1) + '：' + item.title + '\n「' + item.sub + '」';
       });
       var scanEntry = {
-        id: Date.now(),
+        id: _scanPendingId || Date.now(),
         topic: '📡 話題掃描｜' + (topic.label || topic.name || '今日時事'),
         script: scanLines.join('\n\n'),
         format: '話題掃描',
         type: '',
         date: new Date().toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })
       };
-      scriptHistory.unshift(scanEntry);
+      if (_scanPendingId) {
+        const idx = scriptHistory.findIndex(h => h.id === _scanPendingId);
+        if (idx !== -1) scriptHistory[idx] = scanEntry;
+        else scriptHistory.unshift(scanEntry);
+      } else {
+        scriptHistory.unshift(scanEntry);
+      }
       if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
       localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
       if (window.syncToCloud) window.syncToCloud();
-      renderHistory(); // ✅ 補上這行，存完後更新歷史頁面
+      renderHistory();
     }
 
     // 訪客：掃描成功（點數已在前面扣除）
@@ -2914,6 +2978,17 @@ ${newsHeadlines}
       return;
     }
   } catch(e) {
+    // 掃描失敗：把佔位改為「掃描失敗」保留紀錄
+    if (_scanPendingId && window._currentUid && !window._guestMode) {
+      const fi = scriptHistory.findIndex(h => h.id === _scanPendingId);
+      if (fi !== -1) {
+        scriptHistory[fi] = { ...scriptHistory[fi], format: '掃描失敗',
+          script: '❌ 掃描失敗\n\n請稍後再試。' };
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
+    }
     // ✅ 掃描失敗：退還點數（登入用戶）
     if (window._currentUid && !window._guestMode) {
       const isNewsRefund = (document.getElementById('topicCat')?.value === '時事');
@@ -3853,7 +3928,7 @@ function renderHistory() {
     return;
   }
   empty.style.display = 'none';
-  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed','生圖':'hb-img','生圖中':'hb-pending','生圖失敗':'hb-failed'};
+  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed','生圖':'hb-img','生圖中':'hb-pending','生圖失敗':'hb-failed','掃描中':'hb-pending','掃描失敗':'hb-failed'};
   list.innerHTML = items.map(h => `
     <div class="history-item" id="hi-${h.id}">
       <div class="history-header" onclick="toggleHistory(${h.id})">
@@ -5846,21 +5921,26 @@ window.addEventListener('load', () => {
   initDropZone();
   // 付款 return 處理（Stripe redirect 回來）
   handlePaymentReturn();
-  // ✅ 超過 30 分鐘的「生成中」/「生圖中」改為失敗狀態（保留紀錄）
+  // ✅ 超過 3 分鐘的「生成中」、超過 30 分鐘的「生圖中」改為失敗狀態
   const _staleThreshold = 30 * 60 * 1000;
+  const _scriptStaleLoad = 3 * 60 * 1000;
   const _now = Date.now();
   let _cleaned = false;
   scriptHistory = scriptHistory.map(h => {
-    if ((h.format === '生成中' || h.format === '生圖中') && (_now - h.id) > _staleThreshold) {
+    if (h.format === '生成中' && (_now - h.id) > _scriptStaleLoad) {
       _cleaned = true;
-      return {
-        ...h,
-        format: h.format === '生圖中' ? '生圖失敗' : '生成失敗',
-        taskId: '',
-        script: h.format === '生圖中'
-          ? `❌ 生圖逾時（已超過 30 分鐘）\n\nPrompt：${h.topic}`
-          : '❌ 生成逾時（已超過 30 分鐘）\n\n請重新產出腳本。',
-      };
+      return { ...h, format: '生成失敗', taskId: '',
+        script: '❌ 生成逾時（已超過 3 分鐘）\n\n請重新產出腳本。' };
+    }
+    if (h.format === '掃描中' && (_now - h.id) > _scriptStaleLoad) {
+      _cleaned = true;
+      return { ...h, format: '掃描失敗',
+        script: '❌ 掃描逾時（頁面已重新整理）\n\n請重新掃描。' };
+    }
+    if (h.format === '生圖中' && (_now - h.id) > _staleThreshold) {
+      _cleaned = true;
+      return { ...h, format: '生圖失敗', taskId: '',
+        script: `❌ 生圖逾時（已超過 30 分鐘）\n\nPrompt：${h.topic}` };
     }
     return h;
   });
