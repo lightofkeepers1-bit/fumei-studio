@@ -1615,7 +1615,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1773,13 +1773,17 @@ window.syncToCloud = async () => {
             <button class="rewrite-chip" onclick="rewriteScript('更溫和、更日常，語氣輕鬆不用力')">🌸 更溫和</button>
             <button class="rewrite-chip" onclick="rewriteScript('改成適合 Instagram Reels 的節奏，短句、斷行、有畫面感，每句話都要抓眼球')">⚡ Reels 節奏</button>
             <button class="rewrite-chip" onclick="rewriteScript('更台味、更接地氣，用台灣人日常說話方式')">🇹🇼 更台味</button>
+            <button class="rewrite-chip" onclick="rewriteScript('加強諷刺感，用表面正向、實則嘲諷的語氣，讓讀者秒懂言下之意，笑中帶刺')">😏 更諷刺</button>
           </div>
           <div id="rewriteLoading" style="display:none;margin-top:8px;font-size:0.83rem;color:var(--pink-deep);font-weight:700">✨ 改寫中...</div>
           <div id="rewriteErr" class="err"></div>
         </div>
 
         <div class="result show" id="scriptResult"></div>
-        <button class="btn-sm" style="margin-top:10px" onclick="cp('scriptResult')">📋 複製腳本</button>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn-sm" style="margin:0" onclick="cp('scriptResult')">📋 複製腳本</button>
+          <button class="btn-sm" style="margin:0;background:linear-gradient(135deg,#e8d5f5,#d4b8f0);color:#5a2d82" onclick="goToImageWithPrompt()">🎨 去生圖</button>
+        </div>
       </div>
       <div id="sub-prompt" style="display:none">
         <p id="promptDesc" style="font-size:0.83rem;color:#888;margin-bottom:10px">上傳 <span class="char-name-ui">角色</span> 參考圖 + 複製以下 Prompt 到 Gemini 即可生圖 👇</p>
@@ -1848,11 +1852,10 @@ window.syncToCloud = async () => {
 
         <!-- Prompt -->
         <div style="margin-bottom:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="margin-bottom:6px">
             <div style="font-size:0.75rem;font-weight:800;color:#bbb">✏️ Prompt</div>
-            <button onclick="fillImgPromptFromScript()" style="font-size:0.68rem;padding:2px 8px;border-radius:20px;border:1.5px solid #e8d5f5;background:#f8f4ff;color:#764ba2;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">從腳本帶入 ↑</button>
           </div>
-          <textarea id="imgPromptInput" rows="6" placeholder="輸入生圖指令，例如：&#10;給我一隻可愛的貓咪&#10;&#10;或從腳本頁帶入 Gemini Prompt" style="width:100%;border:2px solid #f0d8e0;border-radius:12px;padding:12px;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;resize:vertical;background:#fffbfd;color:var(--brown)"></textarea>
+          <textarea id="imgPromptInput" rows="6" placeholder="輸入生圖指令，例如：&#10;給我一隻可愛的貓咪&#10;&#10;提示：在產腳本頁點「🎨 去生圖」可直接帶入 Prompt" style="width:100%;border:2px solid #f0d8e0;border-radius:12px;padding:12px;font-size:0.85rem;font-family:'Noto Sans TC',sans-serif;outline:none;resize:vertical;background:#fffbfd;color:var(--brown)"></textarea>
         </div>
 
         <!-- 生成按鈕 -->
@@ -2109,7 +2112,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.6';
+const APP_VERSION = '4.5.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5537,6 +5540,29 @@ function fillImgPromptFromScript() {
     return;
   }
   document.getElementById('imgPromptInput').value = val;
+}
+
+function goToImageWithPrompt() {
+  // 帶入 Gemini Prompt（優先）或腳本內容
+  const promptEl = document.getElementById('promptContent');
+  const scriptEl = document.getElementById('scriptResult');
+  const val = (promptEl && promptEl.textContent.trim()) || (scriptEl && scriptEl.textContent.trim()) || '';
+  if (!val) {
+    const toast = document.getElementById('creditsToast');
+    if (toast) { toast.textContent = '請先產出腳本'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
+    return;
+  }
+  // 切換到生圖 tab
+  const imgTab = document.querySelector('.tab[onclick*="image"]');
+  if (imgTab) switchTab('image', imgTab);
+  // 填入 prompt
+  setTimeout(() => {
+    const input = document.getElementById('imgPromptInput');
+    if (input) {
+      input.value = val;
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 50);
 }
 
 // 主生圖函式（前端輪詢版）
