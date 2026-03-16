@@ -1,6 +1,7 @@
 // api/image.js — Fumei Studio 生圖 API（KIE）
 // POST：建立任務 → 回傳 taskId
-// GET：查詢任務狀態 → 回傳 status + images
+// GET?taskId=xxx：查詢任務狀態 → 回傳 status + images
+// GET?proxy=url：代理圖片（解決 CORS）
 
 const FIREBASE_PROJECT = 'fumei-3e684';
 const FIREBASE_API_KEY = 'AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY';
@@ -44,11 +45,32 @@ export default async function handler(req, res) {
   const ip  = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
   const KIE_API_KEY = process.env.KIE_API_KEY;
   if (!KIE_API_KEY) return res.status(500).json({ error: 'KIE API Key 未設定' });
+
+  // ── 圖片 Proxy（解決 CORS）──────────────────────────
+  if (req.method === 'GET' && req.query.proxy) {
+    const imgUrl = decodeURIComponent(req.query.proxy);
+    // 安全檢查：只允許代理 KIE 相關域名
+    const allowed = ['storage.googleapis.com', 'kie.ai', 'redpandaai.co', 'tempfile.redpandaai.co'];
+    const urlHost = new URL(imgUrl).hostname;
+    if (!allowed.some(d => urlHost.endsWith(d))) {
+      return res.status(403).json({ error: '不允許代理此來源' });
+    }
+    try {
+      const imgRes = await fetch(imgUrl);
+      if (!imgRes.ok) return res.status(imgRes.status).json({ error: '圖片取得失敗' });
+      const contentType = imgRes.headers.get('content-type') || 'image/png';
+      const buffer = Buffer.from(await imgRes.arrayBuffer());
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.status(200).send(buffer);
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (!checkIpRate(ip)) return res.status(429).json({ error: '⚠️ 請求過於頻繁' });
 
   // ── GET：查詢任務狀態（前端輪詢用）──────────────────
-  // 正確 endpoint：/api/v1/jobs/recordInfo
-  // 正確回傳結構：{ code, data: { state, resultJson, failMsg } }
   if (req.method === 'GET') {
     const taskId = req.query.taskId;
     if (!taskId) return res.status(400).json({ error: '請提供 taskId' });
@@ -61,17 +83,20 @@ export default async function handler(req, res) {
       const task = raw?.data || {};
       const state = String(task?.state || '').toLowerCase();
 
-      // ✅ 成功：state === 'success'，圖片在 resultJson（JSON 字串需再 parse）
       if (state === 'success') {
         let images = [];
         try {
           const result = typeof task.resultJson === 'string'
             ? JSON.parse(task.resultJson)
             : task.resultJson;
-          // 格式：{ resultUrls: ['https://...'] }
           const urls = result?.resultUrls || result?.images || result?.imageUrls || [];
           images = Array.isArray(urls)
-            ? urls.map(u => ({ url: typeof u === 'string' ? u : u.url }))
+            ? urls.map(u => {
+                const rawUrl = typeof u === 'string' ? u : u.url;
+                // 回傳 proxy URL，讓前端透過 Vercel 取圖避免 CORS
+                const proxyUrl = `/api/image?proxy=${encodeURIComponent(rawUrl)}`;
+                return { url: proxyUrl, originalUrl: rawUrl };
+              })
             : [];
         } catch(e) {
           console.error('[image] parse resultJson error:', e.message);
@@ -83,7 +108,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ status: 'success', images });
       }
 
-      // ❌ 失敗
       if (state === 'fail' || state === 'failed' || state === 'error') {
         return res.status(200).json({
           status: 'failed',
@@ -91,7 +115,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // ⏳ 排隊或生成中：waiting / queuing / generating
       return res.status(200).json({ status: 'pending', state });
 
     } catch(e) {
