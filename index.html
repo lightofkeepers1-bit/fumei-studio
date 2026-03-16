@@ -1622,7 +1622,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1751,7 +1751,7 @@ window.syncToCloud = async () => {
     <div class="hint-box">💡 <strong>話題框可以留空！</strong> 系統會自動搜尋當日時事，幫 <span class="char-name-ui">角色</span> 找題目 ✨</div>
     <textarea id="scriptTopic" rows="3" placeholder="（可留空，系統自動找話題）&#10;或輸入指定話題，例如：&#10;老闆突然說要開臨時會議&#10;颱風假到底放不放" oninput="if(!this.value.trim())unlockScriptType()"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center" class="row">
-      <select id="scriptType" onchange="updateCostBadges()">
+      <select id="scriptType" onchange="onScriptTypeChange()">
         <option value="職場梗">💼 職場梗</option>
         <option value="單身日常">💅 單身日常</option>
         <option value="旅遊心得">✈️ 旅遊心得</option>
@@ -1765,6 +1765,18 @@ window.syncToCloud = async () => {
       </select>
       <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本 <span class="cost-badge">⚡1</span></button>
       <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想 <span class="cost-badge" style="background:rgba(255,255,255,0.25)">⚡2</span></button>
+    </div>
+    <!-- 時事反應分類標籤 -->
+    <div id="scriptNewsCatRow" style="display:none;margin-top:10px;flex-wrap:wrap;gap:6px">
+      <button class="news-cat-chip active" data-cat="all" onclick="selectScriptNewsCat(this)">📰 全部</button>
+      <button class="news-cat-chip" data-cat="politics" onclick="selectScriptNewsCat(this)">🏛️ 政治</button>
+      <button class="news-cat-chip" data-cat="society" onclick="selectScriptNewsCat(this)">👥 社會</button>
+      <button class="news-cat-chip" data-cat="finance" onclick="selectScriptNewsCat(this)">💰 財經</button>
+      <button class="news-cat-chip" data-cat="lifestyle" onclick="selectScriptNewsCat(this)">🛍️ 生活消費</button>
+      <button class="news-cat-chip" data-cat="world" onclick="selectScriptNewsCat(this)">🌍 國際</button>
+      <button class="news-cat-chip" data-cat="entertainment" onclick="selectScriptNewsCat(this)">🎬 娛樂</button>
+      <button class="news-cat-chip" data-cat="sports" onclick="selectScriptNewsCat(this)">⚽ 體育</button>
+      <button class="news-cat-chip" data-cat="education" onclick="selectScriptNewsCat(this)">📚 文教</button>
     </div>
     <!-- 三AI發想區塊 -->
     <div id="inspoArea" style="display:none;margin-top:20px">
@@ -2131,7 +2143,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.6';
+const APP_VERSION = '4.6.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2544,6 +2556,7 @@ function getRandomStyle() {
 
 // ── 新聞分類 chip ──────────────────────────────────
 let _selectedNewsCat = 'all';
+let _selectedScriptNewsCat = 'all';
 
 function onTopicCatChange() {
   updateCostBadges();
@@ -2552,10 +2565,23 @@ function onTopicCatChange() {
   if (row) row.style.display = isNews ? 'flex' : 'none';
 }
 
+function onScriptTypeChange() {
+  updateCostBadges();
+  const isNews = document.getElementById('scriptType').value === '時事反應';
+  const row = document.getElementById('scriptNewsCatRow');
+  if (row) row.style.display = isNews ? 'flex' : 'none';
+}
+
 function selectNewsCat(btn) {
-  document.querySelectorAll('.news-cat-chip').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#newsCatRow .news-cat-chip').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _selectedNewsCat = btn.dataset.cat;
+}
+
+function selectScriptNewsCat(btn) {
+  document.querySelectorAll('#scriptNewsCatRow .news-cat-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _selectedScriptNewsCat = btn.dataset.cat;
 }
 
 // Google News RSS topic IDs for Taiwan
@@ -3251,6 +3277,17 @@ function goToScript() {
   sel.disabled = true;
   sel.title = '從話題掃描帶入，固定為時事反應';
 
+  // 顯示分類 chip，同步話題掃描的分類選擇
+  const row = document.getElementById('scriptNewsCatRow');
+  if (row) {
+    row.style.display = 'flex';
+    // 同步話題掃描選擇的分類
+    _selectedScriptNewsCat = _selectedNewsCat;
+    row.querySelectorAll('.news-cat-chip').forEach(b => {
+      b.classList.toggle('active', b.dataset.cat === _selectedScriptNewsCat);
+    });
+  }
+
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab')[2].classList.add('active');
@@ -3636,9 +3673,10 @@ async function genScript() {
       loadTxt.textContent = '正在比對最新時事...';
       const rssItems = window._rssItems || [];
       if (!rssItems.length && window._currentUid) {
-        // 若 RSS 尚未載入，先抓一次
+        // 若 RSS 尚未載入，先抓一次（帶入分類參數）
         try {
-          const newsRes = await fetch('/api/news', {
+          const scriptCatParam = (_selectedScriptNewsCat && _selectedScriptNewsCat !== 'all') ? `?category=${_selectedScriptNewsCat}` : '';
+          const newsRes = await fetch(`/api/news${scriptCatParam}`, {
             headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid }
           });
           if (newsRes.ok) {
@@ -3659,6 +3697,11 @@ async function genScript() {
         newsContext = `\n\n【相關時事參考】\n` + matched.map(i => `・${i.title}（${i.source}）`).join('\n');
         used.textContent = `📰 找到 ${matched.length} 則相關時事`;
       } else {
+        // 有分類時，加分類提示讓 AI 在時事方向生成腳本
+        const catKw = NEWS_CAT_KEYWORDS[_selectedScriptNewsCat];
+        if (catKw && _selectedScriptNewsCat !== 'all') {
+          newsContext = `\n\n【新聞分類方向】${catKw}`;
+        }
         used.textContent = `📭 最近沒有直接相關的時事，將以話題本身產出腳本`;
       }
       used.style.display = 'block';
