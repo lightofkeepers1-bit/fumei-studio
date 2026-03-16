@@ -1169,7 +1169,7 @@ onAuthStateChanged(auth, async (user) => {
       const toRefund = scriptHistory.filter(h =>
         (h.format === '生成中' && (_n - h.id) > _scriptStale) ||
         (h.format === '掃描中' && (_n - h.id) > _scriptStale) ||
-        (h.format === '生圖中' && !h.taskId && (_n - h.id) > _imgNoTaskStale)
+        (h.format === '生圖中' && !h.taskId && !h.refunded && (_n - h.id) > _imgNoTaskStale)
       );
 
       // 標記失敗
@@ -1183,7 +1183,7 @@ onAuthStateChanged(auth, async (user) => {
           scriptFixed = true;
           return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（頁面已重新整理，點數已退還）\n\n請重新掃描。' };
         }
-        if (h.format === '生圖中' && !h.taskId && (_n - h.id) > _imgNoTaskStale) {
+        if (h.format === '生圖中' && !h.taskId && !h.refunded && (_n - h.id) > _imgNoTaskStale) {
           scriptFixed = true;
           return { ...h, format: '生圖失敗', taskId: '', script: '❌ 生圖中斷（點數已退還）\n\n請重新生圖。' };
         }
@@ -1615,7 +1615,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2109,7 +2109,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.5';
+const APP_VERSION = '4.5.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4136,7 +4136,7 @@ async function refreshHistory() {
         totalRefund += window.CREDIT_COST?.news || 2;
         return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（點數已退還）\n\n請重新掃描。' };
       }
-      if (h.format === '生圖中' && !h.taskId && (_now - h.id) > _imgNoTaskStaleMs) {
+      if (h.format === '生圖中' && !h.taskId && !h.refunded && (_now - h.id) > _imgNoTaskStaleMs) {
         changed = true;
         totalRefund += h.credits || 1;
         return { ...h, format: '生圖失敗', taskId: '', script: '❌ 生圖中斷（點數已退還）\n\n請重新生圖。' };
@@ -5594,19 +5594,22 @@ async function generateImage() {
       document.getElementById('imgPreviewIdle').style.display = 'flex';
       err.textContent = '❌ ' + errMsg;
       err.classList.add('show');
-      // 退點
-      const refunded = (window.getCredits() < 0 ? 0 : window.getCredits()) + cost;
-      localStorage.setItem('fumei_credits', String(refunded));
-      window.updateCreditsUI(refunded);
-      if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
-      try {
-        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({ doc, updateDoc }) => {
-          updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-        });
-      } catch(_) {}
-      const toast = document.getElementById('creditsToast');
-      if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
     }
+  };
+
+  // 統一退點函式（只呼叫一次）
+  const doImgRefund = () => {
+    const refunded = (window.getCredits() < 0 ? 0 : window.getCredits()) + cost;
+    localStorage.setItem('fumei_credits', String(refunded));
+    window.updateCreditsUI(refunded);
+    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
+    try {
+      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({ doc, updateDoc }) => {
+        updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+      });
+    } catch(_) {}
+    const toast = document.getElementById('creditsToast');
+    if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
   };
 
   try {
@@ -5721,36 +5724,53 @@ async function generateImage() {
       }
 
       if (getData.status === 'failed') {
-        // 失敗：保留紀錄，改為「生圖失敗」
+        // 失敗：保留紀錄，改為「生圖失敗」，退點一次
         if (_imgPendingId) {
           const fi = scriptHistory.findIndex(h => h.id === _imgPendingId);
           if (fi !== -1) {
             scriptHistory[fi] = { ...scriptHistory[fi], format: '生圖失敗', taskId: '',
-              script: `❌ 生圖失敗（點數已退還）\n\nPrompt：${prompt}` };
+              script: `❌ 生圖失敗（點數已退還）\n\n📝 Prompt：\n${prompt}`,
+              refunded: true };
             localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
             if (window.syncToCloud) window.syncToCloud();
             renderHistory();
           }
         }
+        doImgRefund();
         resetUI(getData.error || '生圖失敗');
         return;
       }
       // pending → 繼續等
     }
-    // 逾時：保留紀錄，改為「生圖失敗」
+    // 逾時：保留紀錄，改為「生圖失敗」，退點一次
     if (_imgPendingId) {
       const ti = scriptHistory.findIndex(h => h.id === _imgPendingId);
       if (ti !== -1) {
         scriptHistory[ti] = { ...scriptHistory[ti], format: '生圖失敗', taskId: '',
-          script: `❌ 生圖逾時（點數已退還）\n\nPrompt：${prompt}` };
+          script: `❌ 生圖逾時（點數已退還）\n\n📝 Prompt：\n${prompt}`,
+          refunded: true };
         localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
         if (window.syncToCloud) window.syncToCloud();
         renderHistory();
       }
     }
+    doImgRefund();
     resetUI('生圖逾時（超過 3 分鐘），請稍後再試');
 
   } catch(e) {
+    // 把佔位改為失敗狀態，保留 prompt，標記已退點避免 stale check 再退
+    if (_imgPendingId && window._currentUid && !window._guestMode) {
+      const fi = scriptHistory.findIndex(h => h.id === _imgPendingId);
+      if (fi !== -1) {
+        scriptHistory[fi] = { ...scriptHistory[fi], format: '生圖失敗', taskId: '',
+          script: `❌ 生圖失敗（點數已退還）\n\n📝 Prompt：\n${prompt}`,
+          refunded: true };
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
+    }
+    doImgRefund();
     resetUI(e.message || '生圖失敗');
   }
 }
@@ -5796,11 +5816,13 @@ async function resumeImgPolling(histEntry) {
         return;
       }
       if (getData.status === 'failed') {
-        // 失敗：保留為「生圖失敗」
+        // 失敗：保留為「生圖失敗」，標記 refunded 防止 stale check 重複退點
         const fi = scriptHistory.findIndex(h => h.id === pendingId);
         if (fi !== -1) {
+          const origPrompt = scriptHistory[fi].script?.includes('📝 Prompt') ? scriptHistory[fi].script : '';
           scriptHistory[fi] = { ...scriptHistory[fi], format: '生圖失敗', taskId: '',
-            script: `❌ 生圖失敗\n\n📝 Prompt：\n${scriptHistory[fi].topic}` };
+            script: `❌ 生圖失敗（點數已退還）\n\n📝 Prompt：\n${scriptHistory[fi].topic}`,
+            refunded: true };
           localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
           if (window.syncToCloud) window.syncToCloud();
           renderHistory();
@@ -5809,11 +5831,12 @@ async function resumeImgPolling(histEntry) {
       }
     } catch(e) { /* 繼續等 */ }
   }
-  // 逾時：保留為「生圖失敗」
+  // 逾時：保留為「生圖失敗」，標記 refunded 防止 stale check 重複退點
   const ti = scriptHistory.findIndex(h => h.id === pendingId);
   if (ti !== -1) {
     scriptHistory[ti] = { ...scriptHistory[ti], format: '生圖失敗', taskId: '',
-      script: `❌ 生圖逾時\n\n📝 Prompt：\n${scriptHistory[ti].topic}` };
+      script: `❌ 生圖逾時（點數已退還）\n\n📝 Prompt：\n${scriptHistory[ti].topic}`,
+      refunded: true };
     localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
     if (window.syncToCloud) window.syncToCloud();
     renderHistory();
@@ -6100,7 +6123,7 @@ window.addEventListener('load', () => {
       return { ...h, format: '掃描失敗',
         script: '❌ 掃描逾時（已超過 1 分鐘）\n\n請重新掃描。' };
     }
-    if (h.format === '生圖中' && !h.taskId && (_now - h.id) > _imgNoTaskStaleLoad) {
+    if (h.format === '生圖中' && !h.taskId && !h.refunded && (_now - h.id) > _imgNoTaskStaleLoad) {
       _cleaned = true;
       return { ...h, format: '生圖失敗', taskId: '',
         script: '❌ 生圖中斷（建立任務失敗，點數已退還）\n\n請重新生圖。' };
