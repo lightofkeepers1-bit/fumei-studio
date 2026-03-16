@@ -1157,7 +1157,7 @@ onAuthStateChanged(auth, async (user) => {
     // ✅ 登入後自動繼續輪詢未完成的生圖任務（_currentUid 此時已確認存在）
     setTimeout(async () => {
       const _stale = 30 * 60 * 1000;
-      const _scriptStale = 3 * 60 * 1000;
+      const _scriptStale = 1 * 60 * 1000;
       const _n = Date.now();
 
       // 生圖：繼續輪詢
@@ -1608,7 +1608,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1897,7 +1897,10 @@ window.syncToCloud = async () => {
     <div class="card-title">📖 歷史腳本紀錄</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
       <p style="font-size:0.88rem;color:#888">所有產出過的腳本都會自動儲存在這裡</p>
-      <button class="btn-sm" onclick="clearAllHistory()" style="background:#fce4ec;color:#c2185b">🗑️ 清除全部</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm" onclick="refreshHistory()" id="refreshHistoryBtn" style="background:#e8f4ff;color:#1565c0">🔄 刷新</button>
+        <button class="btn-sm" onclick="clearAllHistory()" style="background:#fce4ec;color:#c2185b">🗑️ 清除全部</button>
+      </div>
     </div>
     <!-- 搜尋 & 篩選列 -->
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -2098,7 +2101,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.0';
+const APP_VERSION = '4.5.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4098,6 +4101,59 @@ function clearAllHistory() {
     if(window.syncToCloud) window.syncToCloud();
   renderHistory();
 }
+
+async function refreshHistory() {
+  const btn = document.getElementById('refreshHistoryBtn');
+  if (btn) { btn.textContent = '⏳ 刷新中...'; btn.disabled = true; }
+  try {
+    // 若已登入，先從雲端拉最新
+    if (window._currentUid && window.loadFromCloud) {
+      await window.loadFromCloud();
+    }
+    // 重新跑逾時判定（同登入後的邏輯）
+    const _now = Date.now();
+    const _scriptStaleMs = 1 * 60 * 1000;
+    const _imgStaleMs    = 30 * 60 * 1000;
+    let changed = false;
+    let totalRefund = 0;
+    scriptHistory = scriptHistory.map(h => {
+      if (h.format === '生成中' && (_now - h.id) > _scriptStaleMs) {
+        changed = true;
+        totalRefund += window.CREDIT_COST?.script || 1;
+        return { ...h, format: '生成失敗', script: '❌ 生成中斷（點數已退還）\n\n請重新產出腳本。' };
+      }
+      if (h.format === '掃描中' && (_now - h.id) > _scriptStaleMs) {
+        changed = true;
+        totalRefund += window.CREDIT_COST?.news || 2;
+        return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（點數已退還）\n\n請重新掃描。' };
+      }
+      if (h.format === '生圖中' && !h.taskId && (_now - h.id) > _imgStaleMs) {
+        changed = true;
+        return { ...h, format: '生圖失敗', script: '❌ 生圖中斷（點數已退還）' };
+      }
+      return h;
+    });
+    if (changed) {
+      localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      if (window._currentUid && totalRefund > 0) {
+        const cur = window.getCredits ? window.getCredits() : 0;
+        const refunded = cur + totalRefund;
+        localStorage.setItem('fumei_credits', String(refunded));
+        if (window.updateCreditsUI) window.updateCreditsUI(refunded);
+        try {
+          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+          await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+        } catch(_) {}
+      }
+      if (window.syncToCloud) window.syncToCloud();
+    }
+  } catch(e) { console.error('[refreshHistory]', e); }
+  renderHistory();
+  if (btn) {
+    btn.textContent = '✓ 已刷新';
+    setTimeout(() => { btn.textContent = '🔄 刷新'; btn.disabled = false; }, 1500);
+  }
+}
 </script>
 
 <!-- Settings Modal -->
@@ -6011,7 +6067,7 @@ window.addEventListener('load', () => {
   handlePaymentReturn();
   // ✅ 超過 3 分鐘的「生成中」、超過 30 分鐘的「生圖中」改為失敗狀態
   const _staleThreshold = 30 * 60 * 1000;
-  const _scriptStaleLoad = 3 * 60 * 1000;
+  const _scriptStaleLoad = 1 * 60 * 1000;
   const _now = Date.now();
   let _cleaned = false;
   scriptHistory = scriptHistory.map(h => {
