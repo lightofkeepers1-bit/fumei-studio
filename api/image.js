@@ -108,12 +108,43 @@ export default async function handler(req, res) {
   if (!prompt) return res.status(400).json({ error: '請提供 prompt' });
 
   const model = quality === 'pro' ? 'nano-banana-pro' : 'nano-banana-2';
+
+  // ── 先上傳參考圖，取得 URL ──────────────────────────
+  const KIE_UPLOAD_BASE = 'https://kieai.redpandaai.co';
+  let imageUrls = [];
+  if (refs.length > 0) {
+    try {
+      imageUrls = await Promise.all(refs.map(async (r, i) => {
+        const uploadRes = await fetch(`${KIE_UPLOAD_BASE}/api/file-base64-upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${KIE_API_KEY}`,
+          },
+          body: JSON.stringify({
+            base64Data: `data:${r.mimeType};base64,${r.base64}`,
+            uploadPath: 'fumei/refs',
+            fileName: `ref-${Date.now()}-${i}.jpg`,
+          }),
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.data?.downloadUrl) {
+          throw new Error(`參考圖上傳失敗：${uploadData.msg || uploadRes.status}`);
+        }
+        return uploadData.data.downloadUrl;
+      }));
+    } catch(e) {
+      console.error('[image] upload refs error:', e.message);
+      return res.status(500).json({ error: e.message || '參考圖上傳失敗' });
+    }
+  }
+
   const input = {
     prompt,
     aspect_ratio:  ratio,
     resolution:    '1K',
     output_format: 'png',
-    image_input:   refs.length > 0 ? refs.map(r => r.base64) : undefined,
+    ...(imageUrls.length > 0 && { image_input: imageUrls }),
   };
 
   try {
