@@ -1475,7 +1475,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.3.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1962,7 +1962,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.3.6';
+const APP_VERSION = '4.3.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5312,7 +5312,7 @@ async function generateImage() {
         topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
         format: '生圖中',
         type: _imgQuality === 'pro' ? '高品質' : '一般品質',
-        script: '⏳ 建立生圖任務中...',
+        script: `⏳ 生圖中，請稍候...\n刷新頁面後可在這裡繼續等待結果。\n\n📝 Prompt：\n${prompt}`,
         imageUrls: [],
         taskId: '',
         prompt: '',
@@ -5377,7 +5377,7 @@ async function generateImage() {
             topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
             format: '生圖',
             type: _imgQuality === 'pro' ? '高品質' : '一般品質',
-            script: `Prompt：${prompt}`,
+            script: `📝 Prompt：\n${prompt}`,
             imageUrls: imgUrls,
             taskId: '',
             prompt: '',
@@ -5485,20 +5485,28 @@ async function resumeImgPolling(histEntry) {
         return;
       }
       if (getData.status === 'failed') {
-        // 失敗：刪佔位
-        scriptHistory = scriptHistory.filter(h => h.id !== pendingId);
-        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-        if (window.syncToCloud) window.syncToCloud();
-        renderHistory();
+        // 失敗：保留為「生圖失敗」
+        const fi = scriptHistory.findIndex(h => h.id === pendingId);
+        if (fi !== -1) {
+          scriptHistory[fi] = { ...scriptHistory[fi], format: '生圖失敗', taskId: '',
+            script: `❌ 生圖失敗\n\n📝 Prompt：\n${scriptHistory[fi].topic}` };
+          localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+          if (window.syncToCloud) window.syncToCloud();
+          renderHistory();
+        }
         return;
       }
     } catch(e) { /* 繼續等 */ }
   }
-  // 逾時：刪佔位
-  scriptHistory = scriptHistory.filter(h => h.id !== pendingId);
-  localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-  if (window.syncToCloud) window.syncToCloud();
-  renderHistory();
+  // 逾時：保留為「生圖失敗」
+  const ti = scriptHistory.findIndex(h => h.id === pendingId);
+  if (ti !== -1) {
+    scriptHistory[ti] = { ...scriptHistory[ti], format: '生圖失敗', taskId: '',
+      script: `❌ 生圖逾時\n\n📝 Prompt：\n${scriptHistory[ti].topic}` };
+    localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+    if (window.syncToCloud) window.syncToCloud();
+    renderHistory();
+  }
 }
 
 // 下載圖片
@@ -5763,17 +5771,28 @@ window.addEventListener('load', () => {
   initDropZone();
   // 付款 return 處理（Stripe redirect 回來）
   handlePaymentReturn();
-  // ✅ 清除超過 30 分鐘的「生成中」佔位（避免卡住）
+  // ✅ 超過 30 分鐘的「生成中」/「生圖中」改為失敗狀態（保留紀錄）
   const _staleThreshold = 30 * 60 * 1000;
   const _now = Date.now();
   let _cleaned = false;
-  scriptHistory = scriptHistory.filter(h => {
-    if ((h.format === '生成中' || h.format === '生圖中') && (_now - h.id) > _staleThreshold) { _cleaned = true; return false; }
-    return true;
+  scriptHistory = scriptHistory.map(h => {
+    if ((h.format === '生成中' || h.format === '生圖中') && (_now - h.id) > _staleThreshold) {
+      _cleaned = true;
+      return {
+        ...h,
+        format: h.format === '生圖中' ? '生圖失敗' : '生成失敗',
+        taskId: '',
+        script: h.format === '生圖中'
+          ? `❌ 生圖逾時（已超過 30 分鐘）\n\nPrompt：${h.topic}`
+          : '❌ 生成逾時（已超過 30 分鐘）\n\n請重新產出腳本。',
+      };
+    }
+    return h;
   });
   if (_cleaned) {
     localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
     if (window.syncToCloud) window.syncToCloud();
+    renderHistory();
   }
 
   // ✅ 自動繼續輪詢未完成的生圖任務（刷新後恢復）
