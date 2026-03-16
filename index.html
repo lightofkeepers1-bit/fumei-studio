@@ -123,10 +123,10 @@
   .row > * { flex:1;min-width:180px }
 
   /* HISTORY */
-  .history-item { border:1.5px solid #f0d8e0;border-radius:16px;margin-bottom:14px;overflow:hidden }
-  .history-header { display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,#fff8fc,#f8f4ff);cursor:pointer;gap:10px }
-  .history-header:hover { background:linear-gradient(135deg,#ffe4ee,#ede4ff) }
-  .history-meta { flex:1 }
+  .history-item { border:1.5px solid #f0d8e0;border-radius:16px;margin-bottom:10px;overflow:hidden }
+  .history-header { display:flex;align-items:center;padding:10px 14px;background:white;cursor:pointer;gap:8px }
+  .history-header:hover { background:#fff5f8 }
+  .history-meta { flex:1;min-width:0 }
   .history-title { font-weight:800;font-size:0.92rem;color:var(--brown);margin-bottom:3px }
   .history-sub { font-size:0.78rem;color:#aaa;display:flex;gap:10px;flex-wrap:wrap }
   .history-badge { padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;font-family:'Nunito',sans-serif }
@@ -137,8 +137,8 @@
   .hb-pending{background:#fff8e1;color:#f57f17}
   .hb-failed{background:#fce4ec;color:#c62828}
   .hb-img{background:#f3e5f5;color:#6a1b9a}
-  .history-actions { display:flex;gap:8px;flex-shrink:0 }
-  .history-body { display:none;padding:18px;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
+  .history-actions { display:flex;gap:6px;flex-shrink:0;align-items:center }
+  .history-body { display:none;padding:14px 16px;font-size:0.88rem;line-height:1.8;color:var(--brown);border-top:1.5px dashed #f0d8e0;background:#fffbfd }
   .history-body.open { display:block }
   .history-script-content { white-space:pre-wrap }
   .history-prompt-block { margin-top:14px;border-top:1px dashed #e8d5f5;padding-top:12px }
@@ -148,6 +148,32 @@
   .history-prompt-copy:hover { background:var(--pink-deep) }
   .del-btn { background:#fce4ec;color:#c2185b;border:none;padding:6px 12px;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s }
   .del-btn:hover { background:#f8bbd0 }
+
+  /* LOG 風格元件 */
+  .log-status-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0 }
+  .log-dot-success { background:#639922 }
+  .log-dot-failed  { background:#E24B4A }
+  .log-dot-pending { background:#EF9F27 }
+  .log-type-pill { font-size:0.7rem;font-weight:800;padding:2px 8px;border-radius:20px;flex-shrink:0;font-family:'Nunito',sans-serif;white-space:nowrap }
+  .lp-script { background:#fce4ec;color:#c2185b }
+  .lp-scan   { background:#ede7f6;color:#6a1b9a }
+  .lp-img    { background:#e8f5e9;color:#2e7d32 }
+  .lp-video  { background:#fff3e0;color:#e65100 }
+  .log-topic-text { font-size:0.88rem;font-weight:800;color:var(--brown);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+  .log-meta-row { display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap }
+  .log-dur { font-size:0.72rem;color:#bbb;font-family:'Nunito',sans-serif;white-space:nowrap }
+  .log-credits { font-size:0.72rem;font-weight:800;color:#E07A95;white-space:nowrap;font-family:'Nunito',sans-serif }
+  .log-status-pill { font-size:0.7rem;font-weight:800;padding:2px 8px;border-radius:20px;font-family:'Nunito',sans-serif;white-space:nowrap }
+  .ls-success { background:#e8f5e9;color:#2e7d32 }
+  .ls-failed  { background:#fce4ec;color:#c62828 }
+  .ls-pending { background:#fff8e1;color:#f57f17 }
+  .log-date-txt { font-size:0.68rem;color:#ccc;white-space:nowrap }
+  .log-expand-icon { font-size:0.85rem;color:#ccc;flex-shrink:0;transition:transform 0.2s;line-height:1 }
+  .log-expand-icon.open { transform:rotate(90deg) }
+  .log-body-grid { display:grid;grid-template-columns:64px 1fr;gap:4px 8px;font-size:0.8rem;margin-bottom:10px }
+  .log-body-label { color:#aaa;font-size:0.75rem;padding-top:2px }
+  .log-body-val { color:var(--brown);line-height:1.6;word-break:break-word }
+  .log-full-content { margin-top:10px;background:white;border:1.5px dashed #f0d8e0;border-radius:12px;padding:12px 14px;font-size:0.85rem;line-height:1.8;color:var(--brown);white-space:pre-wrap;max-height:220px;overflow-y:auto }
 
   /* ── 意見回饋 ── */
   .feedback-type-btn { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
@@ -1582,7 +1608,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.4.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1886,7 +1912,10 @@ window.syncToCloud = async () => {
         <option value="一格梗圖">一格梗圖</option>
         <option value="兩格梗圖">兩格梗圖</option>
         <option value="影片腳本">影片腳本</option>
-        <option value="話題掃描">話題掃描</option>      </select>
+        <option value="話題掃描">話題掃描</option>
+        <option value="生圖">生圖</option>
+        <option value="failed">失敗</option>
+      </select>
     </div>
     <div id="historyEmpty" style="text-align:center;padding:40px;color:#ccc;font-size:0.9rem;display:none">
       還沒有產出過腳本，去「✍️ 產腳本」試試看吧！
@@ -2069,7 +2098,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.4.2';
+const APP_VERSION = '4.5.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2841,6 +2870,7 @@ async function scanTopics() {
       type: '',
       script: '⏳ 掃描中，請稍候...\n\n刷新頁面後若此紀錄仍在，表示掃描未完成。',
       prompt: '',
+      startTime: _scanPendingId,
       date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
     };
     scriptHistory.unshift(scanPendingEntry);
@@ -2957,6 +2987,8 @@ ${newsHeadlines}
         script: scanLines.join('\n\n'),
         format: '話題掃描',
         type: '',
+        duration: (function() { var p = _scanPendingId ? scriptHistory.find(function(h){return h.id===_scanPendingId;}) : null; return p && p.startTime ? Math.round((Date.now()-p.startTime)/1000) : null; })(),
+        credits: isNews ? CREDIT_COST.news : CREDIT_COST.scan,
         date: new Date().toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })
       };
       if (_scanPendingId) {
@@ -3475,6 +3507,7 @@ async function genScript() {
         format: '生成中',
         script: '⏳ AI 正在生成腳本，請稍候…\n\n刷新頁面後可在這裡繼續查看進度。',
         prompt: '',
+        startTime: _pendingHistoryId,
         date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
       };
       scriptHistory.unshift(_pendingEntry);
@@ -3757,6 +3790,9 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
 
     // ── SAVE TO HISTORY ──
     const formatLabelMap = {'一格':'一格梗圖','兩格':'兩格梗圖','影片15':'影片腳本 15秒','影片30':'影片腳本 30秒'};
+    const _pendingEntryRef = _pendingHistoryId ? scriptHistory.find(h => h.id === _pendingHistoryId) : null;
+    const _scriptDuration = _pendingEntryRef && _pendingEntryRef.startTime ? Math.round((Date.now() - _pendingEntryRef.startTime) / 1000) : null;
+    const _scriptCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
     const finalEntry = {
       id: _pendingHistoryId || Date.now(),
       topic: topic,
@@ -3764,6 +3800,8 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
       format: formatLabelMap[format] || format,
       script: script,
       prompt: geminiPrompt,
+      duration: _scriptDuration,
+      credits: _scriptCost,
       date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
     };
     // 如果有佔位記錄就取代它，否則新增
@@ -3911,6 +3949,8 @@ function renderHistory() {
   let items = scriptHistory;
   if (filter === 'star') {
     items = items.filter(h => h.starred);
+  } else if (filter === 'failed') {
+    items = items.filter(h => ['生成失敗','掃描失敗','生圖失敗'].includes(h.format));
   } else if (filter !== 'all') {
     items = items.filter(h => (h.format || '').includes(filter));
   }
@@ -3928,42 +3968,84 @@ function renderHistory() {
     return;
   }
   empty.style.display = 'none';
-  const fmtBadge = {'一格梗圖':'hb-1','兩格梗圖':'hb-2','影片腳本':'hb-v','影片腳本 15秒':'hb-v','影片腳本 30秒':'hb-v','話題掃描':'hb-scan','生成中':'hb-pending','生成失敗':'hb-failed','生圖':'hb-img','生圖中':'hb-pending','生圖失敗':'hb-failed','掃描中':'hb-pending','掃描失敗':'hb-failed'};
-  list.innerHTML = items.map(h => `
+
+  // ── 輔助函式 ──────────────────────────────────────
+  function getLogType(h) {
+    const fmt = h.format || '';
+    if (fmt === '生圖' || fmt === '生圖中' || fmt === '生圖失敗') return 'img';
+    if (fmt.includes('影片')) return 'video';
+    if (fmt === '話題掃描' || fmt === '掃描中' || fmt === '掃描失敗') return 'scan';
+    return 'script';
+  }
+  function getStatusInfo(h) {
+    const fmt = h.format || '';
+    if (['生成失敗','掃描失敗','生圖失敗'].includes(fmt)) return { dot:'log-dot-failed', pill:'ls-failed', label:'失敗' };
+    if (['生成中','掃描中','生圖中'].includes(fmt)) return { dot:'log-dot-pending', pill:'ls-pending', label:'生成中' };
+    return { dot:'log-dot-success', pill:'ls-success', label:'成功' };
+  }
+  const TYPE_LABEL = { script:'腳本', scan:'掃描', img:'生圖', video:'影片' };
+  const TYPE_PILL  = { script:'lp-script', scan:'lp-scan', img:'lp-img', video:'lp-video' };
+
+  list.innerHTML = items.map(h => {
+    const logType = getLogType(h);
+    const status  = getStatusInfo(h);
+    const isStar  = h.starred;
+    const dur     = h.duration ? h.duration + 's' : '—';
+    const credits = ['生成失敗','掃描失敗','生圖失敗'].includes(h.format)
+      ? '<span class="log-credits">退點</span>'
+      : h.credits
+        ? `<span class="log-credits">⚡${h.credits}</span>`
+        : '';
+
+    // Body content
+    const promptSection = h.prompt ? `
+      <div class="history-prompt-block">
+        <div class="history-prompt-label">
+          <span>🎨 ${(h.format||'').includes('影片') ? '影片 Prompt' : 'Gemini Prompt'}</span>
+          <button class="history-prompt-copy" onclick="cpHistoryPrompt(${h.id})">📋 複製</button>
+        </div>
+        <div class="history-prompt-text" id="hp-${h.id}">${h.prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      </div>` : '';
+
+    const scriptSection = h.format === '生圖'
+      ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${
+          (h.imageUrls||[]).map(u=>`<img src="${u}" style="max-width:100%;max-height:240px;border-radius:10px;object-fit:contain;border:1.5px solid #f0d8e0">`).join('')
+        }</div><div class="log-full-content">${h.script||''}</div>`
+      : h.script ? `<div class="log-full-content history-script-content">${h.script}</div>` : '';
+
+    return `
     <div class="history-item" id="hi-${h.id}">
       <div class="history-header" onclick="toggleHistory(${h.id})">
-        <div class="history-meta">
-          <div class="history-title">💬 ${h.topic}</div>
-          <div class="history-sub">
-            <span>${h.date}</span>
-            <span class="history-badge ${fmtBadge[h.format]||'hb-1'}">${h.format}</span>
-            <span style="color:#bbb">${h.type||''}</span>
-          </div>
+        <div class="log-status-dot ${status.dot}"></div>
+        <span class="log-type-pill ${TYPE_PILL[logType]}">${TYPE_LABEL[logType]}</span>
+        <span class="log-topic-text">${h.topic||'（無標題）'}</span>
+        <div class="log-meta-row">
+          <span class="log-dur">${dur}</span>
+          ${credits}
+          <span class="log-status-pill ${status.pill}">${status.label}</span>
+          <span class="log-date-txt">${h.date||''}</span>
+          <button onclick="event.stopPropagation();toggleStar(${h.id})"
+            style="background:${isStar?'#fff8dc':'transparent'};border:none;color:${isStar?'#d4a017':'#ddd'};font-size:0.9rem;cursor:pointer;padding:2px 4px;border-radius:8px;line-height:1;transition:all 0.15s">${isStar?'⭐':'☆'}</button>
         </div>
-        <div class="history-actions">
-          <button onclick="event.stopPropagation();toggleStar(${h.id})" title="${h.starred?'取消收藏':'加入收藏'}"
-            style="background:${h.starred?'#fff8dc':'#f9f9f9'};border:1.5px solid ${h.starred?'#f5c842':'#eee'};color:${h.starred?'#d4a017':'#ccc'};padding:5px 9px;border-radius:10px;font-size:0.85rem;cursor:pointer;transition:all 0.15s">${h.starred?'⭐':'☆'}</button>
-          <button class="btn-sm" style="margin:0" onclick="event.stopPropagation();cpHistory(${h.id})">📋 複製</button>
+        <span class="log-expand-icon" id="ei-${h.id}">›</span>
+      </div>
+      <div class="history-body" id="hb-${h.id}">
+        <div class="log-body-grid">
+          <span class="log-body-label">格式</span><span class="log-body-val">${h.format||'—'}</span>
+          ${h.type ? `<span class="log-body-label">類型</span><span class="log-body-val">${h.type}</span>` : ''}
+          ${h.duration ? `<span class="log-body-label">Duration</span><span class="log-body-val">${h.duration} 秒</span>` : ''}
+          ${h.credits ? `<span class="log-body-label">Points</span><span class="log-body-val">${['生成失敗','掃描失敗','生圖失敗'].includes(h.format)?'0（已退點）':h.credits+' pts 已扣除'}</span>` : ''}
+          ${h.prompt ? `<span class="log-body-label">Prompt 摘要</span><span class="log-body-val">${h.prompt.slice(0,60).replace(/</g,'&lt;')}${h.prompt.length>60?'…':''}</span>` : ''}
+        </div>
+        ${scriptSection}
+        ${promptSection}
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          ${h.script && h.format !== '生圖' ? `<button class="btn-sm" style="margin:0" onclick="event.stopPropagation();cpHistory(${h.id})">📋 複製</button>` : ''}
           <button class="del-btn" onclick="event.stopPropagation();delHistory(${h.id})">🗑️ 刪除</button>
         </div>
       </div>
-      <div class="history-body" id="hb-${h.id}">
-        ${h.format === '生圖'
-          ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${
-              (h.imageUrls||[]).map(u=>`<img src="${u}" style="max-width:100%;max-height:240px;border-radius:10px;object-fit:contain;border:1.5px solid #f0d8e0">`).join('')
-            }</div><div style="font-size:0.82rem;color:#aaa;white-space:pre-wrap">${h.script}</div>`
-          : `<div class="history-script-content">${h.script}</div>`
-        }
-        ${h.prompt ? `
-        <div class="history-prompt-block">
-          <div class="history-prompt-label">
-            <span>🎨 ${(h.format||'').includes('影片') ? '影片 Prompt' : 'Gemini Prompt'}</span>
-            <button class="history-prompt-copy" onclick="cpHistoryPrompt(${h.id})">📋 複製</button>
-          </div>
-          <div class="history-prompt-text" id="hp-${h.id}">${h.prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        </div>` : ''}
-      </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function toggleStar(id) {
@@ -3977,7 +4059,9 @@ function toggleStar(id) {
 
 function toggleHistory(id) {
   const body = document.getElementById('hb-' + id);
+  const icon = document.getElementById('ei-' + id);
   body.classList.toggle('open');
+  if (icon) icon.classList.toggle('open', body.classList.contains('open'));
 }
 
 function cpHistory(id) {
@@ -5465,6 +5549,7 @@ async function generateImage() {
         imageUrls: [],
         taskId: '',
         prompt: '',
+        startTime: _imgPendingId,
         date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
       };
       scriptHistory.unshift(prePendingEntry);
@@ -5521,6 +5606,7 @@ async function generateImage() {
 
         // ✅ 取代佔位，存完整圖片結果
         if (window._currentUid && !window._guestMode) {
+          const _imgPendingRef = _imgPendingId ? scriptHistory.find(h => h.id === _imgPendingId) : null;
           const finalImgEntry = {
             id: _imgPendingId || Date.now(),
             topic: prompt.slice(0, 40) + (prompt.length > 40 ? '...' : ''),
@@ -5530,6 +5616,8 @@ async function generateImage() {
             imageUrls: imgUrls,
             taskId: '',
             prompt: '',
+            duration: _imgPendingRef && _imgPendingRef.startTime ? Math.round((Date.now() - _imgPendingRef.startTime) / 1000) : null,
+            credits: IMG_COST[_imgQuality],
             date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
           };
           if (_imgPendingId) {
