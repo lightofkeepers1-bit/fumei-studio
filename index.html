@@ -1158,16 +1158,18 @@ onAuthStateChanged(auth, async (user) => {
     setTimeout(async () => {
       const _stale = 30 * 60 * 1000;
       const _scriptStale = 1 * 60 * 1000;
+      const _imgNoTaskStale = 3 * 60 * 1000;
       const _n = Date.now();
 
-      // 生圖：繼續輪詢
+      // 生圖：繼續輪詢（有 taskId 且未逾時）
       const pending = scriptHistory.filter(h => h.format === '生圖中' && h.taskId && (_n - h.id) < _stale);
       pending.forEach(h => { if (window.resumeImgPolling) window.resumeImgPolling(h); });
 
-      // 計算需要退點的佔位
+      // 計算需要退點的佔位（腳本、掃描、生圖中無 taskId 超過 1 分鐘）
       const toRefund = scriptHistory.filter(h =>
         (h.format === '生成中' && (_n - h.id) > _scriptStale) ||
-        (h.format === '掃描中' && (_n - h.id) > _scriptStale)
+        (h.format === '掃描中' && (_n - h.id) > _scriptStale) ||
+        (h.format === '生圖中' && !h.taskId && (_n - h.id) > _imgNoTaskStale)
       );
 
       // 標記失敗
@@ -1180,6 +1182,10 @@ onAuthStateChanged(auth, async (user) => {
         if (h.format === '掃描中' && (_n - h.id) > _scriptStale) {
           scriptFixed = true;
           return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（頁面已重新整理，點數已退還）\n\n請重新掃描。' };
+        }
+        if (h.format === '生圖中' && !h.taskId && (_n - h.id) > _imgNoTaskStale) {
+          scriptFixed = true;
+          return { ...h, format: '生圖失敗', taskId: '', script: '❌ 生圖中斷（點數已退還）\n\n請重新生圖。' };
         }
         return h;
       });
@@ -1196,6 +1202,7 @@ onAuthStateChanged(auth, async (user) => {
           toRefund.forEach(h => {
             if (h.format === '生成中') totalRefund += CREDIT_COST.script || 2;
             if (h.format === '掃描中') totalRefund += CREDIT_COST.news || 2;
+            if (h.format === '生圖中') totalRefund += h.credits || IMG_COST?.std || 1;
           });
           const cur = window.getCredits ? window.getCredits() : parseInt(localStorage.getItem('fumei_credits') || '0');
           const refunded = Math.max(0, cur) + totalRefund;
@@ -1608,7 +1615,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.5.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2102,7 +2109,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.5.3';
+const APP_VERSION = '4.5.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4114,6 +4121,7 @@ async function refreshHistory() {
     // 重新跑逾時判定（同登入後的邏輯）
     const _now = Date.now();
     const _scriptStaleMs = 1 * 60 * 1000;
+    const _imgNoTaskStaleMs = 3 * 60 * 1000;
     const _imgStaleMs    = 30 * 60 * 1000;
     let changed = false;
     let totalRefund = 0;
@@ -4128,9 +4136,10 @@ async function refreshHistory() {
         totalRefund += window.CREDIT_COST?.news || 2;
         return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（點數已退還）\n\n請重新掃描。' };
       }
-      if (h.format === '生圖中' && !h.taskId && (_now - h.id) > _imgStaleMs) {
+      if (h.format === '生圖中' && !h.taskId && (_now - h.id) > _imgNoTaskStaleMs) {
         changed = true;
-        return { ...h, format: '生圖失敗', script: '❌ 生圖中斷（點數已退還）' };
+        totalRefund += h.credits || 1;
+        return { ...h, format: '生圖失敗', taskId: '', script: '❌ 生圖中斷（點數已退還）\n\n請重新生圖。' };
       }
       return h;
     });
@@ -6074,23 +6083,29 @@ window.addEventListener('load', () => {
   initDropZone();
   // 付款 return 處理（Stripe redirect 回來）
   handlePaymentReturn();
-  // ✅ 超過 3 分鐘的「生成中」、超過 30 分鐘的「生圖中」改為失敗狀態
+  // ✅ 超過 1 分鐘的「生成中」/「掃描中」/「生圖中（無 taskId）」改為失敗，超過 30 分鐘的「生圖中（有 taskId）」也改為失敗
   const _staleThreshold = 30 * 60 * 1000;
   const _scriptStaleLoad = 1 * 60 * 1000;
+  const _imgNoTaskStaleLoad = 3 * 60 * 1000;
   const _now = Date.now();
   let _cleaned = false;
   scriptHistory = scriptHistory.map(h => {
     if (h.format === '生成中' && (_now - h.id) > _scriptStaleLoad) {
       _cleaned = true;
       return { ...h, format: '生成失敗', taskId: '',
-        script: '❌ 生成逾時（已超過 3 分鐘）\n\n請重新產出腳本。' };
+        script: '❌ 生成逾時（已超過 1 分鐘）\n\n請重新產出腳本。' };
     }
     if (h.format === '掃描中' && (_now - h.id) > _scriptStaleLoad) {
       _cleaned = true;
       return { ...h, format: '掃描失敗',
-        script: '❌ 掃描逾時（頁面已重新整理）\n\n請重新掃描。' };
+        script: '❌ 掃描逾時（已超過 1 分鐘）\n\n請重新掃描。' };
     }
-    if (h.format === '生圖中' && (_now - h.id) > _staleThreshold) {
+    if (h.format === '生圖中' && !h.taskId && (_now - h.id) > _imgNoTaskStaleLoad) {
+      _cleaned = true;
+      return { ...h, format: '生圖失敗', taskId: '',
+        script: '❌ 生圖中斷（建立任務失敗，點數已退還）\n\n請重新生圖。' };
+    }
+    if (h.format === '生圖中' && h.taskId && (_now - h.id) > _staleThreshold) {
       _cleaned = true;
       return { ...h, format: '生圖失敗', taskId: '',
         script: `❌ 生圖逾時（已超過 30 分鐘）\n\nPrompt：${h.topic}` };
