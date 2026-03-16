@@ -182,6 +182,9 @@
   /* ── 改寫 chips ── */
   .rewrite-chip { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s }
   .rewrite-chip:hover { background:#f4e8ff;border-color:#764ba2 }
+  .news-cat-chip { padding:5px 11px;border-radius:20px;border:1.5px solid #f0d8e0;background:white;color:#aaa;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s;white-space:nowrap }
+  .news-cat-chip:hover { border-color:var(--pink);color:var(--pink-deep) }
+  .news-cat-chip.active { background:var(--pink);color:white;border-color:var(--pink) }
 
   /* ── 三AI發想卡片 ── */
   .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s }
@@ -1619,7 +1622,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1700,8 +1703,8 @@ window.syncToCloud = async () => {
   <div class="card">
     <div class="card-title">🔍 今日話題掃描</div>
     <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 <span class="char-name-ui">角色</span> 的梗圖靈感</p>
-    <div class="row" style="margin-bottom:14px">
-      <select id="topicCat" onchange="updateCostBadges()">
+    <div class="row" style="margin-bottom:10px">
+      <select id="topicCat" onchange="onTopicCatChange()">
         <option value="時事">🗞️ 今日時事</option>
         <option value="職場">💼 職場話題</option>
         <option value="單身生活">💅 單身生活</option>
@@ -1709,6 +1712,18 @@ window.syncToCloud = async () => {
         <option value="旅遊">✈️ 旅遊話題</option>
       </select>
       <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡2</span></button>
+    </div>
+    <!-- 今日時事分類標籤（只在選「時事」時顯示） -->
+    <div id="newsCatRow" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px">
+      <button class="news-cat-chip active" data-cat="all" onclick="selectNewsCat(this)">📰 全部</button>
+      <button class="news-cat-chip" data-cat="politics" onclick="selectNewsCat(this)">🏛️ 政治</button>
+      <button class="news-cat-chip" data-cat="society" onclick="selectNewsCat(this)">👥 社會</button>
+      <button class="news-cat-chip" data-cat="finance" onclick="selectNewsCat(this)">💰 財經</button>
+      <button class="news-cat-chip" data-cat="lifestyle" onclick="selectNewsCat(this)">🛍️ 生活消費</button>
+      <button class="news-cat-chip" data-cat="world" onclick="selectNewsCat(this)">🌍 國際</button>
+      <button class="news-cat-chip" data-cat="entertainment" onclick="selectNewsCat(this)">🎬 娛樂</button>
+      <button class="news-cat-chip" data-cat="sports" onclick="selectNewsCat(this)">⚽ 體育</button>
+      <button class="news-cat-chip" data-cat="education" onclick="selectNewsCat(this)">📚 文教</button>
     </div>
     <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在尋找靈感中...</div>
     <div class="err" id="scanErr"></div>
@@ -1817,14 +1832,14 @@ window.syncToCloud = async () => {
             <div style="font-size:1rem">⚡</div>
             <div style="font-weight:900;font-size:0.82rem;color:var(--pink-deep);font-family:'Nunito',sans-serif">一般品質</div>
             <div style="font-size:0.7rem;color:#bbb">Nano Banana 2</div>
-            <div style="margin-top:5px;background:var(--pink-deep);color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡2點</div>
+            <div style="margin-top:5px;background:var(--pink-deep);color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡3點</div>
           </div>
           <div id="imgQualityPro" onclick="selectImgQuality('pro')"
             style="flex:1;border:2px solid #f0d8e0;border-radius:12px;padding:10px 12px;cursor:pointer;background:white;text-align:center;transition:all 0.2s">
             <div style="font-size:1rem">💎</div>
             <div style="font-weight:900;font-size:0.82rem;color:#764ba2;font-family:'Nunito',sans-serif">高品質</div>
             <div style="font-size:0.7rem;color:#bbb">Nano Banana Pro</div>
-            <div style="margin-top:5px;background:#764ba2;color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡6點</div>
+            <div style="margin-top:5px;background:#764ba2;color:white;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:800;font-family:'Nunito',sans-serif;display:inline-block">⚡8點</div>
             <div style="margin-top:5px;font-size:0.68rem;color:#a78bcc;font-weight:700">🈶 適合中文輸出</div>
           </div>
         </div>
@@ -1864,7 +1879,7 @@ window.syncToCloud = async () => {
 
         <!-- 生成按鈕 -->
         <button class="btn" onclick="generateImage()" id="imgGenBtn" style="width:100%;justify-content:center">
-          🎨 開始生圖 <span class="cost-badge" id="imgCostBadge">⚡2</span>
+          🎨 開始生圖 <span class="cost-badge" id="imgCostBadge">⚡3</span>
         </button>
         <div class="err" id="imgErr" style="margin-top:8px"></div>
       </div>
@@ -2116,7 +2131,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.4';
+const APP_VERSION = '4.6.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2527,7 +2542,48 @@ function getRandomStyle() {
   return styles[Math.floor(Math.random() * styles.length)];
 }
 
-// ── TOPIC SYSTEM ──────────────────────────────────
+// ── 新聞分類 chip ──────────────────────────────────
+let _selectedNewsCat = 'all';
+
+function onTopicCatChange() {
+  updateCostBadges();
+  const isNews = document.getElementById('topicCat').value === '時事';
+  const row = document.getElementById('newsCatRow');
+  if (row) row.style.display = isNews ? 'flex' : 'none';
+}
+
+function selectNewsCat(btn) {
+  document.querySelectorAll('.news-cat-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _selectedNewsCat = btn.dataset.cat;
+}
+
+// Google News RSS topic IDs for Taiwan
+const NEWS_CAT_MAP = {
+  all:           null,
+  politics:      'CAAqIQgKIhtDQkFTRGdvSUwyMHZNRFZxYUdjU0FtZHZLQUFQAQ',  // 政治
+  society:       'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QyY0dZU0FtZHZLQUFQAQ',  // 社會
+  finance:       'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtZHZHZ0FQAQ',  // 財經
+  lifestyle:     'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QyY0dZU0FtZHZLQUFQAQ',  // 生活消費（用 entertainment 近似）
+  world:         'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtZHZHZ0FQAQ',  // 國際
+  entertainment: 'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QyY0dZU0FtZHZLQUFQAQ',  // 娛樂
+  sports:        'CAAqJggKIiBDQkFTRWdvSUwyMHZNVEl3Y0dZU0FtZHZHZ0FQAQ',  // 體育
+  education:     null,  // 文教（Google News 沒有對應，回落到一般搜尋）
+};
+
+const NEWS_CAT_KEYWORDS = {
+  all:           '',
+  politics:      '政治 選舉 立法院 政府 政策',
+  society:       '社會 犯罪 事故 民生 社福',
+  finance:       '財經 股市 經濟 企業 投資 科技產業',
+  lifestyle:     '消費 美食 購物 生活 健康',
+  world:         '國際 美國 中國 日本 全球 外交',
+  entertainment: '娛樂 藝人 電影 音樂 明星',
+  sports:        '體育 棒球 籃球 足球 運動 賽事',
+  education:     '教育 文化 學生 大學 藝術',
+};
+
+
 const BUILTIN_TOPICS = [
   { key:'時事',    emoji:'🗞️', name:'今日時事',  rule:'真實時事3個＋熱門討論3個，涵蓋不同面向', isNews:true, timeRange:3 },
   { key:'職場',    emoji:'💼', name:'職場話題',  rule:'涵蓋開會、主管、薪水、同事、下班、求職、升遷、加班等不同面向', timeRange:14 },
@@ -2915,7 +2971,8 @@ async function scanTopics() {
       let newsHeadlines = '';
       try {
         const uid = window._currentUid;
-        const newsRes = await fetch('/api/news', {
+        const catParam = (_selectedNewsCat && _selectedNewsCat !== 'all') ? `&category=${_selectedNewsCat}` : '';
+        const newsRes = await fetch(`/api/news?${catParam}`, {
           headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid }
         });
         if (newsRes.ok) {
@@ -2938,17 +2995,23 @@ async function scanTopics() {
         }
       } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
 
+      // 分類過濾提示
+      const catKw = NEWS_CAT_KEYWORDS[_selectedNewsCat] || '';
+      const catNote = (_selectedNewsCat && _selectedNewsCat !== 'all')
+        ? `\n重點篩選：請優先選擇與「${catKw}」相關的新聞。`
+        : '';
+
       prompt = newsHeadlines
         ? `今天是 ${today.toLocaleDateString('zh-TW')}。以下是剛剛從台灣新聞網站抓到的最新標題（每行前面是編號）：
 
 ${newsHeadlines}
 
-請從上面挑出6個最適合做成梗圖的話題，${rule}，切角各不同。
+請從上面挑出6個最適合做成梗圖的話題，${rule}，切角各不同。${catNote}
 
 嚴格按照以下格式，每行輸出：編號,梗圖話題標題｜角色一句反應台詞
 範例：3,WBC台灣隊提前出局球迷傻眼｜「我剛換好應援服，還沒穿到就結束了」
 只輸出6行，不要額外說明。編號必須對應上面清單的數字。`
-        : `今天是 ${today.toLocaleDateString('zh-TW')}，請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。
+        : `今天是 ${today.toLocaleDateString('zh-TW')}，請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。${catNote}
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
 範例：股市大跌上班族哀嚎｜「帳面虧損跟薪水一樣，都很難看」
@@ -5597,7 +5660,7 @@ async function deleteAccount() {
 let _imgQuality = 'std';     // 'std' | 'pro'
 let _imgRatio   = '9:16';
 let _imgRefs    = [];         // [{dataUrl, base64, mimeType}]
-const IMG_COST  = { std: 2, pro: 6 };
+const IMG_COST  = { std: 3, pro: 8 };
 
 function selectImgQuality(q) {
   _imgQuality = q;
@@ -6427,8 +6490,8 @@ window.addEventListener('load', () => {
               <div class="help-mockup-row">✍️ <span>產腳本（一般）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡1點</span></div>
               <div class="help-mockup-row">🗞️ <span>產腳本（時事反應）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡2點</span></div>
               <div class="help-mockup-row">🤖 <span>三AI發想</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡2點</span></div>
-              <div class="help-mockup-row">🎨 <span>生圖（一般品質）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡2點</span></div>
-              <div class="help-mockup-row">💎 <span>生圖（高品質）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡6點</span></div>
+              <div class="help-mockup-row">🎨 <span>生圖（一般品質）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡3點</span></div>
+              <div class="help-mockup-row">💎 <span>生圖（高品質）</span><span style="margin-left:auto;color:var(--pink-deep);font-weight:800">⚡8點</span></div>
             </div>
             <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin:12px 0 8px">🎁 點數來源</div>
             <div class="help-mockup">
