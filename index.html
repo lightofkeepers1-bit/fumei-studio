@@ -1622,7 +1622,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.6.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2143,7 +2143,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.6.9';
+const APP_VERSION = '4.7.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6233,20 +6233,10 @@ async function startCheckout() {
   btn.textContent = '⏳ 建立付款中...';
 
   try {
-    const res = await fetch('/api/stripe/create-checkout', {
+    const res = await fetch('/api/checkout', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-firebase-uid': window._currentUid,
-      },
-      body: JSON.stringify({
-        planId: _selectedPlan,
-        priceId: plan.priceId,
-        points: plan.points,
-        uid: window._currentUid,
-        successUrl: window.location.origin + window.location.pathname + '?payment=success&plan=' + _selectedPlan,
-        cancelUrl: window.location.origin + window.location.pathname + '?payment=cancel',
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planKey: _selectedPlan, uid: window._currentUid }),
     });
 
     if (!res.ok) {
@@ -6255,16 +6245,30 @@ async function startCheckout() {
     }
 
     const data = await res.json();
-    if (data.url) {
-      // 跳轉到 Stripe Checkout
-      window.location.href = data.url;
+    if (data.formHtml) {
+      // 開新視窗顯示綠界付款頁
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.open();
+        w.document.write(data.formHtml);
+        w.document.close();
+      } else {
+        // popup 被擋就用 iframe overlay
+        const div = document.createElement('div');
+        div.style.cssText = 'position:fixed;inset:0;z-index:99999;background:white;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px';
+        div.innerHTML = `<p style="font-family:sans-serif;color:#888">正在跳轉至綠界付款頁面...</p><button onclick="this.parentNode.remove()" style="padding:8px 20px;border-radius:20px;border:1px solid #ddd;cursor:pointer">取消</button>`;
+        document.body.appendChild(div);
+        setTimeout(() => {
+          div.innerHTML = data.formHtml;
+          div.querySelector('form')?.submit();
+        }, 100);
+      }
     } else {
-      throw new Error('沒有收到付款連結');
+      throw new Error('沒有收到付款資訊');
     }
   } catch (e) {
     btn.disabled = false;
     btn.textContent = '💳 前往付款';
-    // 顯示錯誤 toast
     const toast = document.getElementById('creditsToast');
     if (toast) {
       toast.textContent = '❌ ' + (e.message || '付款失敗，請稍後再試');
@@ -6723,7 +6727,7 @@ window.addEventListener('load', () => {
 
       <!-- 安全說明 -->
       <div style="display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap">
-        <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">🔒 Stripe 安全付款</span>
+        <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">🔒 綠界安全付款</span>
         <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">🧾 付款後立即補點</span>
         <span style="font-size:0.72rem;color:#ccc;display:flex;align-items:center;gap:4px">♾️ 點數永不過期</span>
       </div>
