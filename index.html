@@ -185,6 +185,11 @@
   .news-cat-chip { padding:5px 11px;border-radius:20px;border:1.5px solid #f0d8e0;background:white;color:#aaa;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s;white-space:nowrap }
   .news-cat-chip:hover { border-color:var(--pink);color:var(--pink-deep) }
   .news-cat-chip.active { background:var(--pink);color:white;border-color:var(--pink) }
+  /* 自訂話題選單 */
+  .topic-opt { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;font-size:0.88rem;font-weight:700;color:var(--brown);transition:background 0.12s }
+  .topic-opt:hover { background:#fff5f8 }
+  .topic-opt-ptt:hover { background:linear-gradient(135deg,#fff0e8,#fff0f5) !important }
+  .opt-badge { font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0 }
 
   /* ── 三AI發想卡片 ── */
   .inspo-card { background:white; border-radius:16px; padding:18px 20px; border:2px solid #f0d8e0; cursor:pointer; transition:all 0.2s }
@@ -1622,7 +1627,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1703,14 +1708,30 @@ window.syncToCloud = async () => {
   <div class="card">
     <div class="card-title">🔍 今日話題掃描</div>
     <p style="font-size:0.88rem;color:#888;margin-bottom:16px">結合當前台灣時事，找出最適合 <span class="char-name-ui">角色</span> 的梗圖靈感</p>
-    <div class="row" style="margin-bottom:10px">
-      <select id="topicCat" onchange="onTopicCatChange()">
-        <option value="時事">🗞️ 今日時事</option>
-        <option value="PTT">💬 PTT 熱門</option>
-        <option value="職場">💼 職場話題</option>
-        <option value="單身生活">💅 單身生活</option>
-        <option value="日常趣事">😂 日常趣事</option>
-        <option value="旅遊">✈️ 旅遊話題</option>
+    <div class="row" style="margin-bottom:10px;align-items:center">
+      <!-- 自訂下拉選單（支援右側 badge） -->
+      <div id="topicCatDropdown" style="position:relative;flex:1;min-width:0">
+        <div id="topicCatDisplay" onclick="toggleTopicDropdown()" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border:1.5px solid #f0d8e0;border-radius:20px;background:white;cursor:pointer;font-size:0.88rem;font-weight:700;color:var(--brown);gap:8px;user-select:none">
+          <span id="topicCatLabel">🗞️ 今日時事</span>
+          <span style="color:#ccc;font-size:0.7rem">▼</span>
+        </div>
+        <div id="topicCatMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1.5px solid #f0d8e0;border-radius:16px;box-shadow:0 8px 24px rgba(224,122,149,0.15);z-index:100;overflow:hidden">
+          <div class="topic-opt" data-val="時事"   onclick="pickTopicCat(this)"><span>🗞️ 今日時事</span>  <span class="opt-badge" style="background:#fff0f5;color:var(--pink-deep)">⚡2</span></div>
+          <div class="topic-opt" data-val="職場"   onclick="pickTopicCat(this)"><span>💼 職場話題</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt" data-val="單身生活" onclick="pickTopicCat(this)"><span>💅 單身生活</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt" data-val="日常趣事" onclick="pickTopicCat(this)"><span>😂 日常趣事</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt" data-val="旅遊"   onclick="pickTopicCat(this)"><span>✈️ 旅遊話題</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt topic-opt-ptt" data-val="PTT" onclick="pickTopicCat(this)" style="border-top:2px solid #f0d8e0;background:linear-gradient(135deg,#fff8f0,#fff5f8)"><span>💬 PTT 熱門</span><span class="opt-badge" style="background:linear-gradient(135deg,#ff9a56,var(--pink-deep));color:white">⚡3</span></div>
+        </div>
+      </div>
+      <!-- 隱藏 select 保持邏輯相容 -->
+      <select id="topicCat" style="display:none">
+        <option value="時事">今日時事</option>
+        <option value="PTT">PTT 熱門</option>
+        <option value="職場">職場話題</option>
+        <option value="單身生活">單身生活</option>
+        <option value="日常趣事">日常趣事</option>
+        <option value="旅遊">旅遊話題</option>
       </select>
       <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡2</span></button>
     </div>
@@ -2152,7 +2173,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.7.1';
+const APP_VERSION = '4.7.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2567,6 +2588,38 @@ function getRandomStyle() {
 let _selectedNewsCat = 'all';
 let _selectedScriptNewsCat = 'all';
 let _selectedPttBoard = 'gossiping';
+
+function toggleTopicDropdown() {
+  const menu = document.getElementById('topicCatMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function pickTopicCat(el) {
+  const val = el.dataset.val;
+  const label = el.querySelector('span:first-child').textContent;
+  document.getElementById('topicCat').value = val;
+  document.getElementById('topicCatLabel').textContent = label;
+  document.getElementById('topicCatMenu').style.display = 'none';
+  // 高亮 PTT 選項時顯示器邊框也變色
+  const display = document.getElementById('topicCatDisplay');
+  if (val === 'PTT') {
+    display.style.borderColor = 'var(--pink-deep)';
+    display.style.background = 'linear-gradient(135deg,#fff8f0,#fff5f8)';
+  } else {
+    display.style.borderColor = '#f0d8e0';
+    display.style.background = 'white';
+  }
+  onTopicCatChange();
+}
+
+// 點擊外面關閉下拉
+document.addEventListener('click', e => {
+  const dd = document.getElementById('topicCatDropdown');
+  if (dd && !dd.contains(e.target)) {
+    const menu = document.getElementById('topicCatMenu');
+    if (menu) menu.style.display = 'none';
+  }
+});
 
 function onTopicCatChange() {
   updateCostBadges();
