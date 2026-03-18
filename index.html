@@ -1622,7 +1622,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1706,6 +1706,7 @@ window.syncToCloud = async () => {
     <div class="row" style="margin-bottom:10px">
       <select id="topicCat" onchange="onTopicCatChange()">
         <option value="時事">🗞️ 今日時事</option>
+        <option value="PTT">💬 PTT 熱門</option>
         <option value="職場">💼 職場話題</option>
         <option value="單身生活">💅 單身生活</option>
         <option value="日常趣事">😂 日常趣事</option>
@@ -1724,6 +1725,14 @@ window.syncToCloud = async () => {
       <button class="news-cat-chip" data-cat="entertainment" onclick="selectNewsCat(this)">🎬 娛樂</button>
       <button class="news-cat-chip" data-cat="sports" onclick="selectNewsCat(this)">⚽ 體育</button>
       <button class="news-cat-chip" data-cat="education" onclick="selectNewsCat(this)">📚 文教</button>
+    </div>
+    <!-- PTT 看板選擇（只在選「PTT」時顯示） -->
+    <div id="pttBoardRow" style="display:none;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+      <button class="news-cat-chip active" data-board="gossiping" onclick="selectPttBoard(this)">🔥 八卦板</button>
+      <button class="news-cat-chip" data-board="womenhating" onclick="selectPttBoard(this)">💅 WomenTalk</button>
+      <button class="news-cat-chip" data-board="marriage" onclick="selectPttBoard(this)">💑 感情板</button>
+      <button class="news-cat-chip" data-board="lifeismoney" onclick="selectPttBoard(this)">😅 生活板</button>
+      <button class="news-cat-chip" data-board="joke" onclick="selectPttBoard(this)">😂 笑話板</button>
     </div>
     <div class="loading" id="scanLoading"><div class="dots"><span></span><span></span><span></span></div><span class="char-name-ui">角色</span> 正在尋找靈感中...</div>
     <div class="err" id="scanErr"></div>
@@ -2143,7 +2152,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.7.0';
+const APP_VERSION = '4.7.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2557,12 +2566,24 @@ function getRandomStyle() {
 // ── 新聞分類 chip ──────────────────────────────────
 let _selectedNewsCat = 'all';
 let _selectedScriptNewsCat = 'all';
+let _selectedPttBoard = 'gossiping';
 
 function onTopicCatChange() {
   updateCostBadges();
-  const isNews = document.getElementById('topicCat').value === '時事';
-  const row = document.getElementById('newsCatRow');
-  if (row) row.style.display = isNews ? 'flex' : 'none';
+  const val = document.getElementById('topicCat').value;
+  const newsCatRow = document.getElementById('newsCatRow');
+  const pttBoardRow = document.getElementById('pttBoardRow');
+  if (newsCatRow) newsCatRow.style.display = val === '時事' ? 'flex' : 'none';
+  if (pttBoardRow) pttBoardRow.style.display = val === 'PTT' ? 'flex' : 'none';
+  // PTT 掃描固定扣3點，其他時事扣2點
+  const scanBadge = document.getElementById('scanBtn')?.querySelector('.cost-badge');
+  if (scanBadge) scanBadge.textContent = val === 'PTT' ? '⚡3' : (val === '時事' ? '⚡2' : '⚡1');
+}
+
+function selectPttBoard(btn) {
+  document.querySelectorAll('#pttBoardRow .news-cat-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _selectedPttBoard = btn.dataset.board;
 }
 
 function onScriptTypeChange() {
@@ -2919,6 +2940,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
 
 async function scanTopics() {
   const catKey = document.getElementById('topicCat').value;
+  const isPtt = catKey === 'PTT';
   const allTopics = getAllTopics();
   const topic = allTopics.find(t => t.key === catKey) || allTopics[0];
   const btn = document.getElementById('scanBtn');
@@ -2929,8 +2951,8 @@ async function scanTopics() {
 
   // 訪客：先扣點再執行
   if (window._guestMode && !window._currentUid) {
-    const isNewsCheck = (document.getElementById('topicCat')?.value === '時事');
-    const cost = isNewsCheck ? 2 : 1;
+    const isNewsCheck = catKey === '時事';
+    const cost = isPtt ? 3 : (isNewsCheck ? 2 : 1);
     try {
       await window.acquireGuestToken('scan', cost);
     } catch(e) {
@@ -2940,10 +2962,10 @@ async function scanTopics() {
     }
   }
 
-  // ⚡ 登入用戶：點數檢查（今日時事扣2點，其他1點）
+  // ⚡ 登入用戶：點數檢查（PTT扣3點、今日時事扣2點、其他1點）
   if (window._currentUid) {
-    const isNewsCheck = (document.getElementById('topicCat')?.value === '時事');
-    const cost = isNewsCheck ? CREDIT_COST.news : CREDIT_COST.scan;
+    const isNewsCheck = catKey === '時事';
+    const cost = isPtt ? 3 : (isNewsCheck ? CREDIT_COST.news : CREDIT_COST.scan);
     const result = await window.deductCredits(cost, 'scan');
     if (!result.ok) {
       if (result.reason === 'insufficient') {
@@ -2958,14 +2980,14 @@ async function scanTopics() {
   document.getElementById('selectedCard').style.display='none';
   document.getElementById('topicsCard').style.display='none';
 
-  // ✅ 扣點後立刻存「掃描中」佔位（刷新後可看到，3 分鐘後自動標記失敗）
+  // ✅ 扣點後立刻存「掃描中」佔位
   var _scanPendingId = null;
   if (window._currentUid && !window._guestMode) {
     _scanPendingId = Date.now();
-    const isNewsForPending = (document.getElementById('topicCat')?.value === '時事');
+    const pendingLabel = isPtt ? `PTT/${_selectedPttBoard}` : (catKey === '時事' ? '今日時事' : (topic.label || topic.name || '話題'));
     const scanPendingEntry = {
       id: _scanPendingId,
-      topic: '📡 話題掃描｜' + (isNewsForPending ? '今日時事' : (topic.label || topic.name || '話題')),
+      topic: '📡 話題掃描｜' + pendingLabel,
       format: '掃描中',
       type: '',
       script: '⏳ 掃描中，請稍候...\n\n刷新頁面後若此紀錄仍在，表示掃描未完成。',
@@ -2982,6 +3004,90 @@ async function scanTopics() {
 
   try {
     const isNews = !!topic.isNews;
+
+    // ── PTT 分支 ──────────────────────────────────
+    if (isPtt) {
+      const pttRes = await fetch(`/api/ptt?board=${_selectedPttBoard}&minPush=20&pages=3`, {
+        headers: { 'x-firebase-uid': window._currentUid || '' }
+      });
+      if (!pttRes.ok) throw new Error('PTT 抓取失敗');
+      const pttData = await pttRes.json();
+      const pttItems = pttData.items || [];
+      if (!pttItems.length) throw new Error('PTT 目前沒有熱門文章');
+
+      // 把 PTT 熱門標題餵給 Claude 挑話題
+      const boardLabel = { gossiping:'八卦板', womenhating:'WomenTalk', marriage:'感情板', lifeismoney:'生活板', joke:'笑話板' }[_selectedPttBoard] || _selectedPttBoard;
+      const pttHeadlines = pttItems.slice(0, 20).map((t, i) => `${i},【${t.pushCount >= 99 ? '爆' : t.pushCount+'推'}】${t.title}`).join('\n');
+      window._rssItems = pttItems.map(t => ({ title: t.title, link: t.url, source: `PTT ${boardLabel}` }));
+
+      const pttPrompt = `今天是 ${new Date().toLocaleDateString('zh-TW')}。以下是 PTT ${boardLabel} 的熱門文章（依推文數排序）：
+
+${pttHeadlines}
+
+請從上面挑出6個最適合做成梗圖的話題，找出台灣人有共鳴的切入角度。
+
+嚴格按照以下格式，每行輸出：編號,梗圖話題標題｜角色一句反應台詞
+範例：3,上班族最怕週一晨會｜「我的靈魂還在週六，請不要打擾我」
+只輸出6行，不要額外說明。編號必須對應上面清單的數字。`;
+
+      const txt = await claudeScan(pttPrompt, false);
+      const lines = txt.split('\n').filter(l => l.includes('｜'));
+      const topicList = lines.map(l => {
+        const commaIdx = l.search(/^\d+,/);
+        let rssIndex = -1, rest = l;
+        if (commaIdx === 0) {
+          const comma = l.indexOf(',');
+          rssIndex = parseInt(l.slice(0, comma));
+          rest = l.slice(comma + 1);
+        }
+        const [title, sub] = rest.split('｜');
+        return { title: title?.trim() || rest.trim(), sub: sub?.trim() || '', rssIndex };
+      }).filter(t => t.title);
+
+      grid.innerHTML = topicList.map((t, i) =>
+        `<div class="topic-chip" data-idx="${i}">
+          <span class="topic-num">話題 ${i+1}${t.rssIndex >= 0 && pttItems[t.rssIndex] ? ` <a href="${pttItems[t.rssIndex].url}" target="_blank" style="font-size:0.65rem;color:var(--pink-deep);text-decoration:none">↗PTT</a>` : ''}</span>
+          <strong>${t.title}</strong><br>
+          <span style="font-size:0.8rem;color:#999">${t.sub}</span>
+          <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
+        </div>`
+      ).join('');
+      grid.querySelectorAll('.topic-chip').forEach(el => {
+        const idx = parseInt(el.dataset.idx);
+        el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
+      });
+      document.getElementById('topicsCard').style.display = 'block';
+
+      // 存入歷史
+      if (window._currentUid && !window._guestMode && topicList.length > 0) {
+        const scanLines = topicList.map((t, i) => `話題${i+1}：${t.title}\n「${t.sub}」`);
+        const scanEntry = {
+          id: _scanPendingId || Date.now(),
+          topic: `📡 話題掃描｜PTT ${boardLabel}`,
+          script: scanLines.join('\n\n'),
+          format: '話題掃描',
+          type: '',
+          duration: _scanPendingId ? Math.round((Date.now() - _scanPendingId) / 1000) : null,
+          credits: 3,
+          date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+        };
+        if (_scanPendingId) {
+          const idx = scriptHistory.findIndex(h => h.id === _scanPendingId);
+          if (idx !== -1) scriptHistory[idx] = scanEntry;
+          else scriptHistory.unshift(scanEntry);
+        } else {
+          scriptHistory.unshift(scanEntry);
+        }
+        if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
+
+      btn.disabled = false; load.classList.remove('show');
+      return;
+    }
+    // ── PTT 分支結束 ──────────────────────────────
     const today = new Date();
     const days = topic.timeRange || (isNews ? 3 : 14);
     const rangeStart = new Date(today - days * 24 * 60 * 60 * 1000);
