@@ -229,8 +229,11 @@
     .logo-icon { width:40px; height:40px; font-size:1.2rem }
     .logo-text h1 { font-size:1.2rem }
     .logo-text p { font-size:0.7rem }
-    /* 手機版隱藏用戶名稱，只留頭像+點數+按鈕 */
+    /* 手機版隱藏用戶名稱、登出、簽到，只留頭像+點數+按鈕 */
     #userName { display:none !important }
+    #headerCheckinBtn { display:none !important }
+    #userInfo button[onclick="logoutUser()"] { display:none !important }
+    #viewToggleBtn { font-size:0.65rem !important; padding:4px 7px !important }
     .header-inner { gap:8px }
     .api-zone { width:100%; margin-left:0 }
     .api-input { width:100%; flex:1 }
@@ -329,6 +332,8 @@
   body.force-mobile .hint-box { font-size:0.82rem; padding:10px 12px }
   body.force-mobile .notice { font-size:0.82rem }
   body.force-mobile #headerCheckinBtn { display:none !important }
+  body.force-mobile #userInfo button[onclick="logoutUser()"] { display:none !important }
+  body.force-mobile #viewToggleBtn { font-size:0.65rem !important; padding:4px 7px !important }
 
   /* ── 強制PC版（覆蓋 media query）── */
   body.force-pc header { padding:18px 32px !important }
@@ -1711,7 +1716,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.8.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2265,7 +2270,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.8';
+const APP_VERSION = '4.9.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6034,13 +6039,46 @@ function confirmDeleteAccount() {
 async function deleteAccount() {
   if (!window._currentUid) return;
   try {
-    await window.saveToCloud(window._currentUid, { fumei_tasks:'[]', fumei_history:'[]' });
-    ['fumei_tasks','fumei_history','fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img','fumei_theme','fumei_view','fumei_chars','fumei_custom_topics','fumei_social_ig','fumei_social_fb','fumei_social_threads'].forEach(k => localStorage.removeItem(k));
-    await window.logoutUser();
+    // 1. 清空 Firestore 所有欄位
+    await window.saveToCloud(window._currentUid, {
+      fumei_tasks: '[]', fumei_history: '[]',
+      fumei_chars: '', fumei_char_active: '0',
+      fumei_onboarded: '', fumei_custom_topics: '[]',
+      fumei_social_ig: '', fumei_social_fb: '', fumei_social_threads: '',
+      fumei_studio_name: '', fumei_theme: '',
+      fumei_img_prompt_still: '', fumei_img_prompt_video: '',
+      fumei_avatar_img: '', fumei_avatar_emoji: '',
+      fumei_credits: 0, fumei_checkin_date: ''
+    });
+    // 2. 刪除 Firestore 用戶文件
+    const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await deleteDoc(doc(window.db, 'users', window._currentUid));
+    // 3. 刪除 Firebase Auth 帳號
+    const { getAuth, deleteUser } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const authInst = getAuth();
+    if (authInst.currentUser) {
+      await deleteUser(authInst.currentUser);
+    }
+    // 4. 清除 localStorage
+    [
+      'fumei_credits','fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
+      'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+      'fumei_theme','fumei_view','fumei_custom_topics','fumei_onboarded',
+      'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+      'fumei_img_prompt_still','fumei_img_prompt_video',
+      'fumei_guest_mode','fumei_guest_chars','fumei_guest_onboarded'
+    ].forEach(k => localStorage.removeItem(k));
     closeSettings();
-    alert('帳號資料已刪除，已登出。');
+    alert('帳號與所有資料已徹底刪除。');
     location.reload();
-  } catch(e) { alert('刪除失敗：' + e.message); }
+  } catch(e) {
+    // Firebase Auth 刪除需要近期登入，若 token 過期會失敗
+    if (e.code === 'auth/requires-recent-login') {
+      alert('為了安全，請先登出後重新登入，再執行刪除帳號。');
+    } else {
+      alert('刪除失敗：' + e.message);
+    }
+  }
 }
 
 // ══════════════════════════════════════════════
