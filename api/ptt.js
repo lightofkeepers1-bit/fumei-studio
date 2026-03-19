@@ -70,7 +70,10 @@ export default async function handler(req, res) {
   const uid      = req.headers['x-firebase-uid'];
   const boardKey = (req.query.board || 'gossiping').toLowerCase();
   const board    = BOARD_MAP[boardKey] || 'Gossiping';
-  const minPush  = parseInt(req.query.minPush || '10');
+  // 較冷門的板門檻降低，避免抓不到文章
+  const smallBoards = ['womenhating', 'marriage', 'joke'];
+  const defaultMinPush = smallBoards.includes(boardKey) ? 5 : 10;
+  const minPush  = parseInt(req.query.minPush || String(defaultMinPush));
   const pages    = Math.min(parseInt(req.query.pages || '3'), 5);
 
   try {
@@ -92,8 +95,8 @@ export default async function handler(req, res) {
       }
       const html = await r.text();
 
-      // 判斷是否被導向 over18 驗證頁
-      if (html.includes('過18歲') || html.includes('age-check') || html.includes('over18')) {
+      // 判斷是否被導向 over18 驗證頁（要是真的驗證頁，不是含有 over18 字的正常頁）
+      if (html.includes('請問您是否已滿十八歲') || html.includes('age-check') || html.includes('您必須年滿')) {
         console.error('[ptt] over18 check triggered');
         break;
       }
