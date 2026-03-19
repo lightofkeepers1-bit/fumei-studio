@@ -1720,7 +1720,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2274,7 +2274,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.4';
+const APP_VERSION = '4.9.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2337,15 +2337,23 @@ window.syncCreditsFromCloud = async (uid) => {
       // 文件不存在 → 檢查是否曾經刪過帳號（黑名單防刷點）
       const email = window._currentUserEmail || '';
       let isDeletedUser = false;
+      let delSnap = null;
       if (email) {
         const emailKey = email.replace(/[.#$[\]]/g, '_');
         const delRef = doc(window.db, 'deleted_users', emailKey);
-        const delSnap = await getDoc(delRef);
+        delSnap = await getDoc(delRef);
         isDeletedUser = delSnap.exists();
       }
-      // 曾刪帳號的用戶不再給新手禮包（給 0 點）
-      credits = isDeletedUser ? 0 : CREDITS_NEW_USER;
+      // 曾刪帳號的用戶：恢復當時剩餘點數（不給新手禮包）
+      credits = isDeletedUser ? (delSnap.data()?.credits_remaining ?? 0) : CREDITS_NEW_USER;
       await setDoc(ref, { fumei_credits: credits, fumei_credits_init_at: serverTimestamp() }, { merge: true });
+      // 曾刪帳號的用戶：強制清掉訪客殘留，確保 Onboarding 重跑
+      if (isDeletedUser) {
+        ['fumei_chars','fumei_char_active','fumei_onboarded',
+         'fumei_guest_chars','fumei_guest_onboarded','fumei_guest_mode',
+         'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img','fumei_theme'
+        ].forEach(k => localStorage.removeItem(k));
+      }
     } else {
       credits = data.fumei_credits;
       // 文件存在但沒有 credits 欄位（舊帳號）：補 20 點
@@ -6064,13 +6072,18 @@ async function deleteAccount() {
       fumei_avatar_img: '', fumei_avatar_emoji: '',
       fumei_credits: 0, fumei_checkin_date: ''
     });
-    // 2. 把 email 寫入黑名單（防止刪帳號重登刷新手點數）
+    // 2. 把 email 寫入黑名單（記錄剩餘點數，防刷新手禮包）
     const email = window._currentUserEmail || auth.currentUser?.email || '';
+    const remainingCredits = window.getCredits() || 0;
     if (email) {
       try {
         const { doc: docFn, setDoc: setDocFn, serverTimestamp: sts } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
         const emailKey = email.replace(/[.#$[\]]/g, '_');
-        await setDocFn(docFn(window.db, 'deleted_users', emailKey), { email, deleted_at: sts() });
+        await setDocFn(docFn(window.db, 'deleted_users', emailKey), {
+          email,
+          deleted_at: sts(),
+          credits_remaining: remainingCredits
+        });
       } catch(e) { console.warn('blacklist write failed (check Firestore rules):', e.message); }
     }
     // 3. 刪除 Firestore 用戶文件
