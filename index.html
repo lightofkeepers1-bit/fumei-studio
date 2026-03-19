@@ -1716,7 +1716,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.8.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.8.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2128,7 +2128,9 @@ function startCooldown(btnId, labelDone, seconds) {
     const left = Math.ceil((until - Date.now()) / 1000);
     if (left <= 0) {
       btn.disabled = false;
+      // 恢復按鈕文字後重新補回 cost-badge（避免 textContent 覆蓋掉 span）
       btn.textContent = labelDone;
+      if (typeof updateCostBadges === 'function') updateCostBadges();
     } else {
       btn.disabled = true;
       btn.textContent = `⏳ ${left}秒後可再試`;
@@ -2268,7 +2270,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.3';
+const APP_VERSION = '4.8.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3876,7 +3878,7 @@ ${current}
 
 請直接輸出改寫後的腳本，不要說明、不要前言。`;
 
-    const result = await claude(charCtx, prompt, true);
+    const result = await claude(charCtx, prompt, false);
     document.getElementById('scriptResult').textContent = result;
 
     // 同步加入歷史紀錄
