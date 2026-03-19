@@ -1071,6 +1071,7 @@ onAuthStateChanged(auth, async (user) => {
     }
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
+    window._currentUserEmail = user.email || '';
     // 初始化 header 簽到按鈕，並自動彈出簽到視窗
     setTimeout(() => {
       if (window.initCheckinBtn) window.initCheckinBtn();
@@ -1107,6 +1108,9 @@ onAuthStateChanged(auth, async (user) => {
     // 從雲端載入資料
     window._guestMode = false;
     localStorage.removeItem('fumei_guest_mode');
+    // 登入後徹底清掉訪客專屬資料，避免訪客角色污染正式帳號
+    localStorage.removeItem('fumei_guest_chars');
+    localStorage.removeItem('fumei_guest_onboarded');
     // 清除訪客殘留前，先備份可能有用的自訂頭像（避免清掉後找不回來）
     var _backupAvatarImg   = localStorage.getItem('fumei_avatar_img') || '';
     var _backupAvatarEmoji = localStorage.getItem('fumei_avatar_emoji') || '';
@@ -1716,7 +1720,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2270,7 +2274,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.1';
+const APP_VERSION = '4.9.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2330,8 +2334,17 @@ window.syncCreditsFromCloud = async (uid) => {
 
     let credits;
     if (!snap.exists()) {
-      // 真正的新帳號（文件不存在）才初始化 20 點
-      credits = CREDITS_NEW_USER;
+      // 文件不存在 → 檢查是否曾經刪過帳號（黑名單防刷點）
+      const email = window._currentUserEmail || '';
+      let isDeletedUser = false;
+      if (email) {
+        const emailKey = email.replace(/[.#$[\]]/g, '_');
+        const delRef = doc(window.db, 'deleted_users', emailKey);
+        const delSnap = await getDoc(delRef);
+        isDeletedUser = delSnap.exists();
+      }
+      // 曾刪帳號的用戶不再給新手禮包（給 0 點）
+      credits = isDeletedUser ? 0 : CREDITS_NEW_USER;
       await setDoc(ref, { fumei_credits: credits, fumei_credits_init_at: serverTimestamp() }, { merge: true });
     } else {
       credits = data.fumei_credits;
@@ -6051,7 +6064,14 @@ async function deleteAccount() {
       fumei_avatar_img: '', fumei_avatar_emoji: '',
       fumei_credits: 0, fumei_checkin_date: ''
     });
-    // 2. 刪除 Firestore 用戶文件
+    // 2. 把 email 寫入黑名單（防止刪帳號重登刷新手點數）
+    const email = window._currentUserEmail || auth.currentUser?.email || '';
+    if (email) {
+      const { doc: docFn, setDoc: setDocFn, serverTimestamp: sts } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const emailKey = email.replace(/[.#$[\]]/g, '_');
+      await setDocFn(docFn(window.db, 'deleted_users', emailKey), { email, deleted_at: sts() });
+    }
+    // 3. 刪除 Firestore 用戶文件
     const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     await deleteDoc(doc(window.db, 'users', window._currentUid));
     // 3. 刪除 Firebase Auth 帳號
