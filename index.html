@@ -1371,8 +1371,8 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('welcomeModal').style.display = 'none';
     // 每次登入都先跑入場 intro
     setTimeout(showIntroModal, 300);
-    // 有雲端資料的老用戶不再跳 Onboarding；新用戶（沒有雲端資料）才檢查
-    if (!data) setTimeout(window.checkOnboarding, 300);
+    // 有雲端資料的老用戶不再跳 Onboarding；新用戶（沒有角色資料）才檢查
+    if (!data || !data.fumei_chars) setTimeout(window.checkOnboarding, 300);
   } else {
     // 未登入 → 顯示登入 + 訪客按鈕
     document.getElementById('loginBtn').style.display = 'flex';
@@ -1395,7 +1395,7 @@ onAuthStateChanged(auth, async (user) => {
     window.updateCreditsUI(-1);
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱
-    document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = 'Fumei（富美）');
+    document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = '尚未設定角色');
     // 重置 header logo
     const logoIcon = document.querySelector('.logo-icon');
     if (logoIcon) logoIcon.innerHTML = '🐾';
@@ -1730,7 +1730,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1782,7 +1782,7 @@ window.syncToCloud = async () => {
 <!-- DAILY -->
 <div class="panel active" id="panel-daily">
   <div class="banner">
-    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！<span class="char-name-ui" id="greetingName">角色</span> 今天也要發光發熱 ✨</div></div>
+    <div><div class="date" id="todayDate">載入中...</div><div class="greet">早安！<span class="char-name-ui" id="greetingName">尚未設定角色</span> 今天也要發光發熱 ✨</div></div>
     <div class="stats">
       <div class="stat"><div class="n" id="doneCount">0</div><div class="l">已完成</div></div>
       <div class="stat"><div class="n" id="totalCount">0</div><div class="l">總任務</div></div>
@@ -2175,7 +2175,7 @@ const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
 
 function getImgPromptStill() {
   const custom = localStorage.getItem('fumei_img_prompt_still') || '';
-  const charName = (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
+  const charName = (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || '我的角色';
   return custom.trim() || `換服裝換場景，表情要豐富
 不要更換提供的原人物的材質
 依照提供圖片材質出圖`;
@@ -2193,7 +2193,7 @@ function updateCharNameUI() {
 window.updateCharNameUI = updateCharNameUI;
 
 function getCharName() {
-  return (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || 'Fumei';
+  return (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || '我的角色';
 }
 
 const GEMINI_FRAME_ONE = (content) => {
@@ -2284,7 +2284,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.6';
+const APP_VERSION = '4.9.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5214,7 +5214,7 @@ async function refreshHistory() {
 // chars stored as array in localStorage: fumei_chars
 // active char index: fumei_char_active
 
-const DEFAULT_CHAR = { name:'Fumei（富美）', emoji:'🐾', appearance:'3D卡通狗狗女孩，金色長髮、格紋粉色洋裝+粉色針織外套，大眼睛招牌燦笑', personality:'上班族、有趣自信聰明、偶爾脫線大神經、白富美單身貴族、愛閱讀旅遊、熱愛時事', style:'直接自信偶爾自嗨、台灣用語、誇張共鳴、單身驕傲、偶爾神邏輯', politics:'台派本土、認同台灣主體意識、支持民主自由' };
+const DEFAULT_CHAR = { name:'', emoji:'🐾', appearance:'', personality:'', style:'', politics:'' };
 
 function loadChars() {
   try { return JSON.parse(localStorage.getItem('fumei_chars')) || [DEFAULT_CHAR]; }
@@ -5499,9 +5499,10 @@ async function saveCurrentChar() {
 
 function deleteCurrentChar() {
   const chars = loadChars();
+  const i = getActiveIdx();
+  if (i === 0) { alert('主要角色不能刪除！可以編輯修改，或新增其他角色後再切換主要。'); return; }
   if (chars.length <= 1) { alert('至少需要保留一個角色！'); return; }
   if (!confirm('確定刪除這個角色嗎？')) return;
-  const i = getActiveIdx();
   chars.splice(i, 1);
   saveChars(chars);
   setActiveIdx(Math.max(0, i - 1));
@@ -5512,7 +5513,7 @@ function deleteCurrentChar() {
 function buildCharPrompt() {
   const chars = loadChars();
   const ch = chars[getActiveIdx()] || DEFAULT_CHAR;
-  const name        = ch.name || 'Fumei（富美）';
+  const name        = ch.name || '我的角色';
   const appearanceRaw = ch.appearance || DEFAULT_CHAR.appearance;
   // 外貌描述簡短（<=5字）時，讓 AI 自由發揮，以關鍵字為基礎
   const appearance = appearanceRaw.length <= 5
