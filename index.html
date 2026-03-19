@@ -1716,7 +1716,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2270,7 +2270,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.0';
+const APP_VERSION = '4.9.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5120,6 +5120,7 @@ async function refreshHistory() {
           </div>
         </div>
         <button onclick="switchAccount()" style="width:100%;padding:11px;border-radius:14px;border:1.5px solid #C9B8E8;background:#f8f4ff;color:#764ba2;font-weight:800;font-size:0.88rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s;margin-bottom:8px">🔄 切換帳號</button>
+        <button class="settings-danger-btn" onclick="logoutUser();closeSettings();" style="background:#fff8f0;border-color:#ffd8a8;color:#b05a00;margin-bottom:10px">🚪 登出帳號</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
 
