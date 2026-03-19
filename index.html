@@ -1105,7 +1105,7 @@ onAuthStateChanged(auth, async (user) => {
     // 清除訪客殘留前，先備份可能有用的自訂頭像（避免清掉後找不回來）
     var _backupAvatarImg   = localStorage.getItem('fumei_avatar_img') || '';
     var _backupAvatarEmoji = localStorage.getItem('fumei_avatar_emoji') || '';
-    ['fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
+    ['fumei_credits','fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
      'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
      'fumei_theme','fumei_custom_topics','fumei_onboarded',
      'fumei_social_ig','fumei_social_fb','fumei_social_threads',
@@ -1363,17 +1363,15 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
-    // 登出時清除所有帳號資料，避免殘留到訪客畫面
-    if (!window._guestMode) {
-      [
-        'fumei_credits','fumei_chars','fumei_tasks','fumei_history',
-        'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
-        'fumei_theme','fumei_custom_topics','fumei_onboarded',
-        'fumei_social_ig','fumei_social_fb','fumei_social_threads',
-        'fumei_img_prompt_still','fumei_img_prompt_video','fumei_char_active'
-      ].forEach(k => localStorage.removeItem(k));
-      localStorage.removeItem('fumei_guest_mode');
-    }
+    // 登出時無條件清除所有帳號資料（不管 guestMode 狀態），避免殘留給下一個登入帳號
+    [
+      'fumei_credits','fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
+      'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+      'fumei_theme','fumei_custom_topics','fumei_onboarded',
+      'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+      'fumei_img_prompt_still','fumei_img_prompt_video',
+      'fumei_guest_mode','fumei_guest_chars','fumei_guest_onboarded'
+    ].forEach(k => localStorage.removeItem(k));
     window.updateCreditsUI(-1);
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱
@@ -1722,7 +1720,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.8.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.8.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2276,7 +2274,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.8.5';
+const APP_VERSION = '4.8.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
