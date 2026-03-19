@@ -1720,7 +1720,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2274,7 +2274,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.3';
+const APP_VERSION = '4.9.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6067,9 +6067,11 @@ async function deleteAccount() {
     // 2. 把 email 寫入黑名單（防止刪帳號重登刷新手點數）
     const email = window._currentUserEmail || auth.currentUser?.email || '';
     if (email) {
-      const { doc: docFn, setDoc: setDocFn, serverTimestamp: sts } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      const emailKey = email.replace(/[.#$[\]]/g, '_');
-      await setDocFn(docFn(window.db, 'deleted_users', emailKey), { email, deleted_at: sts() });
+      try {
+        const { doc: docFn, setDoc: setDocFn, serverTimestamp: sts } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        const emailKey = email.replace(/[.#$[\]]/g, '_');
+        await setDocFn(docFn(window.db, 'deleted_users', emailKey), { email, deleted_at: sts() });
+      } catch(e) { console.warn('blacklist write failed (check Firestore rules):', e.message); }
     }
     // 3. 刪除 Firestore 用戶文件
     const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
