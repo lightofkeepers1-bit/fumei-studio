@@ -1066,11 +1066,34 @@ onAuthStateChanged(auth, async (user) => {
     }
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
+    // 初始化 header 簽到按鈕
+    setTimeout(() => { if (window.initCheckinBtn) window.initCheckinBtn(); }, 300);
     // ⚡ 先顯示 loading 狀態，等雲端回來再更新
     window.updateCreditsUI(window.getCredits()); // 先用 localStorage 緩存值（可能是 -1 顯示 …）
 
     // ⚡ 同步點數（await 確保 UI 在登入流程完成前就更新）
+    // 如果是訪客模式登入，先記住訪客剩餘點數，登入後合併
+    const _guestCreditsMerge = window._guestMode ? (window._guestCreditsCache ?? 0) : 0;
     await window.syncCreditsFromCloud(user.uid);
+    // 訪客點數合併到正式帳號
+    if (_guestCreditsMerge > 0) {
+      try {
+        const currentCredits = window.getCredits();
+        const merged = currentCredits + _guestCreditsMerge;
+        localStorage.setItem('fumei_credits', String(merged));
+        window.updateCreditsUI(merged);
+        // 同步到雲端
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        await updateDoc(doc(window.db, 'users', user.uid), { fumei_credits: merged });
+        // 顯示合併提示
+        const toast = document.getElementById('creditsToast');
+        if (toast) {
+          toast.textContent = `🎉 訪客點數 ${_guestCreditsMerge} 點已合併到您的帳號！`;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+      } catch(e) { console.warn('guest credits merge failed', e); }
+    }
 
     // 從雲端載入資料
     window._guestMode = false;
@@ -1500,8 +1523,10 @@ window.confirmGuestMode = async function() {
 
   window._guestMode = true;
   localStorage.setItem('fumei_guest_mode', '1');
-  // 清除登入帳號殘留的所有資料前，先記住目前的版面設定
+  // 清除登入帳號殘留的所有資料前，先備份訪客自己的資料（若已有）
   const currentView = localStorage.getItem('fumei_view');
+  const guestChars  = localStorage.getItem('fumei_guest_chars') || '';
+  const guestOnboarded = localStorage.getItem('fumei_guest_onboarded') === '1';
   [
     'fumei_credits','fumei_chars','fumei_tasks','fumei_history',
     'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
@@ -1509,11 +1534,22 @@ window.confirmGuestMode = async function() {
     'fumei_social_ig','fumei_social_fb','fumei_social_threads',
     'fumei_img_prompt_still','fumei_img_prompt_video'
   ].forEach(k => localStorage.removeItem(k));
-  // 版面設定保留（訪客跟原本一樣，不用重設）
   if (currentView) localStorage.setItem('fumei_view', currentView);
-  // 訪客一律走 Onboarding 設定自己的角色
-  showOnboarding();
-  window._pendingGuestActivation = true;
+
+  // 訪客已設定過角色（同一台裝置），直接恢復，不再跑 Onboarding
+  if (guestOnboarded && guestChars) {
+    localStorage.setItem('fumei_chars', guestChars);
+    localStorage.setItem('fumei_onboarded', '1');
+    window._pendingGuestActivation = false;
+    showGuestUI();
+    applyGuestRestrictions();
+    renderCharCards();
+    if (window.updateCharNameUI) window.updateCharNameUI();
+  } else {
+    // 第一次訪客，走 Onboarding
+    showOnboarding();
+    window._pendingGuestActivation = true;
+  }
 };
 
 function showGuestUI() {
@@ -1533,6 +1569,11 @@ function showGuestUI() {
 window.updateGuestRemaining = function(n) {
   const el = document.getElementById('guestRemaining');
   if (el) el.innerHTML = '👀 ⚡' + n + ' 點';
+  // 同步更新 header 的點數顯示（手機版也看得到）
+  const creditsNum = document.getElementById('creditsNum');
+  if (creditsNum && window._guestMode) creditsNum.textContent = n;
+  const display = document.getElementById('creditsDisplay');
+  if (display && window._guestMode) display.style.display = 'inline-flex';
 };
 
 // 訪客掃描冷卻（1分鐘）— 定義移至主 script block
@@ -1627,7 +1668,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1647,6 +1688,7 @@ window.syncToCloud = async () => {
         <img id="userAvatar" style="width:26px;height:26px;border-radius:50%;border:2px solid white;flex-shrink:0" src="">
         <span id="userName" style="font-size:0.72rem;color:white;font-weight:700;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         <span id="creditsDisplay" onclick="openBuyModal()" title="點擊購買點數">⚡ <span id="creditsNum">-</span></span>
+        <button id="headerCheckinBtn" onclick="dailyCheckin()" title="每日簽到" style="background:linear-gradient(135deg,#FFD700,#FFA500);border:none;color:white;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">🎁 +3</button>
         <button onclick="logoutUser()" style="background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;flex-shrink:0">登出</button>
       </div>
 
@@ -2173,7 +2215,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.7.2';
+const APP_VERSION = '4.7.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2314,32 +2356,39 @@ window.addCredits = async (amount, source) => {
 window.dailyCheckin = async () => {
   if (!window._currentUid) return;
   const btn = document.getElementById('dailyCheckinBtn');
+  const headerBtn = document.getElementById('headerCheckinBtn');
   const msg = document.getElementById('dailyCheckinMsg');
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
   const lastKey = 'fumei_checkin_last';
   const lastDate = localStorage.getItem(lastKey);
   if (lastDate === today) {
-    msg.style.color = '#bbb';
-    msg.textContent = '今日已簽到 ✓';
+    if (msg) { msg.style.color = '#bbb'; msg.textContent = '今日已簽到 ✓'; }
+    if (headerBtn) { headerBtn.textContent = '✅ 已簽到'; headerBtn.disabled = true; headerBtn.style.background = '#bbb'; }
     return;
   }
-  btn.disabled = true;
-  btn.textContent = '⏳ 領取中...';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 領取中...'; }
+  if (headerBtn) { headerBtn.disabled = true; headerBtn.textContent = '⏳'; }
   try {
     const DAILY_BONUS = 3;
     await window.addCredits(DAILY_BONUS, 'daily_checkin');
     localStorage.setItem(lastKey, today);
-    // 記入 credit log
     addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now() });
-    msg.style.color = '#2d6a4f';
-    msg.textContent = `🎉 +${DAILY_BONUS} 點！明天再來 ✨`;
-    btn.textContent = '✅ 已簽到';
-    document.getElementById('creditsInfoNum').textContent = window.getCredits();
+    if (msg) { msg.style.color = '#2d6a4f'; msg.textContent = `🎉 +${DAILY_BONUS} 點！明天再來 ✨`; }
+    if (btn) { btn.textContent = '✅ 已簽到'; btn.style.background = '#ddd'; }
+    if (headerBtn) { headerBtn.textContent = '✅ 已簽到'; headerBtn.disabled = true; headerBtn.style.background = '#bbb'; }
+    const infoNum = document.getElementById('creditsInfoNum');
+    if (infoNum) infoNum.textContent = window.getCredits();
+    // 顯示 toast
+    const toast = document.getElementById('creditsToast');
+    if (toast) {
+      toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
   } catch(e) {
-    btn.disabled = false;
-    btn.textContent = '🎁 每日簽到 +3點';
-    msg.style.color = '#e85d8a';
-    msg.textContent = '領取失敗，請再試';
+    if (btn) { btn.disabled = false; btn.textContent = '🎁 每日簽到 +3點'; }
+    if (headerBtn) { headerBtn.disabled = false; headerBtn.textContent = '🎁 +3'; }
+    if (msg) { msg.style.color = '#e85d8a'; msg.textContent = '領取失敗，請再試'; }
   }
 };
 
@@ -2348,17 +2397,19 @@ window.initCheckinBtn = () => {
   const today = new Date().toISOString().slice(0, 10);
   const lastDate = localStorage.getItem('fumei_checkin_last');
   const btn = document.getElementById('dailyCheckinBtn');
+  const headerBtn = document.getElementById('headerCheckinBtn');
   const msg = document.getElementById('dailyCheckinMsg');
-  if (!btn) return;
-  if (lastDate === today) {
-    btn.disabled = true;
-    btn.textContent = '✅ 今日已簽到';
-    btn.style.background = '#ddd';
-    if (msg) { msg.style.color = '#bbb'; msg.textContent = '明天再來 ✨'; }
-  } else {
-    btn.disabled = false;
-    btn.textContent = '🎁 每日簽到 +3點';
-    btn.style.background = 'linear-gradient(135deg,#FFD700,#FFA500)';
+  const checkedIn = lastDate === today;
+  if (btn) {
+    btn.disabled = checkedIn;
+    btn.textContent = checkedIn ? '✅ 今日已簽到' : '🎁 每日簽到 +3點';
+    btn.style.background = checkedIn ? '#ddd' : 'linear-gradient(135deg,#FFD700,#FFA500)';
+    if (msg) { msg.style.color = '#bbb'; msg.textContent = checkedIn ? '明天再來 ✨' : ''; }
+  }
+  if (headerBtn) {
+    headerBtn.disabled = checkedIn;
+    headerBtn.textContent = checkedIn ? '✅ 已簽到' : '🎁 +3';
+    headerBtn.style.background = checkedIn ? '#bbb' : 'linear-gradient(135deg,#FFD700,#FFA500)';
   }
 };
 
@@ -4924,9 +4975,9 @@ async function refreshHistory() {
           <!-- 邀請碼兌換 -->
           <div>
             <div style="font-size:0.72rem;color:#bbb;margin-bottom:6px;font-weight:700">🎟️ 邀請碼補充點數</div>
-            <div style="display:flex;gap:6px;align-items:center">
-              <input id="settingsInviteInput" placeholder="輸入邀請碼" style="padding:8px 12px;border-radius:10px;border:1.5px solid #e0d0f0;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;flex:1">
-              <button onclick="redeemFromSettings()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">兌換</button>
+            <div style="display:flex;gap:6px;align-items:center;width:100%">
+              <input id="settingsInviteInput" placeholder="輸入邀請碼" style="padding:8px 12px;border-radius:10px;border:1.5px solid #e0d0f0;font-size:0.82rem;font-family:'Noto Sans TC',sans-serif;outline:none;color:#555;flex:1;min-width:0;width:0">
+              <button onclick="redeemFromSettings()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">兌換</button>
             </div>
             <div id="settingsInviteMsg" style="font-size:0.75rem;font-weight:700;min-height:16px;margin-top:6px"></div>
           </div>
@@ -5604,6 +5655,12 @@ function obFinish() {
   // 訪客模式等待 Onboarding 完成後才啟動
   if (window._pendingGuestActivation) {
     window._pendingGuestActivation = false;
+    // 把訪客角色存到專屬 key，下次同裝置不用重跑 Onboarding
+    const chars = localStorage.getItem('fumei_chars') || '';
+    if (chars) {
+      localStorage.setItem('fumei_guest_chars', chars);
+      localStorage.setItem('fumei_guest_onboarded', '1');
+    }
     showGuestUI();
     applyGuestRestrictions();
   }
