@@ -1270,6 +1270,23 @@ onAuthStateChanged(auth, async (user) => {
       const opt = new Option('🗞️ 時事反應', '時事反應');
       scriptType.appendChild(opt);
     }
+    // 還原 topicCat 的時事 & PTT 選項
+    const topicCat = document.getElementById('topicCat');
+    if (topicCat) {
+      if (![...topicCat.options].find(o => o.value === '時事')) {
+        topicCat.insertBefore(new Option('今日時事', '時事'), topicCat.firstChild);
+      }
+      if (![...topicCat.options].find(o => o.value === 'PTT')) {
+        const pttOpt = new Option('PTT 熱門', 'PTT');
+        // 插入到「職場」之前
+        const workOpt = [...topicCat.options].find(o => o.value === '職場');
+        topicCat.insertBefore(pttOpt, workOpt || null);
+      }
+    }
+    // 還原自訂 dropdown 的隱藏選項
+    document.querySelectorAll('#topicCatMenu .topic-opt').forEach(item => {
+      item.style.display = '';
+    });
     // 還原歷史紀錄 tab
     document.querySelectorAll('.tab').forEach(btn => {
       if (btn.textContent.includes('歷史')) {
@@ -1594,14 +1611,30 @@ function applyGuestRestrictions() {
     inspoBtn.title = '三AI發想需要登入才能使用';
     inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
   }
-  // 鎖定時事類別，強制切換到職場
+  // 鎖定時事 & PTT — hidden select
   const topicCat = document.getElementById('topicCat');
   if (topicCat) {
-    // 移除今日時事選項
-    const newsOpt = topicCat.querySelector('option[value="時事"]');
-    if (newsOpt) newsOpt.remove();
-    // 預設選職場
+    ['時事', 'PTT'].forEach(val => {
+      const opt = topicCat.querySelector(`option[value="${val}"]`);
+      if (opt) opt.remove();
+    });
     topicCat.value = '職場';
+  }
+  // 鎖定自訂 dropdown：隱藏時事 & PTT 選項，若目前選的是這兩個就切回職場
+  const menuItems = document.querySelectorAll('#topicCatMenu .topic-opt');
+  menuItems.forEach(item => {
+    const val = item.dataset.val;
+    if (val === '時事' || val === 'PTT') {
+      item.style.display = 'none';
+    }
+  });
+  // 若目前 label 是被鎖的選項，切回「職場話題」
+  const label = document.getElementById('topicCatLabel');
+  if (label && (label.textContent.includes('時事') || label.textContent.includes('PTT'))) {
+    label.textContent = '💼 職場話題';
+    if (topicCat) topicCat.value = '職場';
+    const display = document.getElementById('topicCatDisplay');
+    if (display) { display.style.borderColor = '#f0d8e0'; display.style.background = 'white'; }
   }
   // 鎖定產腳本的時事反應選項
   const scriptType = document.getElementById('scriptType');
@@ -1610,8 +1643,10 @@ function applyGuestRestrictions() {
     if (newsTypeOpt) newsTypeOpt.remove();
     if (scriptType.value === '時事反應') scriptType.value = '職場梗';
   }
-  // 更新按鈕點數標示（選項被移除後重新計算）
+  // 更新 chips 顯示與點數標示
   if (window.updateCostBadges) window.updateCostBadges();
+  onTopicCatChange();
+  onScriptTypeChange();
 }
 
 window.showLoginPrompt = function(msg) {
@@ -1668,7 +1703,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.7.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1778,7 +1813,7 @@ window.syncToCloud = async () => {
       <button class="btn" onclick="scanTopics()" id="scanBtn">🔍 掃描話題 <span class="cost-badge">⚡2</span></button>
     </div>
     <!-- 今日時事分類標籤（只在選「時事」時顯示） -->
-    <div id="newsCatRow" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px">
+    <div id="newsCatRow" style="margin-bottom:14px;display:none;flex-wrap:wrap;gap:6px">
       <button class="news-cat-chip active" data-cat="all" onclick="selectNewsCat(this)">📰 全部</button>
       <button class="news-cat-chip" data-cat="politics" onclick="selectNewsCat(this)">🏛️ 政治</button>
       <button class="news-cat-chip" data-cat="society" onclick="selectNewsCat(this)">👥 社會</button>
@@ -2215,7 +2250,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.7.4';
+const APP_VERSION = '4.7.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2225,7 +2260,8 @@ window.updateCostBadges = () => {
   const cat = document.getElementById('topicCat');
   const scanBadge = document.querySelector('#scanBtn .cost-badge');
   if (cat && scanBadge) {
-    scanBadge.textContent = cat.value === '時事' ? '⚡2' : '⚡1';
+    const v = cat.value;
+    scanBadge.textContent = v === 'PTT' ? '⚡3' : v === '時事' ? '⚡2' : '⚡1';
   }
   const type = document.getElementById('scriptType');
   const scriptBadge = document.querySelector('#scriptBtn .cost-badge');
@@ -2469,6 +2505,8 @@ window.onload = () => {
   rebuildTopicSelects();
   renderVersion();
   updateCostBadges(); // ⚡ 初始化按鈕點數標示
+  onTopicCatChange(); // 初始化話題分類 chips 顯示狀態
+  onScriptTypeChange(); // 初始化腳本分類 chips 顯示狀態
   // 訪客模式才直接初始化，登入用戶等 onAuthStateChanged 從雲端載入後再 render
   if (window._guestMode) {
     renderTasks();
