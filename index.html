@@ -1730,7 +1730,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2284,7 +2284,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.8';
+const APP_VERSION = '4.9.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4787,7 +4787,12 @@ async function refreshHistory() {
         </div>
       </div>
       <button onclick="obNext(2)" style="width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-size:1rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;margin-bottom:10px">開始設定我的角色 →</button>
-      <button onclick="loginGoogle()" style="width:100%;padding:12px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px"><img src="https://www.google.com/favicon.ico" style="width:16px;height:16px"> 已有帳號？Google 登入</button>
+      <!-- 訪客才顯示登入選項 -->
+      <div id="ob-login-section" style="display:none;margin-top:4px">
+        <div style="text-align:center;font-size:0.75rem;color:#bbb;margin-bottom:8px">── 已有帳號？直接登入 ──</div>
+        <button onclick="loginGoogle()" style="width:100%;padding:11px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px"><img src="https://www.google.com/favicon.ico" style="width:16px;height:16px"> Google 帳號登入</button>
+        <button onclick="document.getElementById('onboardingModal').style.display='none';openEmailLogin();" style="width:100%;padding:11px;border-radius:16px;border:2px solid #e0d0f0;background:white;color:#764ba2;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">✉️ Email 帳號登入</button>
+      </div>
     </div>
 
     <!-- Step 2：基本資料 -->
@@ -5595,6 +5600,17 @@ function closeIntro() {
 }
 window.closeIntro = closeIntro;
 
+// Email 登入入口（從 Onboarding 登入區塊呼叫）
+function openEmailLogin() {
+  const wm = document.getElementById('welcomeModal');
+  if (wm) {
+    wm.style.display = 'flex';
+    // 切到 Email 登入頁籤
+    if (window.switchEmailTab) window.switchEmailTab('login');
+  }
+}
+window.openEmailLogin = openEmailLogin;
+
 function introNext() {
   if (_introPage < INTRO_TOTAL) {
     _introPage++;
@@ -5649,6 +5665,11 @@ window.checkOnboarding = checkOnboarding;
 
 function showOnboarding() {
   document.getElementById('onboardingModal').style.display = 'block';
+  // 只有訪客（未登入）才顯示登入選項
+  const loginSection = document.getElementById('ob-login-section');
+  if (loginSection) {
+    loginSection.style.display = (window._guestMode && !window._currentUid) ? 'block' : 'none';
+  }
   obGoTo(1);
 }
 window.showOnboarding = showOnboarding;
