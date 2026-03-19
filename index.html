@@ -1730,7 +1730,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2284,7 +2284,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.0.2';
+const APP_VERSION = '5.0.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2393,8 +2393,14 @@ window.syncCreditsFromCloud = async (uid) => {
 // 扣點（先扣本地，再同步雲端）
 window.deductCredits = async (cost, feature) => {
   if (!window._currentUid) return { ok: false, reason: 'notLoggedIn' };
-  const current = window.getCredits();
-  if (current < 0) return { ok: false, reason: 'notSynced' };
+  let current = window.getCredits();
+  // 點數未同步時，先嘗試重新同步一次再繼續
+  if (current < 0) {
+    try {
+      current = await window.syncCreditsFromCloud(window._currentUid);
+    } catch(e) { /* ignore */ }
+    if (current < 0) return { ok: false, reason: 'notSynced' };
+  }
   if (current < cost) return { ok: false, reason: 'insufficient', remaining: current };
 
   const newVal = current - cost;
