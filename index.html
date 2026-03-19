@@ -570,7 +570,9 @@ window.submitEmailAuth = async () => {
       await sendEmailVerification(cred.user);
       msg.style.color = '#2d6a4f';
       msg.textContent = '✅ 註冊成功！請去收信點驗證連結後再登入';
+      window._pendingEmailVerification = true; // 標記：等待驗證的登出，不跳登入視窗
       await signOut(auth);
+      window._pendingEmailVerification = false;
       btn.textContent = '註冊';
       btn.disabled = false;
     } else {
@@ -579,7 +581,9 @@ window.submitEmailAuth = async () => {
         msg.style.color = '#e85d8a';
         msg.textContent = '❌ 請先去收信點驗證連結，再回來登入';
         await sendEmailVerification(cred.user);
+        window._pendingEmailVerification = true;
         await signOut(auth);
+        window._pendingEmailVerification = false;
         btn.textContent = '登入';
         btn.disabled = false;
         return;
@@ -1401,8 +1405,10 @@ onAuthStateChanged(auth, async (user) => {
     if (logoIcon) logoIcon.innerHTML = '🐾';
     // 未登入一律套用功能限制
     applyGuestRestrictions();
-    // 登出一律跳登入選擇視窗（不自動進訪客模式）
-    setTimeout(() => { showIntroModal(); }, 300);
+    // 等待 email 驗證的登出：不跳登入視窗，讓用戶看到驗證提示訊息
+    if (!window._pendingEmailVerification) {
+      setTimeout(() => { showIntroModal(); }, 300);
+    }
   }
 });
 
@@ -1730,7 +1736,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2284,7 +2290,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.0.3';
+const APP_VERSION = '5.0.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
