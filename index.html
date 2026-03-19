@@ -1368,6 +1368,7 @@ onAuthStateChanged(auth, async (user) => {
 
     // 登入成功時關閉所有 modal
     document.getElementById('onboardingModal').style.display = 'none';
+    document.getElementById('onboardingModal').style.pointerEvents = 'none';
     document.getElementById('welcomeModal').style.display = 'none';
     document.getElementById('introModal').style.display = 'none';
     // 有角色資料的老用戶直接進入；新用戶（沒有角色資料）才跳 Onboarding
@@ -1729,7 +1730,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2283,7 +2284,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.0.1';
+const APP_VERSION = '5.0.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4760,7 +4761,7 @@ async function refreshHistory() {
   </div>
 </div>
 
-<div id="onboardingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#ffeef4,#f0e8ff);overflow-y:auto">
+<div id="onboardingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#ffeef4,#f0e8ff);overflow-y:auto;pointer-events:none">
   <!-- 已登入用戶才顯示關閉按鈕（訪客必須完成設定） -->
   <button id="obCloseBtn" onclick="document.getElementById('onboardingModal').style.display='none'" style="display:none;position:fixed;top:16px;right:16px;z-index:10001;background:rgba(255,255,255,0.8);border:none;border-radius:50%;width:36px;height:36px;font-size:1.1rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)">✕</button>
   <div style="max-width:520px;margin:0 auto;padding:40px 24px 60px">
@@ -5665,7 +5666,9 @@ function checkOnboarding() {
 window.checkOnboarding = checkOnboarding;
 
 function showOnboarding() {
-  document.getElementById('onboardingModal').style.display = 'block';
+  const modal = document.getElementById('onboardingModal');
+  modal.style.display = 'block';
+  modal.style.pointerEvents = 'auto';
   // 已登入用戶可以關閉 Onboarding（訪客必須完成才能使用）
   const closeBtn = document.getElementById('obCloseBtn');
   if (closeBtn) {
@@ -5841,7 +5844,9 @@ async function obStartAnalysis() {
 }
 
 function obFinish() {
-  document.getElementById('onboardingModal').style.display = 'none';
+  const modal = document.getElementById('onboardingModal');
+  modal.style.display = 'none';
+  modal.style.pointerEvents = 'none';
   renderCharCards();
   updateCharNameUI();
   // 訪客模式等待 Onboarding 完成後才啟動
