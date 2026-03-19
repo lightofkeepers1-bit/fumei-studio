@@ -1198,6 +1198,16 @@ onAuthStateChanged(auth, async (user) => {
     renderHistory();
     if (window.renderHeaderCharBar) window.renderHeaderCharBar();
 
+    // 檢查是否有待執行的刪除帳號（需重新驗證後繼續）
+    if (localStorage.getItem('fumei_pending_delete') === '1') {
+      localStorage.removeItem('fumei_pending_delete');
+      setTimeout(() => {
+        if (confirm('已重新驗證身份。現在要繼續刪除帳號與所有資料嗎？')) {
+          deleteAccount();
+        }
+      }, 800);
+    }
+
     // ✅ 登入後自動繼續輪詢未完成的生圖任務（_currentUid 此時已確認存在）
     setTimeout(async () => {
       const _stale = 30 * 60 * 1000;
@@ -1720,7 +1730,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v4.9.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2274,7 +2284,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '4.9.5';
+const APP_VERSION = '4.9.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6108,9 +6118,14 @@ async function deleteAccount() {
     alert('帳號與所有資料已徹底刪除。');
     location.reload();
   } catch(e) {
-    // Firebase Auth 刪除需要近期登入，若 token 過期會失敗
+    // Firebase Auth 刪除需要近期登入：自動重新驗證後繼續刪除
     if (e.code === 'auth/requires-recent-login') {
-      alert('為了安全，請先登出後重新登入，再執行刪除帳號。');
+      if (confirm('為了安全，需要重新驗證身份才能刪除帳號。\n\n點確定將重新登入，完成後請再次點擊「刪除帳號」。')) {
+        // 標記待刪除，重新登入後自動執行
+        localStorage.setItem('fumei_pending_delete', '1');
+        await window.logoutUser();
+        setTimeout(() => window.loginGoogle(), 300);
+      }
     } else {
       alert('刪除失敗：' + e.message);
     }
