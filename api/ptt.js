@@ -72,9 +72,11 @@ export default async function handler(req, res) {
   const board    = BOARD_MAP[boardKey] || 'Gossiping';
   // 較冷門的板門檻降低，避免抓不到文章
   const smallBoards = ['womenhating', 'marriage', 'joke'];
-  const defaultMinPush = smallBoards.includes(boardKey) ? 5 : 10;
+  const tinyBoards = ['womenhating']; // WomenTalk 推文數普遍少，門檻設最低
+  const defaultMinPush = tinyBoards.includes(boardKey) ? 1 : smallBoards.includes(boardKey) ? 5 : 10;
   const minPush  = parseInt(req.query.minPush || String(defaultMinPush));
-  const pages    = Math.min(parseInt(req.query.pages || '3'), 5);
+  const defaultPages = tinyBoards.includes(boardKey) ? 5 : 3;
+  const pages    = Math.min(parseInt(req.query.pages || String(defaultPages)), 5);
 
   try {
     let allItems = [];
