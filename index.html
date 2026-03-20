@@ -1822,7 +1822,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2376,7 +2376,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.1.2';
+const APP_VERSION = '5.1.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2826,7 +2826,17 @@ function renderTasks() {
       <div class="task-text">${t.text}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         ${getLinkBtn(t.p)}
-        ${(links[t.p] || (t.p==='both' && (links.ig||links.fb))) ? `<span class="badge ${bl[t.p||'ig']||'b-ig'}">${ll[t.p||'ig']||'IG'}</span>` : ''}
+        ${(() => {
+          if (t.p === 'both') {
+            // both：只顯示有設定的平台 badge
+            let badges = '';
+            if (links.ig) badges += `<span class="badge b-ig">IG</span>`;
+            if (links.fb) badges += `<span class="badge b-fb">FB</span>`;
+            if (links.threads) badges += `<span class="badge b-threads">Threads</span>`;
+            return badges;
+          }
+          return links[t.p] ? `<span class="badge ${bl[t.p||'ig']||'b-ig'}">${ll[t.p||'ig']||'IG'}</span>` : '';
+        })()}
         <span style="cursor:pointer;color:#ddd" onclick="del(${t.id})">✕</span>
       </div>
     </div>`).join('');
@@ -5120,7 +5130,10 @@ async function refreshHistory() {
 
       <!-- 社群帳號 -->
       <div class="settings-section">
-        <div class="settings-label">🔗 社群帳號連結</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="settings-label" style="margin-bottom:0">🔗 社群帳號連結</div>
+          <button onclick="saveSocialAccounts()" style="padding:6px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);color:white;font-weight:800;font-size:0.75rem;cursor:pointer;font-family:'Nunito',sans-serif">💾 儲存</button>
+        </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:1.1rem;width:24px;text-align:center">📸</span>
@@ -5664,6 +5677,22 @@ function clearSocial(id) {
   document.getElementById(id).value = '';
 }
 
+function saveSocialAccounts() {
+  localStorage.setItem('fumei_social_ig',      document.getElementById('socialIG').value.trim());
+  localStorage.setItem('fumei_social_fb',      document.getElementById('socialFB').value.trim());
+  localStorage.setItem('fumei_social_threads', document.getElementById('socialThreads').value.trim());
+  if (window.syncToCloud) window.syncToCloud();
+  // 立刻重新 render 每日任務，讓標籤即時出現
+  renderTasks();
+  // 成功提示
+  const toast = document.getElementById('creditsToast');
+  if (toast) {
+    toast.textContent = '✅ 社群帳號已儲存！';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+}
+
 function toggleChip(el, targetId) {
   el.classList.toggle('active');
   const group = el.closest('.char-preset-chips');
@@ -6031,9 +6060,14 @@ function openSettings() {
   document.getElementById('accountSection').style.display = 'block';
   if (window._currentUid) {
     document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
-    // 直接從 localStorage 讀（syncCreditsFromCloud 已在登入時 await 完成）
-    const credits = window.getCredits();
-    window.updateCreditsUI(credits >= 0 ? credits : 0);
+    // 先顯示 localStorage 值，若是 -1 顯示 …
+    const cached = window.getCredits();
+    const infoNum = document.getElementById('creditsInfoNum');
+    if (infoNum) infoNum.textContent = cached >= 0 ? cached : '…';
+    // 背景同步雲端最新值
+    if (window.syncCreditsFromCloud) {
+      window.syncCreditsFromCloud(window._currentUid).catch(() => {});
+    }
   } else {
     document.getElementById('accountInfo').textContent = '尚未登入 Google 帳號';
     const infoNum = document.getElementById('creditsInfoNum');
