@@ -743,6 +743,8 @@ window.checkAdminAccess = async function checkAdminAccess(email) {
       if (fbSec) fbSec.style.display = 'block';
       const adminMgmtSec = document.getElementById('adminManageSection');
       if (adminMgmtSec) adminMgmtSec.style.display = 'block';
+      const annSec = document.getElementById('adminAnnouncementSection');
+      if (annSec) annSec.style.display = 'block';
     }
   } catch(e) {
     // 失敗時 fallback 到超級管理員判斷
@@ -762,6 +764,134 @@ function genRandomCode() {
   for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }
+
+// ── 公告圖片上傳 ──────────────────────────────────
+window._announcementImgData = ''; // 暫存 base64
+
+function initAnnImgDropZone() {
+  const zone = document.getElementById('annImgDropZone');
+  const fileInput = document.getElementById('annImgFileInput');
+  if (!zone || !fileInput) return;
+  zone.onclick = () => fileInput.click();
+  zone.ondragover = e => { e.preventDefault(); zone.style.borderColor = '#C9B8E8'; zone.style.background = '#f8f4ff'; };
+  zone.ondragleave = () => { zone.style.borderColor = '#e8d5f5'; zone.style.background = '#fffbfd'; };
+  zone.ondrop = e => { e.preventDefault(); zone.style.borderColor = '#e8d5f5'; zone.style.background = '#fffbfd'; handleAnnImgFile(e.dataTransfer.files[0]); };
+  fileInput.onchange = e => handleAnnImgFile(e.target.files[0]);
+}
+
+function handleAnnImgFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const result = e.target.result;
+    window._announcementImgData = result;
+    // 預覽
+    const preview = document.getElementById('annImgPreview');
+    const previewWrap = document.getElementById('annImgPreviewWrap');
+    if (preview) { preview.src = result; previewWrap.style.display = 'block'; }
+    // 更新上傳區顯示
+    const kb = Math.round(result.length * 0.75 / 1024);
+    const zone = document.getElementById('annImgDropZone');
+    if (zone) zone.innerHTML = `✅ 圖片已上傳（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none">`;
+    document.getElementById('annImgClearBtn').style.display = 'block';
+    initAnnImgDropZone();
+  };
+  reader.readAsDataURL(file);
+}
+
+window.adminClearAnnouncementImg = () => {
+  window._announcementImgData = '';
+  const previewWrap = document.getElementById('annImgPreviewWrap');
+  if (previewWrap) previewWrap.style.display = 'none';
+  const zone = document.getElementById('annImgDropZone');
+  if (zone) zone.innerHTML = '📁 點擊或拖拉圖片上傳<input type="file" id="annImgFileInput" accept="image/*" style="display:none">';
+  document.getElementById('annImgClearBtn').style.display = 'none';
+  initAnnImgDropZone();
+};
+
+// ── 公告區塊 ──────────────────────────────────────
+window.loadAnnouncement = async () => {
+  try {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDoc(doc(window.db, 'config', 'announcement'));
+    if (!snap.exists()) return;
+    const d = snap.data();
+    window._applyAnnouncement(d);
+  } catch(e) { console.warn('loadAnnouncement failed', e); }
+};
+
+window._applyAnnouncement = (d) => {
+  if (d.title) document.getElementById('announcementTitle').textContent = d.title;
+  if (d.body)  document.getElementById('announcementBody').textContent = d.body;
+  const imgWrap = document.getElementById('announcementImgWrap');
+  const img = document.getElementById('announcementImg');
+  if (d.img) {
+    img.src = d.img;
+    imgWrap.style.display = 'block';
+  } else {
+    imgWrap.style.display = 'none';
+  }
+};
+
+window.adminLoadAnnouncement = async () => {
+  if (!window._isAdmin) return;
+  try {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDoc(doc(window.db, 'config', 'announcement'));
+    if (snap.exists()) {
+      const d = snap.data();
+      document.getElementById('adminAnnouncementTitle').value = d.title || '';
+      document.getElementById('adminAnnouncementBody').value  = d.body  || '';
+      // 載入圖片預覽
+      if (d.img) {
+        window._announcementImgData = d.img;
+        const previewWrap = document.getElementById('annImgPreviewWrap');
+        const preview = document.getElementById('annImgPreview');
+        if (preview) { preview.src = d.img; previewWrap.style.display = 'block'; }
+        const zone = document.getElementById('annImgDropZone');
+        const kb = Math.round(d.img.length * 0.75 / 1024);
+        if (zone) zone.innerHTML = `✅ 已有圖片（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none">`;
+        document.getElementById('annImgClearBtn').style.display = 'block';
+        initAnnImgDropZone();
+      }
+    }
+    document.getElementById('adminAnnouncementMsg').textContent = '✅ 已載入';
+    document.getElementById('adminAnnouncementMsg').style.color = '#2d6a4f';
+  } catch(e) {
+    document.getElementById('adminAnnouncementMsg').textContent = '❌ 載入失敗：' + e.message;
+    document.getElementById('adminAnnouncementMsg').style.color = '#e85d8a';
+  }
+};
+
+window.adminSaveAnnouncement = async () => {
+  if (!window._isAdmin) return;
+  const title   = document.getElementById('adminAnnouncementTitle').value.trim();
+  const body    = document.getElementById('adminAnnouncementBody').value.trim();
+  const img     = window._announcementImgData || '';
+  const version = 'v' + APP_VERSION;
+  const msg     = document.getElementById('adminAnnouncementMsg');
+  msg.textContent = '⏳ 儲存中...';
+  try {
+    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await setDoc(doc(window.db, 'config', 'announcement'), { title, body, img, version, updated_at: new Date().toISOString() });
+    window._applyAnnouncement({ title, body, img, version });
+    msg.textContent = '✅ 已儲存並套用！';
+    msg.style.color = '#2d6a4f';
+  } catch(e) {
+    msg.textContent = '❌ 儲存失敗：' + e.message;
+    msg.style.color = '#e85d8a';
+  }
+};
+
+window.adminPreviewAnnouncement = () => {
+  const title = document.getElementById('adminAnnouncementTitle').value.trim();
+  const body  = document.getElementById('adminAnnouncementBody').value.trim();
+  const img   = window._announcementImgData || '';
+  window._applyAnnouncement({ title, body, img, version: 'v' + APP_VERSION });
+  closeSettings();
+  const tab = document.querySelector('.tab');
+  if (tab) switchTab('daily', tab);
+};
 
 // ── 管理員帳號管理 ────────────────────────────────
 window.adminLoadAdmins = async () => {
@@ -1821,7 +1951,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1876,6 +2006,31 @@ window.syncToCloud = async () => {
     <div class="stats">
       <div class="stat"><div class="n" id="doneCount">0</div><div class="l">已完成</div></div>
       <div class="stat"><div class="n" id="totalCount">0</div><div class="l">總任務</div></div>
+    </div>
+  </div>
+  <!-- 公告區塊 -->
+  <div class="card" id="announcementCard" style="padding:0;overflow:hidden;margin-bottom:12px">
+    <!-- 圖片區（可選） -->
+    <div id="announcementImgWrap" style="display:none;width:100%;max-height:220px;overflow:hidden">
+      <img id="announcementImg" src="" alt="公告圖片" style="width:100%;object-fit:cover;display:block">
+    </div>
+    <!-- 文字內容 -->
+    <div style="padding:20px 22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.1rem">📣</span>
+          <span id="announcementTitle" style="font-weight:900;font-size:0.95rem;color:var(--brown)">關於 Fumei Studio</span>
+        </div>
+      </div>
+      <div id="announcementBody" style="font-size:0.85rem;color:#666;line-height:1.7;white-space:pre-wrap">🎉 歡迎使用 Fumei Studio！
+
+AI 幫你掃話題、產腳本、一鍵生圖，台灣最懂梗圖的創作助理 ✨
+
+📌 功能介紹
+• 🔍 話題掃描 — 自動抓台灣時事 / PTT 熱門
+• ✍️ 產腳本 — AI 根據你的角色產梗圖腳本
+• 🎨 生圖 — 一鍵生成梗圖圖片
+• 📋 每日任務 — 追蹤你的發文進度</div>
     </div>
   </div>
   <!-- 手機版每日簽到（header 空間不夠，放在每日任務頁頂部） -->
@@ -2374,7 +2529,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.2.1';
+const APP_VERSION = '5.2.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2721,6 +2876,8 @@ window.onload = () => {
   }
   // 自動偵測裝置寬度套用版面（不再需要手動切換）
   applyAutoView();
+  // 載入公告區塊（所有用戶都能看到）
+  if (window.loadAnnouncement) window.loadAnnouncement();
 };
 
 // ── 自動版面偵測 ──────────────────────────────────
@@ -5263,6 +5420,43 @@ async function refreshHistory() {
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
 
+      <!-- 管理員：公告管理 -->
+      <div class="settings-section" id="adminAnnouncementSection" style="display:none">
+        <hr class="settings-divider">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="settings-label" style="color:#764ba2;margin-bottom:0">📣 公告區塊管理</div>
+          <button onclick="adminLoadAnnouncement()" style="padding:6px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">🔄 載入</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <div style="font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">標題</div>
+            <input id="adminAnnouncementTitle" class="settings-input" placeholder="公告標題" style="margin:0;font-size:0.85rem">
+          </div>
+          <div>
+            <div style="font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">內文（支援換行）</div>
+            <textarea id="adminAnnouncementBody" style="width:100%;min-height:120px;border:1.5px solid #e8d5f5;border-radius:12px;padding:10px 14px;font-size:0.82rem;font-family:'Nunito',sans-serif;color:var(--brown);resize:vertical;box-sizing:border-box;outline:none" placeholder="公告內容..."></textarea>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;font-weight:800;color:#888;margin-bottom:6px">公告圖片（選填）</div>
+            <!-- 預覽 -->
+            <div id="annImgPreviewWrap" style="display:none;margin-bottom:8px;border-radius:12px;overflow:hidden;max-height:160px">
+              <img id="annImgPreview" src="" style="width:100%;object-fit:cover;display:block">
+            </div>
+            <!-- 上傳區 -->
+            <div id="annImgDropZone" style="border:2px dashed #e8d5f5;border-radius:12px;padding:16px;text-align:center;cursor:pointer;font-size:0.82rem;color:#aaa;background:#fffbfd;transition:all 0.2s">
+              📁 點擊或拖拉圖片上傳
+              <input type="file" id="annImgFileInput" accept="image/*" style="display:none">
+            </div>
+            <button id="annImgClearBtn" onclick="adminClearAnnouncementImg()" style="display:none;margin-top:6px;width:100%;padding:6px;border-radius:10px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑 移除圖片</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="adminSaveAnnouncement()" style="flex:1;padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif">💾 儲存公告</button>
+            <button onclick="adminPreviewAnnouncement()" style="padding:10px 16px;border-radius:12px;border:1.5px solid #C9B8E8;background:white;color:#764ba2;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif">👁 預覽</button>
+          </div>
+          <div id="adminAnnouncementMsg" style="font-size:0.8rem;text-align:center;min-height:16px"></div>
+        </div>
+      </div>
+
       <!-- 管理員：管理員帳號管理（僅超級管理員顯示）-->
       <div class="settings-section" id="adminManageSection" style="display:none">
         <hr class="settings-divider">
@@ -5353,6 +5547,7 @@ function renderCharCards() {
   const active = getActiveIdx();
   const wrap = document.getElementById('charCards');
   if (!wrap) return;
+  const editingIdx = parseInt(wrap.dataset.editingIdx ?? '-1');
   const logoImg = localStorage.getItem('fumei_avatar_img') || '';
   wrap.innerHTML = chars.map((ch, i) => {
     const isFirst = i === 0;
@@ -5360,8 +5555,9 @@ function renderCharCards() {
       ? `<img src="${logoImg}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0">`
       : `<span style="font-size:1.1rem;line-height:1;flex-shrink:0">${ch.emoji||'🐾'}</span>`;
     const isPrimary = i === active;
+    const isEditing = i === editingIdx;
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-      <div class="char-card ${isPrimary?'active':''}" onclick="selectChar(${i})" style="flex:1;margin-bottom:0">
+      <div class="char-card ${isEditing?'active':''}" onclick="selectChar(${i})" style="flex:1;margin-bottom:0">
         ${thumb}
         <span>${ch.name||'角色'}</span>
         ${isPrimary ? '<span style="font-size:0.7rem;background:#F4A7B9;color:white;padding:2px 7px;border-radius:10px;font-weight:800;margin-left:4px">主要</span>' : ''}
@@ -5423,14 +5619,16 @@ function setPrimaryChar(i) {
 }
 
 function selectChar(i) {
-  setActiveIdx(i);
-  renderCharCards();
+  // 只開啟編輯面板，不改變主要角色
   const chars = loadChars();
   const ch = chars[i];
+  // 標記目前正在編輯哪個
+  document.getElementById('charCards').dataset.editingIdx = i;
+  renderCharCards();
   document.getElementById('charName').value        = ch.name || '';
   document.getElementById('charAppearance').value  = ch.appearance || '';
   document.getElementById('charPersonality').value = ch.personality || '';
-  document.getElementById('charStyle').value       = ch.style || '';
+  document.getElementById('charStyle').value       = ch.style || ''
   document.getElementById('charPolitics').value    = ch.politics || '';
   document.getElementById('charEditTitle').textContent = '✏️ 編輯：' + (ch.name || '角色');
   document.getElementById('charEditPanel').style.display = 'flex';
@@ -6065,6 +6263,8 @@ function openSettings() {
   document.getElementById('imgPromptStill').value = localStorage.getItem('fumei_img_prompt_still') || '';
   document.getElementById('imgPromptVideo').value = localStorage.getItem('fumei_img_prompt_video') || '';
   document.getElementById('settingsModal').classList.add('show');
+  // 初始化公告圖片上傳區
+  setTimeout(() => initAnnImgDropZone(), 100);
   initDropZone();
   // 初始化簽到按鈕狀態
   if (window.initCheckinBtn) window.initCheckinBtn();
