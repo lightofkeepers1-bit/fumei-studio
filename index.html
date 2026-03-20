@@ -2039,7 +2039,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2617,7 +2617,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.3.6';
+const APP_VERSION = '5.3.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3037,6 +3037,8 @@ function getDEF() {
 }
 function renderTasks() {
   if (!tasks.length) tasks = [...getDEF()];
+  // 自動升級舊任務：id=1（產出今日圖文腳本）從 ig 改成 both
+  tasks = tasks.map(t => (t.id === 1 && t.p === 'ig') ? {...t, p:'both'} : t);
   const links = getPlatformLinks();
   const bl = {ig:'b-ig', fb:'b-fb', both:'b-both', threads:'b-threads'};
   const ll = {ig:'IG', fb:'FB', both:'IG+FB', threads:'Threads'};
