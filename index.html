@@ -765,39 +765,92 @@ function genRandomCode() {
   return code;
 }
 
-// ── 公告圖片上傳 ──────────────────────────────────
-window._triggerAnnImg = () => {
-  const input = document.getElementById('annImgFileInput');
-  if (input) input.click();
-};
-window._announcementImgData = ''; // 暫存 base64
-
-function initAnnImgDropZone() {
-  const zone = document.getElementById('annImgDropZone');
-  if (!zone) return;
-  zone.ondragover = e => { e.preventDefault(); zone.style.borderColor = '#C9B8E8'; zone.style.background = '#f8f4ff'; };
-  zone.ondragleave = () => { zone.style.borderColor = '#e8d5f5'; zone.style.background = '#fffbfd'; };
-  zone.ondrop = e => { e.preventDefault(); zone.style.borderColor = '#e8d5f5'; zone.style.background = '#fffbfd'; handleAnnImgFile(e.dataTransfer.files[0]); };
-}
+// ── 公告圖片編輯器 ────────────────────────────────
+window._announcementImgData = '';
+let _annEditorX = 0, _annEditorY = 0, _annEditorScale = 1, _annDragStart = null;
 
 window.handleAnnImgFile = function(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    const result = e.target.result;
-    window._announcementImgData = result;
-    // 設定頁預覽
-    const preview = document.getElementById('annImgPreview');
-    const previewWrap = document.getElementById('annImgPreviewWrap');
-    if (preview) { preview.src = result; previewWrap.style.display = 'block'; }
-    // 更新 label 文字
-    const label = document.getElementById('annImgLabel');
-    const kb = Math.round(result.length * 0.75 / 1024);
-    if (label) label.textContent = `✅ 已上傳（${kb}KB）— 點擊更換`;
-    document.getElementById('annImgClearBtn').style.display = 'block';
-  };
+  reader.onload = e => openAnnImgEditor(e.target.result);
   reader.readAsDataURL(file);
 };
+
+function openAnnImgEditor(src) {
+  _annEditorX = 0; _annEditorY = 0; _annEditorScale = 1;
+  const img = document.getElementById('annImgEditorImg');
+  const wrap = document.getElementById('annImgEditorWrap');
+  const slider = document.getElementById('annImgEditorScale');
+  img.src = src;
+  img.onload = () => {
+    const ratio = Math.max(360 / img.naturalWidth, 120 / img.naturalHeight);
+    _annEditorScale = ratio;
+    slider.min = Math.round(ratio * 50);
+    slider.max = Math.round(ratio * 300);
+    slider.value = Math.round(ratio * 100);
+    applyAnnEditorTransform();
+  };
+  document.getElementById('annImgEditorOverlay').classList.add('show');
+  wrap.onmousedown = startAnnDrag;
+  wrap.ontouchstart = startAnnDrag;
+  slider.oninput = () => { _annEditorScale = parseFloat(slider.value) / 100; applyAnnEditorTransform(); };
+}
+
+function applyAnnEditorTransform() {
+  const img = document.getElementById('annImgEditorImg');
+  const W = 360, H = 120;
+  const iw = img.naturalWidth * _annEditorScale;
+  const ih = img.naturalHeight * _annEditorScale;
+  _annEditorX = Math.min(0, Math.max(_annEditorX, W - iw));
+  _annEditorY = Math.min(0, Math.max(_annEditorY, H - ih));
+  img.style.width = iw + 'px'; img.style.height = ih + 'px';
+  img.style.left = _annEditorX + 'px'; img.style.top = _annEditorY + 'px';
+}
+
+function startAnnDrag(e) {
+  e.preventDefault();
+  const pt = e.touches ? e.touches[0] : e;
+  _annDragStart = { x: pt.clientX - _annEditorX, y: pt.clientY - _annEditorY };
+  document.onmousemove = document.ontouchmove = onAnnDrag;
+  document.onmouseup = document.ontouchend = endAnnDrag;
+}
+function onAnnDrag(e) {
+  if (!_annDragStart) return;
+  const pt = e.touches ? e.touches[0] : e;
+  _annEditorX = pt.clientX - _annDragStart.x;
+  _annEditorY = pt.clientY - _annDragStart.y;
+  applyAnnEditorTransform();
+}
+function endAnnDrag() {
+  _annDragStart = null;
+  document.onmousemove = document.ontouchmove = null;
+  document.onmouseup = document.ontouchend = null;
+}
+
+function confirmAnnImgEditor() {
+  const img = document.getElementById('annImgEditorImg');
+  const canvas = document.createElement('canvas');
+  canvas.width = 720; canvas.height = 240;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, _annEditorX * 2, _annEditorY * 2, img.naturalWidth * _annEditorScale * 2, img.naturalHeight * _annEditorScale * 2);
+  let quality = 0.85, result = canvas.toDataURL('image/jpeg', quality);
+  while (result.length > 500 * 1024 && quality > 0.3) { quality -= 0.1; result = canvas.toDataURL('image/jpeg', quality); }
+  window._announcementImgData = result;
+  const preview = document.getElementById('annImgPreview');
+  const previewWrap = document.getElementById('annImgPreviewWrap');
+  if (preview) { preview.src = result; previewWrap.style.display = 'block'; }
+  const label = document.getElementById('annImgLabel');
+  const kb = Math.round(result.length * 0.75 / 1024);
+  if (label) label.textContent = `✅ 已上傳（${kb}KB）— 點擊更換`;
+  document.getElementById('annImgClearBtn').style.display = 'block';
+  cancelAnnImgEditor();
+}
+
+function cancelAnnImgEditor() {
+  document.getElementById('annImgEditorOverlay').classList.remove('show');
+}
+
+function initAnnImgDropZone() {} // 保留避免報錯
 
 window.adminClearAnnouncementImg = () => {
   window._announcementImgData = '';
@@ -1975,7 +2028,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2553,7 +2606,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.3.1';
+const APP_VERSION = '5.3.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -7275,6 +7328,22 @@ window.addEventListener('load', () => {
   // ✅ 自動繼續輪詢未完成的生圖任務（移到 onAuthStateChanged 後執行）
 });
 </script>
+
+<!-- Announcement Image Editor Modal -->
+<div class="img-editor-overlay" id="annImgEditorOverlay">
+  <div class="img-editor-hint">拖移調整位置・縮放調整大小</div>
+  <div id="annImgEditorWrap" style="position:relative;width:360px;height:120px;border-radius:12px;overflow:hidden;border:4px solid white;box-shadow:0 4px 24px rgba(0,0,0,0.4);cursor:grab;touch-action:none;background:#222">
+    <img id="annImgEditorImg" src="" draggable="false" style="position:absolute;transform-origin:top left;user-select:none;pointer-events:none">
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div class="img-editor-hint">🔍 縮放</div>
+    <input class="img-editor-slider" type="range" id="annImgEditorScale" min="50" max="300" value="100">
+  </div>
+  <div class="img-editor-btns">
+    <button class="img-editor-btn img-editor-btn-cancel" onclick="cancelAnnImgEditor()">取消</button>
+    <button class="img-editor-btn img-editor-btn-ok" onclick="confirmAnnImgEditor()">✓ 套用</button>
+  </div>
+</div>
 
 <!-- Image Editor Modal -->
 <div class="img-editor-overlay" id="imgEditorOverlay">
