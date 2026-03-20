@@ -1842,7 +1842,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2395,7 +2395,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.1.9';
+const APP_VERSION = '5.2.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3386,7 +3386,7 @@ async function scanTopics() {
 
     // ── PTT 分支 ──────────────────────────────────
     if (isPtt) {
-      const pttRes = await fetch(`/api/ptt?board=${_selectedPttBoard}&minPush=20&pages=3`, {
+      const pttRes = await fetch(`/api/ptt?board=${_selectedPttBoard}&pages=3`, {
         headers: { 'x-firebase-uid': window._currentUid || '' }
       });
       if (!pttRes.ok) throw new Error('PTT 抓取失敗');
