@@ -1689,14 +1689,18 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
     window._currentUid = null;
-    // 登出時無條件清除所有帳號資料（不管 guestMode 狀態），避免殘留給下一個登入帳號
+    // 清除記憶體中的歷史資料，避免殘留給訪客
+    window.scriptHistory = [];
+    // 清除訪客點數快取，讓訪客模式重新從後端取得
+    window._guestCreditsCache = null;
+    // 登出時清除正式帳號資料，但保留訪客專屬資料（訪客資料綁裝置，不應清除）
     [
       'fumei_credits','fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
       'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
       'fumei_theme','fumei_custom_topics','fumei_onboarded',
       'fumei_social_ig','fumei_social_fb','fumei_social_threads',
       'fumei_img_prompt_still','fumei_img_prompt_video',
-      'fumei_guest_mode','fumei_guest_chars','fumei_guest_onboarded'
+      'fumei_guest_mode'
     ].forEach(k => localStorage.removeItem(k));
     window._guestMode = false;
     window.updateCreditsUI(-1);
@@ -1708,8 +1712,20 @@ onAuthStateChanged(auth, async (user) => {
     if (logoIcon) logoIcon.innerHTML = '🐾';
     // 未登入一律套用功能限制
     applyGuestRestrictions();
-    // 切換帳號中 或 等待 email 驗證：不跳登入視窗
-    if (!window._pendingEmailVerification && !window._switchingAccount) {
+    // 訪客刷新頁面：直接恢復訪客狀態，不跳登入視窗
+    const wasGuest = localStorage.getItem('fumei_guest_onboarded') === '1';
+    const guestChars = localStorage.getItem('fumei_guest_chars') || '';
+    if (wasGuest && guestChars) {
+      window._guestMode = true;
+      localStorage.setItem('fumei_guest_mode', '1');
+      localStorage.setItem('fumei_chars', guestChars);
+      localStorage.setItem('fumei_onboarded', '1');
+      showGuestUI();
+      applyGuestRestrictions();
+      renderTasks();
+      if (window.updateCharNameUI) window.updateCharNameUI();
+    } else if (!window._pendingEmailVerification && !window._switchingAccount) {
+      // 切換帳號中 或 等待 email 驗證：不跳登入視窗
       setTimeout(() => { showIntroModal(); }, 300);
     }
   }
@@ -1908,6 +1924,9 @@ function showGuestUI() {
   document.getElementById('userInfo').style.display = 'none';
   const avatarEl = document.getElementById('userAvatar');
   if (avatarEl) avatarEl.src = '';
+  // 清除殘留的歷史紀錄（訪客不顯示前一個帳號的歷史）
+  window.scriptHistory = [];
+  renderHistory();
   // 從後端取得訪客點數（防私密瀏覽刷新）
   window.updateGuestRemaining('...');
   fetchGuestCredits().then(c => window.updateGuestRemaining(c)).catch(() => window.updateGuestRemaining('?'));
@@ -2039,7 +2058,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.4.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.4.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2624,7 +2643,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.4.1';
+const APP_VERSION = '5.4.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
