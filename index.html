@@ -2039,7 +2039,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2539,6 +2539,7 @@ const GEMINI_FRAME_ONE = (content) => {
 ${content}
 
 **不要更換提供的原人物的材質**
+**對話框和所有文字請用繁體中文**
 輸出尺寸為9:16
 請出圖`;
 };
@@ -2553,6 +2554,7 @@ const GEMINI_FRAME = (content) => {
 ${content}
 
 **不要更換提供的原人物的材質**
+**對話框和所有文字請用繁體中文**
 輸出尺寸為3:4
 兩格場景跟服裝要一致
 請出圖`;
@@ -2617,7 +2619,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.3.7';
+const APP_VERSION = '5.3.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3612,10 +3614,17 @@ async function scanTopics() {
 
     // ── PTT 分支 ──────────────────────────────────
     if (isPtt) {
-      const pttRes = await fetch(`/api/ptt?board=${_selectedPttBoard}&pages=3`, {
-        headers: { 'x-firebase-uid': window._currentUid || '' }
-      });
-      if (!pttRes.ok) throw new Error('PTT 抓取失敗');
+      // PTT 有 cold start 問題，失敗時自動重試一次
+      let pttRes, pttRetried = false;
+      while (true) {
+        pttRes = await fetch(`/api/ptt?board=${_selectedPttBoard}&pages=3`, {
+          headers: { 'x-firebase-uid': window._currentUid || '' },
+          signal: AbortSignal.timeout(25000)
+        });
+        if (pttRes.ok) break;
+        if (!pttRetried) { pttRetried = true; await new Promise(r => setTimeout(r, 1500)); continue; }
+        throw new Error('PTT 抓取失敗');
+      }
       const pttData = await pttRes.json();
       const pttItems = pttData.items || [];
       if (!pttItems.length) throw new Error('PTT 目前沒有熱門文章');
