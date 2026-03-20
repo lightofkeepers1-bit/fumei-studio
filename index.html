@@ -716,17 +716,41 @@ window._checkInviteMergeByEmail = async (user) => {
 };
 
 // ── 管理員邀請碼功能 ──────────────────────────────
-const ADMIN_EMAILS = ['lightofkeepers1@gmail.com']; // 在這裡加管理員 email
+// 超級管理員（永遠有權限，不能被移除）
+const SUPER_ADMIN = 'lightofkeepers1@gmail.com';
 
 window._isAdmin = false;
 
-window.checkAdminAccess = function checkAdminAccess(email) {
-  window._isAdmin = ADMIN_EMAILS.includes(email);
-  if (window._isAdmin) {
-    const sec = document.getElementById('adminInviteSection');
-    if (sec) sec.style.display = 'block';
-    const fbSec = document.getElementById('adminFeedbackSection');
-    if (fbSec) fbSec.style.display = 'block';
+window.checkAdminAccess = async function checkAdminAccess(email) {
+  if (!email) return;
+  try {
+    // 超級管理員直接通過
+    if (email === SUPER_ADMIN) {
+      window._isAdmin = true;
+    } else {
+      // 從 Firestore admins 集合查詢
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const emailKey = email.replace(/[.#$[\]]/g, '_');
+      const snap = await getDoc(doc(window.db, 'admins', emailKey));
+      window._isAdmin = snap.exists();
+    }
+    if (window._isAdmin) {
+      const sec = document.getElementById('adminInviteSection');
+      if (sec) sec.style.display = 'block';
+      const fbSec = document.getElementById('adminFeedbackSection');
+      if (fbSec) fbSec.style.display = 'block';
+      const adminMgmtSec = document.getElementById('adminManageSection');
+      if (adminMgmtSec) adminMgmtSec.style.display = 'block';
+    }
+  } catch(e) {
+    // 失敗時 fallback 到超級管理員判斷
+    window._isAdmin = (email === SUPER_ADMIN);
+    if (window._isAdmin) {
+      const sec = document.getElementById('adminInviteSection');
+      if (sec) sec.style.display = 'block';
+      const fbSec = document.getElementById('adminFeedbackSection');
+      if (fbSec) fbSec.style.display = 'block';
+    }
   }
 }
 
@@ -736,6 +760,59 @@ function genRandomCode() {
   for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }
+
+// ── 管理員帳號管理 ────────────────────────────────
+window.adminLoadAdmins = async () => {
+  if (!window._isAdmin) return;
+  const list = document.getElementById('adminList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;color:#aaa;font-size:0.82rem;padding:8px">載入中...</div>';
+  try {
+    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDocs(collection(window.db, 'admins'));
+    if (snap.empty) {
+      list.innerHTML = '<div style="text-align:center;color:#ccc;font-size:0.82rem;padding:12px">目前沒有其他管理員</div>';
+      return;
+    }
+    list.innerHTML = snap.docs.map(d => {
+      const email = d.data().email || d.id.replace(/_/g, '.');
+      const isSuper = email === SUPER_ADMIN;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f8f4ff;border-radius:10px;border:1.5px solid #e8d5f5">
+        <span style="font-size:0.82rem;color:#5a3080">👑 ${email}${isSuper ? ' <span style="font-size:0.7rem;background:#764ba2;color:white;padding:1px 6px;border-radius:8px">超級管理員</span>' : ''}</span>
+        ${!isSuper ? `<button onclick="adminRemoveAdmin('${d.id}','${email}')" style="padding:4px 10px;border-radius:8px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">移除</button>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<div style="color:#e85d8a;font-size:0.82rem;padding:8px">❌ 載入失敗：${e.message}</div>`;
+  }
+};
+
+window.adminAddAdmin = async () => {
+  if (!window._isAdmin) return;
+  const input = document.getElementById('newAdminEmail');
+  const email = (input.value || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) { alert('請輸入有效的 Email'); return; }
+  if (email === SUPER_ADMIN) { alert('超級管理員已存在'); return; }
+  try {
+    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const emailKey = email.replace(/[.#$[\]]/g, '_');
+    await setDoc(doc(window.db, 'admins', emailKey), { email, added_by: window._currentUserEmail, added_at: new Date().toISOString() });
+    input.value = '';
+    alert(`✅ 已新增管理員：${email}`);
+    window.adminLoadAdmins();
+  } catch(e) { alert('❌ 新增失敗：' + e.message); }
+};
+
+window.adminRemoveAdmin = async (docId, email) => {
+  if (!window._isAdmin) return;
+  if (!confirm(`確定要移除管理員：${email}？`)) return;
+  try {
+    const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await deleteDoc(doc(window.db, 'admins', docId));
+    alert(`✅ 已移除管理員：${email}`);
+    window.adminLoadAdmins();
+  } catch(e) { alert('❌ 移除失敗：' + e.message); }
+};
 
 window.adminLoadFeedback = async () => {
   const list = document.getElementById('adminFeedbackList');
@@ -1082,12 +1159,13 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
     window._currentUserEmail = user.email || '';
-    // 初始化 header 簽到按鈕，並自動彈出簽到視窗
+    // 初始化 header 簽到按鈕（簽到彈窗移到 syncCreditsFromCloud 後才呼叫，確保文件已建立）
     setTimeout(() => {
       if (window.initCheckinBtn) window.initCheckinBtn();
       syncMobileCheckinBar();
+      // 簽到彈窗在點數同步後執行（避免點數被覆蓋）
       if (window.autoShowCheckinModal) window.autoShowCheckinModal(user.uid);
-    }, 300);
+    }, 1500);
     // ⚡ 先顯示 loading 狀態，等雲端回來再更新
     window.updateCreditsUI(window.getCredits()); // 先用 localStorage 緩存值（可能是 -1 顯示 …）
 
@@ -1411,8 +1489,8 @@ onAuthStateChanged(auth, async (user) => {
     if (logoIcon) logoIcon.innerHTML = '🐾';
     // 未登入一律套用功能限制
     applyGuestRestrictions();
-    // 等待 email 驗證的登出：不跳登入視窗，讓用戶看到驗證提示訊息
-    if (!window._pendingEmailVerification) {
+    // 切換帳號中 或 等待 email 驗證：不跳登入視窗
+    if (!window._pendingEmailVerification && !window._switchingAccount) {
       setTimeout(() => { showIntroModal(); }, 300);
     }
   }
@@ -1742,7 +1820,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.0.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2296,7 +2374,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.0.5';
+const APP_VERSION = '5.1.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2358,9 +2436,11 @@ window.syncCreditsFromCloud = async (uid) => {
     if (!snap.exists()) {
       // 文件不存在 → 檢查是否曾經刪過帳號（黑名單防刷點）
       const email = window._currentUserEmail || '';
+      // 管理員帳號不受黑名單限制
+      const isAdmin = email === SUPER_ADMIN;
       let isDeletedUser = false;
       let delSnap = null;
-      if (email) {
+      if (email && !isAdmin) {
         const emailKey = email.replace(/[.#$[\]]/g, '_');
         const delRef = doc(window.db, 'deleted_users', emailKey);
         delSnap = await getDoc(delRef);
@@ -5180,6 +5260,22 @@ async function refreshHistory() {
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
 
+      <!-- 管理員：管理員帳號管理（僅超級管理員顯示）-->
+      <div class="settings-section" id="adminManageSection" style="display:none">
+        <hr class="settings-divider">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="settings-label" style="color:#764ba2;margin-bottom:0">👑 管理員帳號管理</div>
+          <button onclick="adminLoadAdmins()" style="padding:6px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">🔄 載入</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="newAdminEmail" class="settings-input" placeholder="輸入要新增的管理員 Email" style="flex:1;margin:0;font-size:0.82rem">
+          <button onclick="adminAddAdmin()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">＋ 新增</button>
+        </div>
+        <div id="adminList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">
+          <div style="text-align:center;color:#ccc;font-size:0.82rem;padding:12px">點「載入」查看管理員名單</div>
+        </div>
+      </div>
+
       <!-- 管理員：意見回饋總覽（僅管理員顯示）-->
       <div class="settings-section" id="adminFeedbackSection" style="display:none">
         <hr class="settings-divider">
@@ -5615,7 +5711,14 @@ function closeIntro() {
   document.getElementById('introModal').style.display = 'none';
   // 未登入且非訪客才跳登入 modal
   if (!window._currentUid && !window._guestMode) {
-    setTimeout(() => { document.getElementById('welcomeModal').style.display = 'flex'; }, 200);
+    setTimeout(() => {
+      document.getElementById('welcomeModal').style.display = 'flex';
+      // 重置 email tab 狀態，避免登入/註冊混亂
+      if (window.switchEmailTab) window.switchEmailTab('login');
+      // email 表單預設收起
+      const area = document.getElementById('emailFormArea');
+      if (area) area.style.display = 'none';
+    }, 200);
   }
 }
 window.closeIntro = closeIntro;
@@ -5867,10 +5970,24 @@ function obFinish() {
   modal.style.pointerEvents = 'none';
   renderCharCards();
   updateCharNameUI();
+  // 登入用戶：Onboarding 完成後立刻同步角色到雲端
+  if (window._currentUid && !window._pendingGuestActivation) {
+    localStorage.setItem('fumei_onboarded', '1');
+    if (window.syncToCloud) window.syncToCloud();
+    // 歡迎 toast
+    const toast = document.getElementById('creditsToast');
+    if (toast) {
+      toast.textContent = '🎉 角色設定完成！歡迎使用 Fumei Studio ✨';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+    // 切換到每日任務頁
+    const dailyTab = document.querySelector('.tab');
+    if (dailyTab) switchTab('daily', dailyTab);
+  }
   // 訪客模式等待 Onboarding 完成後才啟動
   if (window._pendingGuestActivation) {
     window._pendingGuestActivation = false;
-    // 把訪客角色存到專屬 key，下次同裝置不用重跑 Onboarding
     const chars = localStorage.getItem('fumei_chars') || '';
     if (chars) {
       localStorage.setItem('fumei_guest_chars', chars);
@@ -6111,9 +6228,12 @@ function saveSettings() {
 
 async function switchAccount() {
   if (!confirm('確定要切換帳號嗎？目前資料已儲存在雲端，登入新帳號後會載入新帳號的資料。')) return;
-  await window.logoutUser();
   closeSettings();
-  setTimeout(() => window.loginGoogle(), 300);
+  // 標記切換帳號中，登出後不跳 IntroModal，直接開登入
+  window._switchingAccount = true;
+  await window.logoutUser();
+  window._switchingAccount = false;
+  setTimeout(() => window.loginGoogle(), 100);
 }
 
 function confirmDeleteAccount() {
@@ -6124,18 +6244,7 @@ function confirmDeleteAccount() {
 async function deleteAccount() {
   if (!window._currentUid) return;
   try {
-    // 1. 清空 Firestore 所有欄位
-    await window.saveToCloud(window._currentUid, {
-      fumei_tasks: '[]', fumei_history: '[]',
-      fumei_chars: '', fumei_char_active: '0',
-      fumei_onboarded: '', fumei_custom_topics: '[]',
-      fumei_social_ig: '', fumei_social_fb: '', fumei_social_threads: '',
-      fumei_studio_name: '', fumei_theme: '',
-      fumei_img_prompt_still: '', fumei_img_prompt_video: '',
-      fumei_avatar_img: '', fumei_avatar_emoji: '',
-      fumei_credits: 0, fumei_checkin_date: ''
-    });
-    // 2. 把 email 寫入黑名單（記錄剩餘點數，防刷新手禮包）
+    // 1. 先記錄剩餘點數到黑名單（在清空前記錄，才是正確的餘額）
     const email = window._currentUserEmail || auth.currentUser?.email || '';
     const remainingCredits = window.getCredits() || 0;
     if (email) {
@@ -6149,7 +6258,7 @@ async function deleteAccount() {
         });
       } catch(e) { console.warn('blacklist write failed (check Firestore rules):', e.message); }
     }
-    // 3. 刪除 Firestore 用戶文件
+    // 2. 刪除 Firestore 用戶文件（直接刪，不先清空欄位，避免刪除失敗時資料被破壞）
     const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     await deleteDoc(doc(window.db, 'users', window._currentUid));
     // 3. 刪除 Firebase Auth 帳號
