@@ -339,14 +339,18 @@
   body.force-pc .logo-text h1 { font-size:1.5rem !important }
   body.force-pc .api-zone { width:auto !important; margin-left:auto !important }
   body.force-pc .api-input { width:210px !important }
-  body.force-pc nav { padding:20px 32px 0 !important }
-  body.force-pc main { padding:28px 20px !important; max-width:480px !important }
-  body.force-pc .card { padding:28px !important }
+  body.force-pc nav { padding:12px 32px 0 !important; gap:8px !important }
+  body.force-pc .tab { padding:10px 20px !important; font-size:0.88rem !important }
+  body.force-pc main { padding:28px 32px !important; max-width:900px !important; margin:0 auto !important }
+  body.force-pc .card { padding:28px !important; border-radius:20px !important }
   body.force-pc .btn { width:auto !important }
   body.force-pc select { width:auto !important }
   body.force-pc .row { flex-direction:row !important }
-  body.force-pc .topics-grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)) !important }
+  body.force-pc .topics-grid { grid-template-columns:repeat(auto-fill,minmax(260px,1fr)) !important }
   body.force-pc .task-item { flex-wrap:nowrap !important }
+  body.force-pc .banner { border-radius:20px !important }
+  body.force-pc .hint-box { font-size:0.88rem !important }
+  body.force-pc textarea { font-size:0.92rem !important }
 
 
   /* ── 生圖 Panel ── */
@@ -1838,7 +1842,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2391,7 +2395,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.1.8';
+const APP_VERSION = '5.1.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
