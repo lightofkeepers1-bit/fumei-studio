@@ -1159,13 +1159,11 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userName').textContent = user.displayName || user.email;
     window._currentUid = user.uid;
     window._currentUserEmail = user.email || '';
-    // 初始化 header 簽到按鈕（簽到彈窗移到 syncCreditsFromCloud 後才呼叫，確保文件已建立）
+    // 初始化 header 簽到按鈕
     setTimeout(() => {
       if (window.initCheckinBtn) window.initCheckinBtn();
       syncMobileCheckinBar();
-      // 簽到彈窗在點數同步後執行（避免點數被覆蓋）
-      if (window.autoShowCheckinModal) window.autoShowCheckinModal(user.uid);
-    }, 1500);
+    }, 300);
     // ⚡ 先顯示 loading 狀態，等雲端回來再更新
     window.updateCreditsUI(window.getCredits()); // 先用 localStorage 緩存值（可能是 -1 顯示 …）
 
@@ -1173,6 +1171,10 @@ onAuthStateChanged(auth, async (user) => {
     // 如果是訪客模式登入，先記住訪客剩餘點數，登入後合併
     const _guestCreditsMerge = window._guestMode ? (window._guestCreditsCache ?? 0) : 0;
     await window.syncCreditsFromCloud(user.uid);
+    // 點數同步完成後才觸發簽到彈窗（避免簽到點數被初始值覆蓋）
+    setTimeout(() => {
+      if (window.autoShowCheckinModal) window.autoShowCheckinModal(user.uid);
+    }, 500);
     // 訪客點數合併到正式帳號
     if (_guestCreditsMerge > 0) {
       try {
@@ -1820,7 +1822,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2374,7 +2376,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.1.1';
+const APP_VERSION = '5.1.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5984,6 +5986,12 @@ function obFinish() {
     // 切換到每日任務頁
     const dailyTab = document.querySelector('.tab');
     if (dailyTab) switchTab('daily', dailyTab);
+    // Onboarding 完成後觸發簽到彈窗
+    setTimeout(() => {
+      if (window.autoShowCheckinModal && window._currentUid) {
+        window.autoShowCheckinModal(window._currentUid);
+      }
+    }, 800);
   }
   // 訪客模式等待 Onboarding 完成後才啟動
   if (window._pendingGuestActivation) {
