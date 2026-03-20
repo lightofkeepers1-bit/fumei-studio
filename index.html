@@ -2058,7 +2058,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.4.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.4.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2643,7 +2643,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.4.4';
+const APP_VERSION = '5.4.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3822,15 +3822,28 @@ ${newsHeadlines}
       const sub = rest.slice(sepIdx + 1).trim();
       return { title, sub, rssIndex };
     }).filter(item => item.title.length > 0);
-    grid.innerHTML = topicList.map((item, i) =>
-      `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
+    grid.innerHTML = topicList.map((item, i) => {
+      let rssItem = item.rssIndex >= 0 ? window._rssItems?.[item.rssIndex] : null;
+      // rssIndex 對不上時，用標題關鍵字模糊比對找來源
+      if (!rssItem && window._rssItems?.length) {
+        const titleWords = item.title.replace(/[，。！？、「」]/g, '').split('').filter(c => c.trim());
+        rssItem = window._rssItems.find(r => {
+          const overlap = titleWords.filter(c => r.title.includes(c)).length;
+          return overlap >= Math.min(4, Math.floor(titleWords.length * 0.4));
+        }) || null;
+      }
+      const sourceTag = rssItem?.link
+        ? `<a href="${rssItem.link}" target="_blank" style="font-size:0.65rem;color:#aaa;text-decoration:none;display:inline-block;margin-top:4px" onclick="event.stopPropagation()">🔗 ${rssItem.source || '查看原文'}</a>`
+        : '';
+      return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
         <span class="topic-num">話題 ${i+1}</span>
         <strong>${item.title}</strong><br>
         <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+        ${sourceTag}
         <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題"
           style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
-      </div>`
-    ).join('');
+      </div>`;
+    }).join('');
     grid.querySelectorAll('.topic-chip').forEach(el => {
       const idx = parseInt(el.dataset.idx);
       el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
