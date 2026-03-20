@@ -1169,33 +1169,12 @@ onAuthStateChanged(auth, async (user) => {
     // ⚡ 先顯示 loading 狀態，等雲端回來再更新
     window.updateCreditsUI(window.getCredits()); // 先用 localStorage 緩存值（可能是 -1 顯示 …）
 
-    // ⚡ 同步點數（await 確保 UI 在登入流程完成前就更新）
-    // 如果是訪客模式登入，先記住訪客剩餘點數，登入後合併
-    const _guestCreditsMerge = window._guestMode ? (window._guestCreditsCache ?? 0) : 0;
+    // ⚡ 同步點數（訪客點數完全獨立，不合併到正式帳號）
     await window.syncCreditsFromCloud(user.uid);
     // 點數同步完成後才觸發簽到彈窗（避免簽到點數被初始值覆蓋）
     setTimeout(() => {
       if (window.autoShowCheckinModal) window.autoShowCheckinModal(user.uid);
     }, 500);
-    // 訪客點數合併到正式帳號
-    if (_guestCreditsMerge > 0) {
-      try {
-        const currentCredits = window.getCredits();
-        const merged = currentCredits + _guestCreditsMerge;
-        localStorage.setItem('fumei_credits', String(merged));
-        window.updateCreditsUI(merged);
-        // 同步到雲端
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        await updateDoc(doc(window.db, 'users', user.uid), { fumei_credits: merged });
-        // 顯示合併提示
-        const toast = document.getElementById('creditsToast');
-        if (toast) {
-          toast.textContent = `🎉 訪客點數 ${_guestCreditsMerge} 點已合併到您的帳號！`;
-          toast.classList.add('show');
-          setTimeout(() => toast.classList.remove('show'), 4000);
-        }
-      } catch(e) { console.warn('guest credits merge failed', e); }
-    }
 
     // 從雲端載入資料
     window._guestMode = false;
@@ -1842,7 +1821,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2395,7 +2374,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.2.0';
+const APP_VERSION = '5.2.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
