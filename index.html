@@ -462,7 +462,7 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.js';
 
@@ -478,6 +478,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+// 確保登入狀態永久保留（避免 Safari ITP 清除導致每次重新登入）
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 const db = getFirestore(app);
 window.db = db; // 讓其他 script block 可以存取
 const provider = new GoogleAuthProvider();
@@ -2037,7 +2039,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.3.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2615,7 +2617,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.3.3';
+const APP_VERSION = '5.3.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
