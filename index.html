@@ -786,12 +786,10 @@ function handleAnnImgFile(file) {
     const preview = document.getElementById('annImgPreview');
     const previewWrap = document.getElementById('annImgPreviewWrap');
     if (preview) { preview.src = result; previewWrap.style.display = 'block'; }
-    // 更新上傳區顯示
     const kb = Math.round(result.length * 0.75 / 1024);
-    const zone = document.getElementById('annImgDropZone');
-    if (zone) zone.innerHTML = `✅ 圖片已上傳（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">`;
+    const status = document.getElementById('annImgStatus');
+    if (status) status.textContent = `✅ 已上傳（${kb}KB）`;
     document.getElementById('annImgClearBtn').style.display = 'block';
-    initAnnImgDropZone();
   };
   reader.readAsDataURL(file);
 }
@@ -800,10 +798,9 @@ window.adminClearAnnouncementImg = () => {
   window._announcementImgData = '';
   const previewWrap = document.getElementById('annImgPreviewWrap');
   if (previewWrap) previewWrap.style.display = 'none';
-  const zone = document.getElementById('annImgDropZone');
-  if (zone) zone.innerHTML = '📁 點擊或拖拉圖片上傳<input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">';
+  const status = document.getElementById('annImgStatus');
+  if (status) status.textContent = '';
   document.getElementById('annImgClearBtn').style.display = 'none';
-  initAnnImgDropZone();
 };
 
 // ── 公告區塊 ──────────────────────────────────────
@@ -844,11 +841,10 @@ window.adminLoadAnnouncement = async () => {
         const previewWrap = document.getElementById('annImgPreviewWrap');
         const preview = document.getElementById('annImgPreview');
         if (preview) { preview.src = d.img; previewWrap.style.display = 'block'; }
-        const zone = document.getElementById('annImgDropZone');
+        const zone = document.getElementById('annImgStatus');
         const kb = Math.round(d.img.length * 0.75 / 1024);
-        if (zone) zone.innerHTML = `✅ 已有圖片（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">`;
+        if (zone) zone.textContent = `✅ 已有圖片（${kb}KB）`;
         document.getElementById('annImgClearBtn').style.display = 'block';
-        initAnnImgDropZone();
       }
     } else {
       // 文件不存在時：從目前頁面顯示的內容預填
@@ -1953,7 +1949,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2531,7 +2527,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.2.7';
+const APP_VERSION = '5.2.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5444,11 +5440,12 @@ async function refreshHistory() {
             <div id="annImgPreviewWrap" style="display:none;margin-bottom:8px;border-radius:12px;overflow:hidden;max-height:160px">
               <img id="annImgPreview" src="" style="width:100%;object-fit:cover;display:block">
             </div>
-            <!-- 上傳區 -->
-            <div id="annImgDropZone" onclick="document.getElementById('annImgFileInput').click()" style="border:2px dashed #e8d5f5;border-radius:12px;padding:16px;text-align:center;cursor:pointer;font-size:0.82rem;color:#aaa;background:#fffbfd;transition:all 0.2s">
-              📁 點擊或拖拉圖片上傳
-              <input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">
-            </div>
+            <!-- 上傳按鈕 -->
+            <input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">
+            <button type="button" onclick="document.getElementById('annImgFileInput').click()" style="width:100%;padding:14px;border:2px dashed #C9B8E8;border-radius:12px;background:#faf7ff;color:#764ba2;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif">
+              📁 點擊選擇圖片上傳
+            </button>
+            <div id="annImgStatus" style="font-size:0.78rem;color:#aaa;text-align:center;margin-top:4px;min-height:16px"></div>
             <button id="annImgClearBtn" onclick="adminClearAnnouncementImg()" style="display:none;margin-top:6px;width:100%;padding:6px;border-radius:10px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑 移除圖片</button>
           </div>
           <div style="display:flex;gap:8px">
