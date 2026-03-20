@@ -233,7 +233,6 @@
     #userName { display:none !important }
     #headerCheckinBtn { display:none !important }
     #userInfo button[onclick="logoutUser()"] { display:none !important }
-    #viewToggleBtn { font-size:0.65rem !important; padding:4px 7px !important }
     .header-inner { gap:8px }
     .api-zone { width:100%; margin-left:0 }
     .api-input { width:100%; flex:1 }
@@ -333,7 +332,6 @@
   body.force-mobile .notice { font-size:0.82rem }
   body.force-mobile #headerCheckinBtn { display:none !important }
   body.force-mobile #userInfo button[onclick="logoutUser()"] { display:none !important }
-  body.force-mobile #viewToggleBtn { font-size:0.65rem !important; padding:4px 7px !important }
 
   /* ── 強制PC版（覆蓋 media query）── */
   body.force-pc header { padding:18px 32px !important }
@@ -1287,6 +1285,24 @@ onAuthStateChanged(auth, async (user) => {
     renderTasks();
     renderHistory();
     if (window.renderHeaderCharBar) window.renderHeaderCharBar();
+    // 清除產腳本頁的舊結果殘留
+    const scriptArea = document.getElementById('scriptArea');
+    if (scriptArea) scriptArea.style.display = 'none';
+    const scriptResult = document.getElementById('scriptResult');
+    if (scriptResult) scriptResult.textContent = '';
+    const autoUsed = document.getElementById('autoUsed');
+    if (autoUsed) { autoUsed.style.display = 'none'; autoUsed.textContent = ''; }
+    const scriptTopic = document.getElementById('scriptTopic');
+    if (scriptTopic) scriptTopic.value = '';
+    const scanErr = document.getElementById('scanErr');
+    if (scanErr) scanErr.classList.remove('show');
+    const scriptErr = document.getElementById('scriptErr');
+    if (scriptErr) scriptErr.classList.remove('show');
+    // 清除話題掃描結果
+    const topicsGrid = document.getElementById('topicsGrid');
+    if (topicsGrid) topicsGrid.innerHTML = '';
+    const selectedCard = document.getElementById('selectedCard');
+    if (selectedCard) selectedCard.style.display = 'none';
 
     // 檢查是否有待執行的刪除帳號（需重新驗證後繼續）
     if (localStorage.getItem('fumei_pending_delete') === '1') {
@@ -1822,7 +1838,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.1.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -1848,7 +1864,6 @@ window.syncToCloud = async () => {
 
       <button class="settings-btn" onclick="openHelp()" title="使用說明" style="flex-shrink:0">❓</button>
       <button class="settings-btn" onclick="openSettings()" title="設定" style="flex-shrink:0">⚙️</button>
-      <button id="viewToggleBtn" onclick="toggleView()" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.6);color:white;padding:5px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0">📱 手機版</button>
     </div>
   </div>
 </header>
@@ -2376,7 +2391,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.1.4';
+const APP_VERSION = '5.1.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2721,35 +2736,25 @@ window.onload = () => {
     renderHistory();
     updateCharNameUI();
   }
-  // 恢復上次的版面偏好
-  const savedView = localStorage.getItem('fumei_view');
-  const btn = document.getElementById('viewToggleBtn');
-  if (savedView === 'mobile') {
-    document.body.classList.add('force-mobile');
-    btn.textContent = '📱 手機版';
-  } else if (savedView === 'pc') {
-    document.body.classList.add('force-pc');
-    btn.textContent = '🖥️ PC版';
-  }
+  // 自動偵測裝置寬度套用版面（不再需要手動切換）
+  applyAutoView();
 };
 
-// ── VIEW TOGGLE ──────────────────────────────────
-function toggleView() {
-  const body = document.body;
-  const btn = document.getElementById('viewToggleBtn');
-  if (body.classList.contains('force-mobile')) {
-    body.classList.remove('force-mobile');
-    body.classList.add('force-pc');
-    btn.textContent = '🖥️ PC版';
-    localStorage.setItem('fumei_view', 'pc');
-  } else {
-    body.classList.remove('force-pc');
-    body.classList.add('force-mobile');
-    btn.textContent = '📱 手機版';
-    localStorage.setItem('fumei_view', 'mobile');
+// ── 自動版面偵測 ──────────────────────────────────
+function applyAutoView() {
+  const isMobileDevice = window.innerWidth <= 600 ||
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  document.body.classList.remove('force-mobile', 'force-pc');
+  if (isMobileDevice) {
+    document.body.classList.add('force-mobile');
   }
-  syncMobileCheckinBar();
+  // 視窗大小改變時自動重新套用
+  window.removeEventListener('resize', applyAutoView);
+  window.addEventListener('resize', applyAutoView);
 }
+
+// 保留 toggleView 避免其他地方呼叫報錯
+function toggleView() { applyAutoView(); }
 
 function syncMobileCheckinBar() {
   const bar = document.getElementById('mobileCheckinBar');
@@ -2828,12 +2833,8 @@ function renderTasks() {
         ${getLinkBtn(t.p)}
         ${(() => {
           if (t.p === 'both') {
-            // both：只顯示有設定的平台 badge
-            let badges = '';
-            if (links.ig) badges += `<span class="badge b-ig">IG</span>`;
-            if (links.fb) badges += `<span class="badge b-fb">FB</span>`;
-            if (links.threads) badges += `<span class="badge b-threads">Threads</span>`;
-            return badges;
+            // both：badge 已由 getLinkBtn 的按鈕顯示，不再重複顯示 badge
+            return '';
           }
           return links[t.p] ? `<span class="badge ${bl[t.p||'ig']||'b-ig'}">${ll[t.p||'ig']||'IG'}</span>` : '';
         })()}
