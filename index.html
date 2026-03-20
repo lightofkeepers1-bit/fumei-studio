@@ -770,13 +770,10 @@ window._announcementImgData = ''; // 暫存 base64
 
 function initAnnImgDropZone() {
   const zone = document.getElementById('annImgDropZone');
-  const fileInput = document.getElementById('annImgFileInput');
-  if (!zone || !fileInput) return;
-  zone.onclick = () => fileInput.click();
+  if (!zone) return;
   zone.ondragover = e => { e.preventDefault(); zone.style.borderColor = '#C9B8E8'; zone.style.background = '#f8f4ff'; };
   zone.ondragleave = () => { zone.style.borderColor = '#e8d5f5'; zone.style.background = '#fffbfd'; };
   zone.ondrop = e => { e.preventDefault(); zone.style.borderColor = '#e8d5f5'; zone.style.background = '#fffbfd'; handleAnnImgFile(e.dataTransfer.files[0]); };
-  fileInput.onchange = e => handleAnnImgFile(e.target.files[0]);
 }
 
 function handleAnnImgFile(file) {
@@ -792,7 +789,7 @@ function handleAnnImgFile(file) {
     // 更新上傳區顯示
     const kb = Math.round(result.length * 0.75 / 1024);
     const zone = document.getElementById('annImgDropZone');
-    if (zone) zone.innerHTML = `✅ 圖片已上傳（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none">`;
+    if (zone) zone.innerHTML = `✅ 圖片已上傳（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">`;
     document.getElementById('annImgClearBtn').style.display = 'block';
     initAnnImgDropZone();
   };
@@ -804,7 +801,7 @@ window.adminClearAnnouncementImg = () => {
   const previewWrap = document.getElementById('annImgPreviewWrap');
   if (previewWrap) previewWrap.style.display = 'none';
   const zone = document.getElementById('annImgDropZone');
-  if (zone) zone.innerHTML = '📁 點擊或拖拉圖片上傳<input type="file" id="annImgFileInput" accept="image/*" style="display:none">';
+  if (zone) zone.innerHTML = '📁 點擊或拖拉圖片上傳<input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">';
   document.getElementById('annImgClearBtn').style.display = 'none';
   initAnnImgDropZone();
 };
@@ -850,7 +847,7 @@ window.adminLoadAnnouncement = async () => {
         if (preview) { preview.src = d.img; previewWrap.style.display = 'block'; }
         const zone = document.getElementById('annImgDropZone');
         const kb = Math.round(d.img.length * 0.75 / 1024);
-        if (zone) zone.innerHTML = `✅ 已有圖片（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none">`;
+        if (zone) zone.innerHTML = `✅ 已有圖片（${kb}KB）<input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">`;
         document.getElementById('annImgClearBtn').style.display = 'block';
         initAnnImgDropZone();
       }
@@ -1951,7 +1948,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.2.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2529,7 +2526,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.2.5';
+const APP_VERSION = '5.2.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5443,9 +5440,9 @@ async function refreshHistory() {
               <img id="annImgPreview" src="" style="width:100%;object-fit:cover;display:block">
             </div>
             <!-- 上傳區 -->
-            <div id="annImgDropZone" style="border:2px dashed #e8d5f5;border-radius:12px;padding:16px;text-align:center;cursor:pointer;font-size:0.82rem;color:#aaa;background:#fffbfd;transition:all 0.2s">
+            <div id="annImgDropZone" onclick="document.getElementById('annImgFileInput').click()" style="border:2px dashed #e8d5f5;border-radius:12px;padding:16px;text-align:center;cursor:pointer;font-size:0.82rem;color:#aaa;background:#fffbfd;transition:all 0.2s">
               📁 點擊或拖拉圖片上傳
-              <input type="file" id="annImgFileInput" accept="image/*" style="display:none">
+              <input type="file" id="annImgFileInput" accept="image/*" style="display:none" onchange="handleAnnImgFile(this.files[0])">
             </div>
             <button id="annImgClearBtn" onclick="adminClearAnnouncementImg()" style="display:none;margin-top:6px;width:100%;padding:6px;border-radius:10px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑 移除圖片</button>
           </div>
@@ -6263,8 +6260,21 @@ function openSettings() {
   document.getElementById('imgPromptStill').value = localStorage.getItem('fumei_img_prompt_still') || '';
   document.getElementById('imgPromptVideo').value = localStorage.getItem('fumei_img_prompt_video') || '';
   document.getElementById('settingsModal').classList.add('show');
-  // 初始化公告圖片上傳區
-  setTimeout(() => initAnnImgDropZone(), 100);
+  // 初始化公告圖片上傳區（等 admin section 顯示後再初始化）
+  setTimeout(() => {
+    initAnnImgDropZone();
+    // 預填目前的公告內容給管理員編輯
+    if (window._isAdmin) {
+      const titleEl = document.getElementById('adminAnnouncementTitle');
+      const bodyEl  = document.getElementById('adminAnnouncementBody');
+      if (titleEl && !titleEl.value) {
+        titleEl.value = document.getElementById('announcementTitle')?.textContent || '';
+      }
+      if (bodyEl && !bodyEl.value) {
+        bodyEl.value = document.getElementById('announcementBody')?.textContent || '';
+      }
+    }
+  }, 300);
   initDropZone();
   // 初始化簽到按鈕狀態
   if (window.initCheckinBtn) window.initCheckinBtn();
