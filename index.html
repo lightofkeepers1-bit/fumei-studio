@@ -1911,7 +1911,7 @@ window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   // 先檢查快取
   const current = window._guestCreditsCache ?? await fetchGuestCredits();
   if (current < cost) {
-    if (confirm('⚡ 訪客點數已用完！\n\n登入後可獲得完整點數，要現在登入嗎？')) loginGoogle();
+    showIntroModal();
     throw new Error('點數不足，請登入繼續使用');
   }
   const fp = window._fingerprint;
@@ -2155,18 +2155,18 @@ function applyGuestRestrictions() {
 }
 
 window.showLoginPrompt = function(msg) {
-  if (confirm(`${msg}\n\n要現在登入嗎？`)) loginGoogle();
+  showIntroModal();
 };
 
 // ── 訪客 API 錯誤處理 ─────────────────────────────
 window.handleGuestApiError = function(err) {
   const msg = err.message || '';
   if (msg.includes('needLogin') || msg.includes('今日訪客') || msg.includes('登入')) {
-    if (confirm('🌟 今日訪客體驗次數已用完！\n登入後可無限使用，要現在登入嗎？')) loginGoogle();
+    showIntroModal();
     return true;
   }
   if (msg.includes('🔒')) {
-    showLoginPrompt(msg);
+    showIntroModal();
     return true;
   }
   return false;
@@ -6357,15 +6357,6 @@ window.showIntroModal = showIntroModal;
 
 function closeIntro() {
   document.getElementById('introModal').style.display = 'none';
-  // 未登入且非訪客才跳登入 modal
-  if (!window._currentUid && !window._guestMode && !localStorage.getItem('fumei_guest_onboarded')) {
-    setTimeout(() => {
-      document.getElementById('welcomeModal').style.display = 'flex';
-      if (window.switchEmailTab) window.switchEmailTab('login');
-      const area = document.getElementById('emailFormArea');
-      if (area) area.style.display = 'none';
-    }, 200);
-  }
 }
 window.closeIntro = closeIntro;
 
