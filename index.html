@@ -611,6 +611,7 @@ window.submitEmailAuth = async () => {
 };
 
 window.logoutUser = async () => {
+  window._loggingOut = true;
   await signOut(auth);
 };
 
@@ -1820,10 +1821,14 @@ onAuthStateChanged(auth, async (user) => {
     if (logoIcon) logoIcon.innerHTML = '🐾';
     // 未登入一律套用功能限制
     applyGuestRestrictions();
-    // 訪客刷新頁面：直接恢復訪客狀態，不跳登入視窗
+    // 主動登出 → 跳 IntroModal，讓用戶重新選擇
+    // 刷新頁面 → 直接恢復訪客狀態
     const wasGuest = localStorage.getItem('fumei_guest_onboarded') === '1';
     const guestChars = localStorage.getItem('fumei_guest_chars') || '';
-    if (wasGuest && guestChars) {
+    const isPageRefresh = !window._loggingOut && !window._pendingEmailVerification && !window._switchingAccount;
+    window._loggingOut = false; // 重置 flag
+    if (wasGuest && guestChars && isPageRefresh) {
+      // 刷新頁面：直接恢復訪客狀態
       window._guestMode = true;
       localStorage.setItem('fumei_guest_mode', '1');
       localStorage.setItem('fumei_chars', guestChars);
@@ -1833,7 +1838,7 @@ onAuthStateChanged(auth, async (user) => {
       renderTasks();
       if (window.updateCharNameUI) window.updateCharNameUI();
     } else if (!window._pendingEmailVerification && !window._switchingAccount) {
-      // 切換帳號中 或 等待 email 驗證：不跳登入視窗
+      // 登出或初次進入：跳登入選擇視窗
       setTimeout(() => { showIntroModal(); }, 300);
     }
   }
@@ -2080,13 +2085,22 @@ window.updateGuestRemaining = function(n) {
 // 訪客掃描冷卻（1分鐘）— 定義移至主 script block
 
 function applyGuestRestrictions() {
-  // 鎖定歷史紀錄 tab
+  // 鎖定歷史紀錄 tab 和生圖 tab
   document.querySelectorAll('.tab').forEach(btn => {
     if (btn.textContent.includes('歷史')) {
       btn.style.opacity = '0.4';
       btn.style.cursor = 'not-allowed';
       btn.onclick = () => showLoginPrompt('此功能需要登入才能使用 🔒');
     }
+    if (btn.textContent.includes('生圖')) {
+      btn.style.opacity = '0.4';
+      btn.style.cursor = 'not-allowed';
+      btn.onclick = () => showIntroModal();
+    }
+  });
+  // 鎖定產腳本的「去生圖」按鈕
+  document.querySelectorAll('[onclick*="goToImageWithPrompt"]').forEach(btn => {
+    btn.style.opacity = '0.4';
   });
   // 鎖定三AI發想
   const inspoBtn = document.getElementById('inspoBtn');
@@ -2193,7 +2207,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2790,7 +2804,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.6.4';
+const APP_VERSION = '5.6.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6328,12 +6342,10 @@ window.showIntroModal = showIntroModal;
 function closeIntro() {
   document.getElementById('introModal').style.display = 'none';
   // 未登入且非訪客才跳登入 modal
-  if (!window._currentUid && !window._guestMode) {
+  if (!window._currentUid && !window._guestMode && !localStorage.getItem('fumei_guest_onboarded')) {
     setTimeout(() => {
       document.getElementById('welcomeModal').style.display = 'flex';
-      // 重置 email tab 狀態，避免登入/註冊混亂
       if (window.switchEmailTab) window.switchEmailTab('login');
-      // email 表單預設收起
       const area = document.getElementById('emailFormArea');
       if (area) area.style.display = 'none';
     }, 200);
@@ -7165,6 +7177,11 @@ function fillImgPromptFromScript() {
 }
 
 function goToImageWithPrompt() {
+  // 訪客不能使用生圖
+  if (window._guestMode && !window._currentUid) {
+    showIntroModal();
+    return;
+  }
   // 帶入 Gemini Prompt（優先）或腳本內容
   const promptEl = document.getElementById('promptContent');
   const scriptEl = document.getElementById('scriptResult');
