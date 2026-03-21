@@ -1501,9 +1501,8 @@ onAuthStateChanged(auth, async (user) => {
     // 從雲端載入資料
     window._guestMode = false;
     localStorage.removeItem('fumei_guest_mode');
-    // 登入後徹底清掉訪客專屬資料，避免訪客角色污染正式帳號
-    localStorage.removeItem('fumei_guest_chars');
-    localStorage.removeItem('fumei_guest_onboarded');
+    // 注意：保留 fumei_guest_chars 和 fumei_guest_onboarded
+    // 這樣登出後切訪客模式，裝置記憶還在
     // 清除訪客殘留前，先備份可能有用的自訂頭像（避免清掉後找不回來）
     var _backupAvatarImg   = localStorage.getItem('fumei_avatar_img') || '';
     var _backupAvatarEmoji = localStorage.getItem('fumei_avatar_emoji') || '';
@@ -1590,6 +1589,9 @@ onAuthStateChanged(auth, async (user) => {
     renderTasks();
     renderHistory();
     if (window.renderHeaderCharBar) window.renderHeaderCharBar();
+    // 登入後跳回每日任務頁（首頁）
+    const dailyTabBtn = document.querySelector('.tab[onclick*="daily"]');
+    if (dailyTabBtn) switchTab('daily', dailyTabBtn);
     // 清除產腳本頁的舊結果殘留
     const scriptArea = document.getElementById('scriptArea');
     if (scriptArea) scriptArea.style.display = 'none';
@@ -2182,7 +2184,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2779,7 +2781,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.5.8';
+const APP_VERSION = '5.6.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5799,7 +5801,8 @@ async function refreshHistory() {
           </div>
         </div>
 
-        <button class="settings-danger-btn" onclick="logoutUser();closeSettings();" style="background:#fff8f0;border-color:#ffd8a8;color:#b05a00;margin-bottom:10px">🚪 登出帳號</button>
+        <button class="settings-danger-btn" onclick="logoutUser();closeSettings();" style="background:#fff8f0;border-color:#ffd8a8;color:#b05a00;margin-bottom:8px">🚪 登出帳號</button>
+        <button class="settings-danger-btn" onclick="confirmResetAccount()" style="background:#f0f8ff;border-color:#b3d1ff;color:#1565c0;margin-bottom:8px">🔄 重置帳號資料（保留點數）</button>
         <button class="settings-danger-btn" onclick="confirmDeleteAccount()">🗑️ 刪除帳號與所有資料</button>
       </div>
 
@@ -6957,8 +6960,56 @@ async function switchAccount() {
   setTimeout(() => window.loginGoogle(), 100);
 }
 
+function confirmResetAccount() {
+  if (!confirm('確定要重置帳號資料嗎？\n\n✅ 保留：點數餘額、消費紀錄\n❌ 清除：角色設定、任務、歷史紀錄、所有個人設定\n\n此操作無法復原！')) return;
+  resetAccount();
+}
+
+async function resetAccount() {
+  if (!window._currentUid) return;
+  try {
+    // 保留點數，只清除其他資料
+    const credits = window.getCredits();
+    const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await setDoc(doc(window.db, 'users', window._currentUid), {
+      fumei_credits: credits >= 0 ? credits : 0,
+      fumei_credits_init_at: serverTimestamp(),
+      // 其他欄位清空
+      fumei_chars: '',
+      fumei_char_active: '0',
+      fumei_tasks: '[]',
+      fumei_history: '[]',
+      fumei_onboarded: '',
+      fumei_custom_topics: '[]',
+      fumei_social_ig: '',
+      fumei_social_fb: '',
+      fumei_social_threads: '',
+      fumei_studio_name: '',
+      fumei_theme: '',
+      fumei_img_prompt_still: '',
+      fumei_img_prompt_video: '',
+      fumei_avatar_emoji: '',
+      fumei_avatar_img: '',
+      fumei_checkin_date: '',
+    });
+    // 清除 localStorage（保留點數）
+    [
+      'fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
+      'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
+      'fumei_theme','fumei_custom_topics','fumei_onboarded',
+      'fumei_social_ig','fumei_social_fb','fumei_social_threads',
+      'fumei_img_prompt_still','fumei_img_prompt_video',
+    ].forEach(k => localStorage.removeItem(k));
+    closeSettings();
+    alert(`✅ 帳號資料已重置，點數 ${credits >= 0 ? credits : 0} 點保留。`);
+    location.reload();
+  } catch(e) {
+    alert('❌ 重置失敗：' + e.message);
+  }
+}
+
 function confirmDeleteAccount() {
-  if (!confirm('確定要刪除帳號與所有雲端資料嗎？此操作無法復原！')) return;
+  if (!confirm('確定要刪除帳號嗎？\n\n✅ 保留：點數餘額（若用相同 email 重新註冊可恢復）\n❌ 刪除：帳號、角色、任務、歷史紀錄\n\n此操作無法復原！')) return;
   deleteAccount();
 }
 
