@@ -2166,7 +2166,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2763,7 +2763,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.5.3';
+const APP_VERSION = '5.5.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2962,7 +2962,7 @@ window.autoShowCheckinModal = async (uid) => {
   }, 1500);
 };
 
-// 訪客每日簽到（用 fingerprint + localStorage 防重複）
+// 訪客每日簽到（用 localStorage 防重複，直接加本地點數）
 window.guestDailyCheckin = async () => {
   const today = new Date().toISOString().slice(0, 10);
   const checkinKey = 'fumei_guest_checkin_' + today;
@@ -2971,42 +2971,44 @@ window.guestDailyCheckin = async () => {
     if (toast) { toast.textContent = '今日已簽到 ✓'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
     return;
   }
-  // 加訪客點數
-  const fp = window._fingerprint || 'guest';
+  // 標記已簽到（先存，避免重複）
+  localStorage.setItem(checkinKey, '1');
+  // 加本地點數
+  const current = window._guestCreditsCache ?? await fetchGuestCredits().catch(() => 0) ?? 0;
+  const newVal = current + DAILY_BONUS;
+  window._guestCreditsCache = newVal;
+  window.updateGuestRemaining(newVal);
+  // 同步到 Firestore guest_credits
   try {
-    const res = await fetch('/api/daily-bonus', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
-      body: JSON.stringify({ fingerprint: fp })
-    });
-    if (res.ok) {
-      localStorage.setItem(checkinKey, '1');
-      const current = window._guestCreditsCache ?? 0;
-      const newVal = current + DAILY_BONUS;
-      window._guestCreditsCache = newVal;
-      window.updateGuestRemaining(newVal);
-      if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now(), remaining: newVal });
-      const toast = document.getElementById('creditsToast');
-      if (toast) { toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點 ✨`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
-      if (window.initCheckinBtn) window.initCheckinBtn();
-    }
-  } catch(e) {
-    // fallback：直接加本地點數
-    localStorage.setItem(checkinKey, '1');
-    const newVal = (window._guestCreditsCache ?? 0) + DAILY_BONUS;
-    window._guestCreditsCache = newVal;
-    window.updateGuestRemaining(newVal);
-    const toast = document.getElementById('creditsToast');
-    if (toast) { toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點 ✨`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
-    if (window.initCheckinBtn) window.initCheckinBtn();
-  }
+    const fp = window._fingerprint || 'guest';
+    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await setDoc(doc(window.db, 'guest_credits', fp), {
+      credits: newVal,
+      checkin_date: today,
+    }, { merge: true });
+  } catch(e) { console.warn('guest checkin sync failed', e); }
+  if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now(), remaining: newVal });
+  const toast = document.getElementById('creditsToast');
+  if (toast) { toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點 ✨`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
+  if (window.initCheckinBtn) window.initCheckinBtn();
 };
 
 // 訪客自動簽到彈窗
 window.autoShowGuestCheckin = async () => {
   const today = new Date().toISOString().slice(0, 10);
   const checkinKey = 'fumei_guest_checkin_' + today;
+  // localStorage 已記錄今天 → 不跳
   if (localStorage.getItem(checkinKey)) return;
+  // 也檢查 Firestore（防跨裝置或清除 localStorage）
+  try {
+    const fp = window._fingerprint || 'guest';
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDoc(doc(window.db, 'guest_credits', fp));
+    if (snap.exists() && snap.data().checkin_date === today) {
+      localStorage.setItem(checkinKey, '1'); // 同步快取
+      return;
+    }
+  } catch(e) {}
   setTimeout(() => {
     const modal = document.getElementById('checkinModal');
     if (!modal) return;
