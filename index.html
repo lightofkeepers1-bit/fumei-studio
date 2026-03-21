@@ -1913,7 +1913,7 @@ window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   const d = await r.json();
   if (!r.ok) {
     if (d.needLogin) {
-      if (confirm(d.error + '\n\n要現在登入嗎？')) loginGoogle();
+      showIntroModal();
     }
     throw new Error(d.error || '點數不足');
   }
@@ -2193,7 +2193,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2205,7 +2205,7 @@ window.syncToCloud = async () => {
       <button id="guestBtn" onclick="enterGuestMode()" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.5);color:white;padding:6px 12px;border-radius:20px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">👀 訪客體驗</button>
       <div id="guestInfo" style="display:none;align-items:center;gap:5px">
         <span id="guestRemaining" style="font-size:0.7rem;color:rgba(255,255,255,0.9);font-weight:800;background:rgba(255,255,255,0.2);padding:3px 8px;border-radius:20px;white-space:nowrap"></span>
-        <button onclick="loginGoogle()" style="background:white;border:none;color:#764ba2;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
+        <button onclick="showIntroModal()" style="background:white;border:none;color:#764ba2;padding:4px 8px;border-radius:20px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">登入解鎖</button>
       </div>
 
       <!-- 已登入 -->
@@ -2790,7 +2790,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.6.3';
+const APP_VERSION = '5.6.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4149,7 +4149,7 @@ ${newsHeadlines}
     if (msg.includes('429') || msg.includes('rate limit')) {
       load.classList.remove('show');
       if (!window._currentUid) {
-        if (confirm('🔒 此功能需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+        showIntroModal();
         startCooldown('scanBtn', '🔍 掃描話題', 60);
       } else {
         err.textContent = '⏳ API 使用量暫時超限，請稍後再試';
@@ -4575,7 +4575,7 @@ async function genScript() {
 
   // 訪客：不允許時事反應
   if (!window._currentUid && type === '時事反應') {
-    if (confirm('🔒 時事反應需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+    showIntroModal();
     return;
   }
 
@@ -4989,7 +4989,7 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
     if (msg.includes('429') || msg.includes('rate limit')) {
       load.classList.remove('show');
       if (!window._currentUid) {
-        if (confirm('🔒 此功能需要登入才能使用\n\n要現在登入嗎？')) loginGoogle();
+        showIntroModal();
         startCooldown('scriptBtn', '✨ 產腳本', 60);
       } else {
         err.textContent = '⏳ API 使用量暫時超限，請稍後再試';
@@ -7190,7 +7190,7 @@ function goToImageWithPrompt() {
 // 主生圖函式（前端輪詢版）
 async function generateImage() {
   if (!window._currentUid) {
-    if (confirm('🔒 生圖功能需要登入\n\n要現在登入嗎？')) loginGoogle();
+    showIntroModal();
     return;
   }
   const prompt = document.getElementById('imgPromptInput').value.trim();
@@ -7558,7 +7558,7 @@ let _selectedPlan = 'pro';
 function openBuyModal() {
   if (!window._currentUid) {
     // 未登入：直接提示，不開 modal
-    if (confirm('⚡ 購買點數需要先登入\n\n要現在登入嗎？')) loginGoogle();
+    showIntroModal();
     return;
   }
   // 更新目前點數顯示
