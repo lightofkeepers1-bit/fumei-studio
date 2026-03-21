@@ -2182,7 +2182,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2779,7 +2779,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.5.7';
+const APP_VERSION = '5.5.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6472,25 +6472,47 @@ window.obAnalyzeImg = async () => {
   try {
     const base64 = _obImgBase64.split(',')[1];
     const mediaType = _obImgBase64.split(';')[0].split(':')[1];
+    // 先壓縮圖片避免太大
+    const canvas = document.createElement('canvas');
+    const img = new Image();
+    await new Promise(resolve => { img.onload = resolve; img.src = _obImgBase64; });
+    const maxSize = 800;
+    const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+    const compressedBase64 = compressed.split(',')[1];
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (window._currentUid) headers['x-firebase-uid'] = window._currentUid;
+    else if (window._fingerprint) headers['x-fingerprint'] = window._fingerprint;
+
     const res = await fetch('/api/claude', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid || '' },
+      headers,
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514', max_tokens: 150,
         messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: compressedBase64 } },
           { type: 'text', text: '請仔細觀察這個角色的外觀，用繁體中文描述以下特徵，輸出一段簡潔的外觀描述（50字以內），適合用來當作 AI 生圖的角色外觀 prompt：角色類型（人/動物/卡通）、主要外觀特徵（髮色、體型等）、服裝特色。只輸出描述，不要其他說明。' }
         ]}]
       })
     });
+    if (!res.ok) throw new Error('API ' + res.status);
     const d = await res.json();
     const text = d.content?.map(c => c.text || '').join('') || '';
-    if (text) document.getElementById('ob-appearance').value = text.trim();
-    btn.textContent = '✅ 分析完成';
+    if (text) {
+      document.getElementById('ob-appearance').value = text.trim();
+      btn.textContent = '✅ 分析完成';
+    } else {
+      throw new Error('empty response');
+    }
   } catch(e) {
-    btn.textContent = '❌ 分析失敗';
+    console.warn('obAnalyzeImg failed:', e);
+    btn.textContent = '❌ 分析失敗，請手動輸入';
   }
-  setTimeout(() => { btn.textContent = '🤖 AI 判斷外觀'; btn.disabled = false; }, 2000);
+  setTimeout(() => { btn.textContent = '🤖 AI 判斷外觀'; btn.disabled = false; }, 3000);
 };
 
 function obShowError(msg) {
