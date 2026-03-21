@@ -768,14 +768,14 @@ function genRandomCode() {
 }
 
 // ── 角色 Emoji 選擇器 ─────────────────────────────
-const CHAR_EMOJIS = [
+window.CHAR_EMOJIS = [
   '✨','🐾','🐱','🐶','🐰','🐻','🦊','🐼','🐨','🐸',
   '🌸','🌺','🌻','🍀','🦋','🌈','⭐','💫','🎀','💝',
   '👑','🎭','🎨','🎤','📸','💄','👗','🎮','🍓','🧋',
   '😺','😸','🥰','😎','🤩','😤','🙄','😏','🫠','🤡',
 ];
 
-function initCharEmojiGrid(selectedEmoji) {
+window.initCharEmojiGrid = function(selectedEmoji) {
   const grid = document.getElementById('charEmojiGrid');
   if (!grid) return;
   grid.innerHTML = CHAR_EMOJIS.map(e => `
@@ -2182,7 +2182,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2779,7 +2779,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.5.5';
+const APP_VERSION = '5.5.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2929,8 +2929,13 @@ window.deductCredits = async (cost, feature) => {
 // 補充點數（邀請碼兌換）
 window.addCredits = async (amount, source) => {
   if (!window._currentUid) return;
-  const current = window.getCredits();
-  const newVal = (current < 0 ? 0 : current) + amount;
+  let current = window.getCredits();
+  // 點數未載入時先同步一次，避免加到 0 上面
+  if (current < 0) {
+    try { current = await window.syncCreditsFromCloud(window._currentUid); } catch(e) {}
+    if (current < 0) current = 0;
+  }
+  const newVal = current + amount;
   localStorage.setItem('fumei_credits', String(newVal));
   window.updateCreditsUI(newVal);
   try {
@@ -5414,7 +5419,7 @@ async function refreshHistory() {
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:0.72rem;color:#bbb;font-weight:700">已選：</span>
           <span id="obEmojiPreview" style="font-size:1.6rem;line-height:1">✨</span>
-          <input id="ob-emoji" type="text" maxlength="2" placeholder="或輸入" style="width:56px;border:1.5px solid #e8d5f5;border-radius:10px;padding:4px 8px;font-size:1.1rem;text-align:center;font-family:inherit;outline:none" oninput="document.getElementById('obEmojiPreview').textContent=this.value||'✨'">
+          <input id="ob-emoji" type="text" maxlength="2" placeholder="自訂" style="width:64px;border:1.5px solid #e8d5f5;border-radius:10px;padding:4px 8px;font-size:1.1rem;text-align:center;font-family:inherit;outline:none" oninput="document.getElementById('obEmojiPreview').textContent=this.value||'✨'">
         </div>
       </div>
 
