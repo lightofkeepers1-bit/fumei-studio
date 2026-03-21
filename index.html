@@ -1911,7 +1911,7 @@ window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   // 先檢查快取
   const current = window._guestCreditsCache ?? await fetchGuestCredits();
   if (current < cost) {
-    window.showWelcomeModal();
+    window.showWelcomeModal('訪客點數已用完，登入後可獲得更多點數 ⚡');
     throw new Error('點數不足，請登入繼續使用');
   }
   const fp = window._fingerprint;
@@ -1923,7 +1923,7 @@ window.acquireGuestToken = async function(type = 'scan', cost = 1) {
   const d = await r.json();
   if (!r.ok) {
     if (d.needLogin) {
-      window.showWelcomeModal();
+      window.showWelcomeModal('訪客體驗已結束，請登入繼續使用 🔒');
     }
     throw new Error(d.error || '點數不足');
   }
@@ -2097,12 +2097,12 @@ function applyGuestRestrictions() {
     if (btn.textContent.includes('歷史')) {
       btn.style.opacity = '0.4';
       btn.style.cursor = 'not-allowed';
-      btn.onclick = () => showLoginPrompt('此功能需要登入才能使用 🔒');
+      btn.onclick = () => window.showWelcomeModal('歷史紀錄需要登入才能使用 📖');
     }
     if (btn.textContent.includes('生圖')) {
       btn.style.opacity = '0.4';
       btn.style.cursor = 'not-allowed';
-      btn.onclick = () => window.showWelcomeModal();
+      btn.onclick = () => window.showWelcomeModal('生圖功能需要登入才能使用 🎨');
     }
   });
   // 鎖定產腳本的「去生圖」按鈕
@@ -2114,7 +2114,7 @@ function applyGuestRestrictions() {
   if (inspoBtn) {
     inspoBtn.style.opacity = '0.4';
     inspoBtn.title = '三AI發想需要登入才能使用';
-    inspoBtn.onclick = () => showLoginPrompt('三AI發想需要登入才能使用 🔒');
+    inspoBtn.onclick = () => window.showWelcomeModal('三AI發想需要登入才能使用 🤖');
   }
   // 鎖定時事 & PTT — hidden select
   const topicCat = document.getElementById('topicCat');
@@ -2214,7 +2214,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2820,7 +2820,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.6.8';
+const APP_VERSION = '5.6.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4605,7 +4605,7 @@ async function genScript() {
 
   // 訪客：不允許時事反應
   if (!window._currentUid && type === '時事反應') {
-    window.showWelcomeModal();
+    window.showWelcomeModal('時事反應腳本需要登入才能使用 ✍️');
     return;
   }
 
@@ -6357,12 +6357,25 @@ window.showIntroModal = showIntroModal;
 
 // 顯示登入選擇視窗（訪客限制功能時使用）
 window.showWelcomeModal = function(msg) {
-  const wm = document.getElementById('welcomeModal');
-  if (!wm) return;
-  wm.style.display = 'flex';
-  if (window.switchEmailTab) window.switchEmailTab('login');
-  const area = document.getElementById('emailFormArea');
-  if (area) area.style.display = 'none';
+  // 移除舊的確認彈窗（避免重複）
+  const old = document.getElementById('loginConfirmModal');
+  if (old) old.remove();
+
+  const text = msg || '此功能需要登入才能使用';
+  const modal = document.createElement('div');
+  modal.id = 'loginConfirmModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center">
+      <div style="font-size:2rem;margin-bottom:12px">🔒</div>
+      <div style="font-weight:900;font-size:1rem;color:#764ba2;margin-bottom:8px">需要登入</div>
+      <div style="font-size:0.85rem;color:#888;line-height:1.6;margin-bottom:24px">${text}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="document.getElementById('loginConfirmModal').remove();const wm=document.getElementById('welcomeModal');if(wm){wm.style.display='flex';if(window.switchEmailTab)window.switchEmailTab('login');const a=document.getElementById('emailFormArea');if(a)a.style.display='none';}" style="width:100%;padding:12px;border-radius:14px;border:none;background:linear-gradient(135deg,#F4A7B9,#764ba2);color:white;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:'Nunito',sans-serif">🔑 前往登入</button>
+        <button onclick="document.getElementById('loginConfirmModal').remove()" style="width:100%;padding:10px;border:1.5px solid #e0d0f0;border-radius:14px;background:white;color:#999;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 };
 
 function closeIntro() {
@@ -7196,7 +7209,7 @@ function fillImgPromptFromScript() {
 function goToImageWithPrompt() {
   // 訪客不能使用生圖
   if (window._guestMode && !window._currentUid) {
-    window.showWelcomeModal();
+    window.showWelcomeModal('生圖功能需要登入才能使用 🎨');
     return;
   }
   // 帶入 Gemini Prompt（優先）或腳本內容
