@@ -1856,12 +1856,28 @@ window._guestCreditsCache = null;
 // 從後端取得/初始化訪客點數
 async function fetchGuestCredits() {
   const fp = await waitForFingerprint();
-  const r = await fetch('/api/guest-check?type=credits', {
-    headers: { 'x-fingerprint': fp }
-  });
-  const d = await r.json();
-  window._guestCreditsCache = d.credits ?? 0;
-  return window._guestCreditsCache;
+  try {
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await getDoc(doc(window.db, 'guest_credits', fp));
+    if (snap.exists()) {
+      const credits = snap.data().credits ?? 0;
+      window._guestCreditsCache = credits;
+      return credits;
+    }
+    // 新訪客：初始化 20 點
+    const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await setDoc(doc(window.db, 'guest_credits', fp), { credits: 20 });
+    window._guestCreditsCache = 20;
+    return 20;
+  } catch(e) {
+    // 失敗時用舊 API 備援
+    try {
+      const r = await fetch('/api/guest-check?type=credits', { headers: { 'x-fingerprint': fp } });
+      const d = await r.json();
+      window._guestCreditsCache = d.credits ?? 0;
+      return window._guestCreditsCache;
+    } catch(e2) { return window._guestCreditsCache ?? 0; }
+  }
 }
 
 // 等 fingerprint 初始化
@@ -2166,7 +2182,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2763,7 +2779,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.5.4';
+const APP_VERSION = '5.5.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
