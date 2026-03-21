@@ -1851,6 +1851,13 @@ onAuthStateChanged(auth, async (user) => {
       applyGuestRestrictions();
       renderTasks();
       if (window.updateCharNameUI) window.updateCharNameUI();
+    } else if (wasGuest && !guestChars && isPageRefresh) {
+      // 刷新頁面但訪客角色資料遺失 → 清旗標，讓下次進訪客時重跑 Onboarding
+      localStorage.removeItem('fumei_guest_onboarded');
+      localStorage.removeItem('fumei_guest_chars');
+      if (!window._pendingEmailVerification && !window._switchingAccount) {
+        setTimeout(() => { showIntroModal(); }, 300);
+      }
     } else if (!window._pendingEmailVerification && !window._switchingAccount) {
       // 登出或初次進入：跳登入選擇視窗
       setTimeout(() => { showIntroModal(); }, 300);
@@ -2048,7 +2055,9 @@ window.confirmGuestMode = async function() {
     renderCharCards();
     if (window.updateCharNameUI) window.updateCharNameUI();
   } else {
-    // 第一次訪客，清空 Onboarding 欄位再顯示（避免殘留正式帳號資料）
+    // 第一次訪客，或訪客角色資料遺失 → 清掉舊旗標，重跑 Onboarding
+    localStorage.removeItem('fumei_guest_onboarded');
+    localStorage.removeItem('fumei_guest_chars');
     ['ob-name','ob-appearance','ob-personality','ob-style'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
@@ -2223,7 +2232,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2829,7 +2838,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.7.1';
+const APP_VERSION = '5.7.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
