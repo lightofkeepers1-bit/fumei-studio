@@ -1740,13 +1740,22 @@ onAuthStateChanged(auth, async (user) => {
     document.querySelectorAll('#topicCatMenu .topic-opt').forEach(item => {
       item.style.display = '';
     });
-    // 還原歷史紀錄 tab
+    // 還原歷史紀錄 tab 和生圖 tab
     document.querySelectorAll('.tab').forEach(btn => {
       if (btn.textContent.includes('歷史')) {
         btn.style.opacity = '';
         btn.style.cursor = '';
         btn.onclick = () => switchTab('history', btn);
       }
+      if (btn.textContent.includes('生圖')) {
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        btn.onclick = () => switchTab('image', btn);
+      }
+    });
+    // 還原產腳本「去生圖」按鈕
+    document.querySelectorAll('[onclick*="goToImageWithPrompt"]').forEach(btn => {
+      btn.style.opacity = '';
     });
 
     // 帳號 section 顯示
@@ -2232,7 +2241,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2838,7 +2847,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.7.2';
+const APP_VERSION = '5.7.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
