@@ -802,9 +802,11 @@ const REFERRAL_REWARD_REFEREE  = 20;
 const REFERRAL_MAX_COUNT = 20;
 
 window.copyReferralLink = async () => {
-  if (!window._currentUid) return;
-  const shortId = window._currentUid.slice(0, 8);
-  const link = `${location.origin}${location.pathname}?ref=${shortId}`;
+  const id = window._currentUid
+    ? window._currentUid.slice(0, 8)
+    : (window._fingerprint || '').slice(0, 8);
+  if (!id) return;
+  const link = `${location.origin}${location.pathname}?ref=${id}`;
   try {
     await navigator.clipboard.writeText(link);
     const toast = document.getElementById('creditsToast');
@@ -2056,6 +2058,13 @@ function showGuestUI() {
     // 點數載入後才觸發簽到彈窗
     if (window.autoShowGuestCheckin) window.autoShowGuestCheckin();
   }).catch(() => window.updateGuestRemaining('?'));
+  // 訪客也顯示邀請橫幅（用 fingerprint 產生邀請連結）
+  const banner = document.getElementById('referralBanner');
+  if (banner) {
+    banner.style.display = 'block';
+    const countEl = document.getElementById('referralCount');
+    if (countEl) countEl.textContent = '分享給朋友，朋友首次登入可多得 20⚡';
+  }
 }
 
 window.updateGuestRemaining = function(n) {
@@ -2184,7 +2193,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.6.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2781,7 +2790,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.6.1';
+const APP_VERSION = '5.6.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3116,7 +3125,11 @@ window.dailyCheckin = async () => {
 // 初始化簽到按鈕狀態（純 UI，不打雲端）
 window.initCheckinBtn = () => {
   const today = new Date().toISOString().slice(0, 10);
-  const checkedIn = localStorage.getItem(CHECKIN_KEY) === today;
+  // 訪客用設備 key，登入用戶用 CHECKIN_KEY
+  const guestKey = 'fumei_guest_checkin_' + today;
+  const checkedIn = window._guestMode
+    ? localStorage.getItem(guestKey) === '1'
+    : localStorage.getItem(CHECKIN_KEY) === today;
   const configs = [
     { id: 'dailyCheckinBtn',  done: '✅ 已簽到',      todo: '🎁 每日簽到 +3點', msg: 'dailyCheckinMsg' },
     { id: 'headerCheckinBtn', done: '✅ 已簽到',      todo: '🎁 +3',           msg: null },
@@ -3236,8 +3249,9 @@ function syncMobileCheckinBar() {
   if (!bar) return;
   const isMobile = document.body.classList.contains('force-mobile');
   const isLoggedIn = !!window._currentUid;
-  bar.style.display = (isMobile && isLoggedIn) ? 'block' : 'none';
-  if (isMobile && isLoggedIn && window.initCheckinBtn) window.initCheckinBtn();
+  const isGuest = !!window._guestMode;
+  bar.style.display = (isMobile && (isLoggedIn || isGuest)) ? 'block' : 'none';
+  if (isMobile && (isLoggedIn || isGuest) && window.initCheckinBtn) window.initCheckinBtn();
 }
 
 
@@ -5801,7 +5815,7 @@ async function refreshHistory() {
           </div>
         </div>
 
-        <button class="settings-danger-btn" onclick="logoutUser();closeSettings();" style="background:#fff8f0;border-color:#ffd8a8;color:#b05a00;margin-bottom:8px">🚪 登出帳號</button>
+        <button id="logoutBtn" class="settings-danger-btn" onclick="logoutUser();closeSettings();" style="background:#fff8f0;border-color:#ffd8a8;color:#b05a00;margin-bottom:8px">🚪 登出帳號</button>
         <button class="settings-danger-btn" onclick="confirmResetAccount()" style="background:#f0f8ff;border-color:#b3d1ff;color:#1565c0">🔄 重置帳號資料</button>
       </div>
 
@@ -6728,6 +6742,9 @@ function openSettings() {
     s.classList.toggle('active', s.dataset.theme === currentTheme);
   });
   document.getElementById('accountSection').style.display = 'block';
+  // 訪客模式隱藏登出按鈕
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.style.display = window._guestMode ? 'none' : 'block';
   if (window._currentUid) {
     document.getElementById('accountInfo').textContent = '登入帳號：' + (document.getElementById('userName').textContent || '');
     // 直接顯示目前點數（登入時已 await 同步過，不需要再次觸發）
