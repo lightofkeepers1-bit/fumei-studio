@@ -1515,15 +1515,18 @@ onAuthStateChanged(auth, async (user) => {
     localStorage.removeItem('fumei_guest_mode');
     // 注意：保留 fumei_guest_chars 和 fumei_guest_onboarded
     // 這樣登出後切訪客模式，裝置記憶還在
-    // 清除訪客殘留前，先備份可能有用的自訂頭像（避免清掉後找不回來）
+    // 清除殘留資料，但先備份剛同步好的點數
     var _backupAvatarImg   = localStorage.getItem('fumei_avatar_img') || '';
     var _backupAvatarEmoji = localStorage.getItem('fumei_avatar_emoji') || '';
+    var _backupCredits     = localStorage.getItem('fumei_credits') || '-1';
     ['fumei_credits','fumei_chars','fumei_char_active','fumei_tasks','fumei_history',
      'fumei_studio_name','fumei_avatar_emoji','fumei_avatar_img',
      'fumei_theme','fumei_custom_topics','fumei_onboarded',
      'fumei_social_ig','fumei_social_fb','fumei_social_threads',
      'fumei_img_prompt_still','fumei_img_prompt_video'
     ].forEach(k => localStorage.removeItem(k));
+    // 恢復剛同步好的點數（不能被清掉）
+    if (_backupCredits !== '-1') localStorage.setItem('fumei_credits', _backupCredits);
     document.getElementById('guestBtn').style.display = 'none';
     document.getElementById('guestInfo').style.display = 'none';
 
@@ -1596,6 +1599,8 @@ onAuthStateChanged(auth, async (user) => {
     // 只有全新帳號（雲端完全沒有 fumei_chars）才讓他走 Onboarding
     // → 不做任何合併，避免訪客角色污染主帳號
     document.getElementById('syncStatus').textContent = '☁️ 已同步';
+    // 確保點數 UI 顯示正確（loadFromCloud 可能覆蓋了 localStorage）
+    window.updateCreditsUI(window.getCredits());
     // 雲端資料載入完成後才 render，確保不會顯示訪客殘留資料
     if (window.updateCharNameUI) window.updateCharNameUI();
     renderTasks();
@@ -2218,7 +2223,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2824,7 +2829,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.7.0';
+const APP_VERSION = '5.7.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
