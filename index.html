@@ -767,7 +767,36 @@ function genRandomCode() {
   return code;
 }
 
-// ── 邀請好友系統 ──────────────────────────────────
+// ── 角色 Emoji 選擇器 ─────────────────────────────
+const CHAR_EMOJIS = [
+  '✨','🐾','🐱','🐶','🐰','🐻','🦊','🐼','🐨','🐸',
+  '🌸','🌺','🌻','🍀','🦋','🌈','⭐','💫','🎀','💝',
+  '👑','🎭','🎨','🎤','📸','💄','👗','🎮','🍓','🧋',
+  '😺','😸','🥰','😎','🤩','😤','🙄','😏','🫠','🤡',
+];
+
+function initCharEmojiGrid(selectedEmoji) {
+  const grid = document.getElementById('charEmojiGrid');
+  if (!grid) return;
+  grid.innerHTML = CHAR_EMOJIS.map(e => `
+    <span onclick="selectCharEmoji('${e}')" style="font-size:1.4rem;cursor:pointer;padding:4px;border-radius:8px;border:2px solid ${e === selectedEmoji ? '#764ba2' : 'transparent'};background:${e === selectedEmoji ? '#f0e8ff' : 'transparent'};transition:all 0.15s" data-emoji="${e}">${e}</span>
+  `).join('');
+  document.getElementById('charEmojiPreview').textContent = selectedEmoji || '✨';
+  const input = document.getElementById('charEmojiInput');
+  if (input) input.value = '';
+}
+
+window.selectCharEmoji = (emoji) => {
+  document.getElementById('charEmojiPreview').textContent = emoji;
+  const input = document.getElementById('charEmojiInput');
+  if (input) input.value = '';
+  // 更新選中樣式
+  document.querySelectorAll('#charEmojiGrid span').forEach(el => {
+    const isSelected = el.dataset.emoji === emoji;
+    el.style.border = isSelected ? '2px solid #764ba2' : '2px solid transparent';
+    el.style.background = isSelected ? '#f0e8ff' : 'transparent';
+  });
+};
 const REFERRAL_REWARD_REFERRER = 50;
 const REFERRAL_REWARD_REFEREE  = 20;
 const REFERRAL_MAX_COUNT = 20;
@@ -2004,7 +2033,11 @@ function showGuestUI() {
   renderHistory();
   // 從後端取得訪客點數（防私密瀏覽刷新）
   window.updateGuestRemaining('...');
-  fetchGuestCredits().then(c => window.updateGuestRemaining(c)).catch(() => window.updateGuestRemaining('?'));
+  fetchGuestCredits().then(c => {
+    window.updateGuestRemaining(c);
+    // 點數載入後才觸發簽到彈窗
+    if (window.autoShowGuestCheckin) window.autoShowGuestCheckin();
+  }).catch(() => window.updateGuestRemaining('?'));
 }
 
 window.updateGuestRemaining = function(n) {
@@ -2133,7 +2166,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.5.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2730,7 +2763,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.5.0';
+const APP_VERSION = '5.5.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2922,7 +2955,61 @@ window.autoShowCheckinModal = async (uid) => {
   setTimeout(() => {
     const modal = document.getElementById('checkinModal');
     if (!modal) return;
-    // 複製富美角色圖
+    const introImg = document.getElementById('intro-img');
+    const charImg = document.getElementById('checkinCharImg');
+    if (introImg && charImg) charImg.src = introImg.src;
+    modal.style.display = 'flex';
+  }, 1500);
+};
+
+// 訪客每日簽到（用 fingerprint + localStorage 防重複）
+window.guestDailyCheckin = async () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const checkinKey = 'fumei_guest_checkin_' + today;
+  if (localStorage.getItem(checkinKey)) {
+    const toast = document.getElementById('creditsToast');
+    if (toast) { toast.textContent = '今日已簽到 ✓'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
+    return;
+  }
+  // 加訪客點數
+  const fp = window._fingerprint || 'guest';
+  try {
+    const res = await fetch('/api/daily-bonus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
+      body: JSON.stringify({ fingerprint: fp })
+    });
+    if (res.ok) {
+      localStorage.setItem(checkinKey, '1');
+      const current = window._guestCreditsCache ?? 0;
+      const newVal = current + DAILY_BONUS;
+      window._guestCreditsCache = newVal;
+      window.updateGuestRemaining(newVal);
+      if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now(), remaining: newVal });
+      const toast = document.getElementById('creditsToast');
+      if (toast) { toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點 ✨`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
+      if (window.initCheckinBtn) window.initCheckinBtn();
+    }
+  } catch(e) {
+    // fallback：直接加本地點數
+    localStorage.setItem(checkinKey, '1');
+    const newVal = (window._guestCreditsCache ?? 0) + DAILY_BONUS;
+    window._guestCreditsCache = newVal;
+    window.updateGuestRemaining(newVal);
+    const toast = document.getElementById('creditsToast');
+    if (toast) { toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點 ✨`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
+    if (window.initCheckinBtn) window.initCheckinBtn();
+  }
+};
+
+// 訪客自動簽到彈窗
+window.autoShowGuestCheckin = async () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const checkinKey = 'fumei_guest_checkin_' + today;
+  if (localStorage.getItem(checkinKey)) return;
+  setTimeout(() => {
+    const modal = document.getElementById('checkinModal');
+    if (!modal) return;
     const introImg = document.getElementById('intro-img');
     const charImg = document.getElementById('checkinCharImg');
     if (introImg && charImg) charImg.src = introImg.src;
@@ -2938,6 +3025,13 @@ window.closeCheckinModal = () => {
 window.doCheckinFromModal = async () => {
   const btn = document.getElementById('checkinModalBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 領取中...'; }
+  // 訪客模式
+  if (!window._currentUid && window._guestMode) {
+    window.closeCheckinModal();
+    await window.guestDailyCheckin();
+    if (btn) { btn.disabled = false; btn.textContent = '✨ 立刻領取！'; }
+    return;
+  }
   try {
     const today = new Date().toISOString().slice(0, 10);
     // 再次確認雲端（防止同一帳號多裝置）
@@ -2970,6 +3064,11 @@ window.doCheckinFromModal = async () => {
 };
 
 window.dailyCheckin = async () => {
+  // 訪客模式的簽到
+  if (!window._currentUid && window._guestMode) {
+    await window.guestDailyCheckin();
+    return;
+  }
   if (!window._currentUid) return;
   const today = new Date().toISOString().slice(0, 10);
   const alreadyDone = await window.checkTodayCheckin(window._currentUid);
@@ -5290,13 +5389,34 @@ async function refreshHistory() {
         <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">角色名稱 *</div>
         <input id="ob-name" class="settings-input" placeholder="例如：Fumei、小明、咖哩貓" style="margin:0">
       </div>
+
       <div style="margin-bottom:16px">
-        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">角色 Emoji</div>
-        <input id="ob-emoji" class="settings-input" placeholder="例如：🐾、🐱、🌸" style="margin:0;max-width:120px">
+        <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">角色 Emoji</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="obEmojiGrid"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.72rem;color:#bbb;font-weight:700">已選：</span>
+          <span id="obEmojiPreview" style="font-size:1.6rem;line-height:1">✨</span>
+          <input id="ob-emoji" type="text" maxlength="2" placeholder="或輸入" style="width:56px;border:1.5px solid #e8d5f5;border-radius:10px;padding:4px 8px;font-size:1.1rem;text-align:center;font-family:inherit;outline:none" oninput="document.getElementById('obEmojiPreview').textContent=this.value||'✨'">
+        </div>
       </div>
+
       <div style="margin-bottom:24px">
         <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">外貌描述</div>
-        <input id="ob-appearance" class="settings-input" placeholder="例如：3D 卡通狗狗女孩，金色長髮、粉色洋裝" style="margin:0">
+        <input id="ob-appearance" class="settings-input" placeholder="例如：3D 卡通狗狗女孩，金色長髮、粉色洋裝" style="margin:0;margin-bottom:8px">
+        <!-- 上傳圖片讓 AI 判斷外觀 -->
+        <input type="file" id="obImgUpload" accept="image/*" style="display:none" onchange="obPreviewImg(event)">
+        <div id="obImgPreviewWrap" style="display:none;margin-bottom:8px;position:relative">
+          <img id="obImgPreview" style="width:100%;max-height:160px;object-fit:contain;border-radius:10px;border:1.5px solid #e8d5f5;background:#f8f4ff">
+          <button onclick="obClearImg()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);border:none;color:white;border-radius:50%;width:24px;height:24px;font-size:0.75rem;cursor:pointer;line-height:1">✕</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <label for="obImgUpload" style="flex:1;padding:9px;border:1.5px dashed #C9B8E8;border-radius:12px;background:#faf7ff;color:#764ba2;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif;text-align:center;display:block">
+            📸 上傳角色圖片
+          </label>
+          <button id="obAnalyzeBtn" onclick="obAnalyzeImg()" style="display:none;flex:1;padding:9px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:'Nunito',sans-serif">
+            🤖 AI 判斷外觀
+          </button>
+        </div>
       </div>
 
       <div style="display:flex;gap:10px">
@@ -5430,6 +5550,17 @@ async function refreshHistory() {
           <div style="display:flex;align-items:center;justify-content:space-between">
             <span style="font-size:0.8rem;font-weight:800;color:#764ba2" id="charEditTitle">編輯角色</span>
             <button onclick="deleteCurrentChar()" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;border:1.5px solid #ffb3b3;background:#fff5f5;color:#c0392b;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🗑️ 刪除</button>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:6px">角色圖示</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="charEmojiGrid">
+              <!-- 動態產生 -->
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:0.72rem;color:#bbb;font-weight:700">已選：</span>
+              <span id="charEmojiPreview" style="font-size:1.6rem;line-height:1">✨</span>
+              <input id="charEmojiInput" type="text" maxlength="2" placeholder="或直接輸入" style="width:56px;border:1.5px solid #e8d5f5;border-radius:10px;padding:4px 8px;font-size:1.1rem;text-align:center;font-family:inherit;outline:none" oninput="document.getElementById('charEmojiPreview').textContent=this.value||'✨'">
+            </div>
           </div>
           <div>
             <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">角色名稱</div>
@@ -5851,17 +5982,18 @@ function selectChar(i) {
   // 只開啟編輯面板，不改變主要角色
   const chars = loadChars();
   const ch = chars[i];
-  // 標記目前正在編輯哪個
   document.getElementById('charCards').dataset.editingIdx = i;
   renderCharCards();
   document.getElementById('charName').value        = ch.name || '';
   document.getElementById('charAppearance').value  = ch.appearance || '';
   document.getElementById('charPersonality').value = ch.personality || '';
-  document.getElementById('charStyle').value       = ch.style || ''
+  document.getElementById('charStyle').value       = ch.style || '';
   document.getElementById('charPolitics').value    = ch.politics || '';
   document.getElementById('charEditTitle').textContent = '✏️ 編輯：' + (ch.name || '角色');
   document.getElementById('charEditPanel').style.display = 'flex';
   document.querySelectorAll('.char-chip').forEach(c => c.classList.remove('active'));
+  // 初始化 emoji 選擇器
+  initCharEmojiGrid(ch.emoji || '✨');
   // 切換角色時清除圖片預覽
   clearCharImg();
 }
@@ -5970,6 +6102,7 @@ async function saveCurrentChar() {
   const charData = {
     ...chars[i],
     name:        document.getElementById('charName').value.trim() || '新角色',
+    emoji:       (document.getElementById('charEmojiInput')?.value?.trim() || document.getElementById('charEmojiPreview')?.textContent || chars[i].emoji || '✨'),
     appearance:  document.getElementById('charAppearance').value.trim(),
     personality: document.getElementById('charPersonality').value.trim(),
     style:       document.getElementById('charStyle').value.trim(),
@@ -6253,14 +6386,89 @@ function showOnboarding() {
 window.showOnboarding = showOnboarding;
 
 function obGoTo(step) {
+  document.querySelectorAll('[id^="ob-page-"]').forEach(p => p.style.display = 'none');
+  const page = document.getElementById('ob-page-' + step);
+  if (page) page.style.display = 'block';
+  // Step 2 進入時初始化 emoji 選擇器
+  if (step === 2) {
+    const grid = document.getElementById('obEmojiGrid');
+    if (grid && !grid.children.length) {
+      grid.innerHTML = CHAR_EMOJIS.map(e => `
+        <span onclick="obSelectEmoji('${e}')" style="font-size:1.3rem;cursor:pointer;padding:4px;border-radius:8px;border:2px solid transparent;transition:all 0.15s" data-emoji="${e}">${e}</span>
+      `).join('');
+    }
+  }
+  // 更新進度條
+  document.querySelectorAll('.ob-bar').forEach((b, i) => {
+    b.style.background = i < step ? 'linear-gradient(90deg,#C9B8E8,#764ba2)' : '#eee';
+  });
+  // 同步舊進度條 id
   [1,2,3,4].forEach(n => {
-    document.getElementById(`ob-page-${n}`).style.display = n === step ? 'block' : 'none';
     const bar = document.getElementById(`ob-step-${n}`);
-    bar.style.background = n <= step
-      ? 'linear-gradient(135deg,#F4A7B9,#C9B8E8)'
-      : '#e0e0e0';
+    if (bar) bar.style.background = n <= step ? 'linear-gradient(135deg,#F4A7B9,#C9B8E8)' : '#e0e0e0';
   });
 }
+
+// Onboarding emoji 選擇
+window.obSelectEmoji = (emoji) => {
+  document.getElementById('obEmojiPreview').textContent = emoji;
+  const input = document.getElementById('ob-emoji');
+  if (input) input.value = '';
+  document.querySelectorAll('#obEmojiGrid span').forEach(el => {
+    const sel = el.dataset.emoji === emoji;
+    el.style.border = sel ? '2px solid #764ba2' : '2px solid transparent';
+    el.style.background = sel ? '#f0e8ff' : 'transparent';
+  });
+};
+
+// Onboarding 圖片上傳
+let _obImgBase64 = '';
+window.obPreviewImg = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _obImgBase64 = e.target.result;
+    document.getElementById('obImgPreview').src = _obImgBase64;
+    document.getElementById('obImgPreviewWrap').style.display = 'block';
+    document.getElementById('obAnalyzeBtn').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+};
+window.obClearImg = () => {
+  _obImgBase64 = '';
+  document.getElementById('obImgPreviewWrap').style.display = 'none';
+  document.getElementById('obAnalyzeBtn').style.display = 'none';
+  document.getElementById('obImgUpload').value = '';
+};
+window.obAnalyzeImg = async () => {
+  if (!_obImgBase64) return;
+  const btn = document.getElementById('obAnalyzeBtn');
+  btn.textContent = '🤖 分析中...';
+  btn.disabled = true;
+  try {
+    const base64 = _obImgBase64.split(',')[1];
+    const mediaType = _obImgBase64.split(';')[0].split(':')[1];
+    const res = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid || '' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 150,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: '請仔細觀察這個角色的外觀，用繁體中文描述以下特徵，輸出一段簡潔的外觀描述（50字以內），適合用來當作 AI 生圖的角色外觀 prompt：角色類型（人/動物/卡通）、主要外觀特徵（髮色、體型等）、服裝特色。只輸出描述，不要其他說明。' }
+        ]}]
+      })
+    });
+    const d = await res.json();
+    const text = d.content?.map(c => c.text || '').join('') || '';
+    if (text) document.getElementById('ob-appearance').value = text.trim();
+    btn.textContent = '✅ 分析完成';
+  } catch(e) {
+    btn.textContent = '❌ 分析失敗';
+  }
+  setTimeout(() => { btn.textContent = '🤖 AI 判斷外觀'; btn.disabled = false; }, 2000);
+};
 
 function obShowError(msg) {
   let el = document.getElementById('ob-error');
@@ -6304,7 +6512,7 @@ async function obNext(step) {
 
     // 進入 Step 4 前先顯示預覽確認
     const name = document.getElementById('ob-name').value.trim();
-    const emoji = document.getElementById('ob-emoji').value.trim() || '✨';
+    const emoji = document.getElementById('ob-emoji').value.trim() || document.getElementById('obEmojiPreview')?.textContent?.trim() || '✨';
     const appearance = document.getElementById('ob-appearance').value.trim() || '（未填）';
     const confirmed = confirm(
 `📋 確認角色設定：
@@ -6337,7 +6545,7 @@ async function obStartAnalysis() {
   document.getElementById('ob-done').style.display = 'none';
 
   const name       = document.getElementById('ob-name').value.trim() || '我的角色';
-  const emoji      = document.getElementById('ob-emoji').value.trim() || '✨';
+  const emoji      = document.getElementById('ob-emoji').value.trim() || document.getElementById('obEmojiPreview')?.textContent?.trim() || '✨';
   const appearance = document.getElementById('ob-appearance').value.trim();
   const personality= document.getElementById('ob-personality').value.trim();
   const style      = document.getElementById('ob-style').value.trim();
