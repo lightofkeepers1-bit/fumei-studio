@@ -95,14 +95,14 @@ export default async function handler(req, res) {
       if (items.length >= 30) break;
     }
 
-    // 只保留 3 天內的新聞（過濾舊文章）
-    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    // 只保留 2 天內的新聞（今天＋昨天）
+    const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
     const recentItems = items.filter(item => {
       if (!item.pubDate) return true;
       const pub = new Date(item.pubDate).getTime();
-      return isNaN(pub) || pub >= threeDaysAgo;
+      return isNaN(pub) || pub >= twoDaysAgo;
     });
-    const finalItems = recentItems.length >= 5 ? recentItems : items; // 過濾後太少就用全部（避免回傳空）
+    const finalItems = recentItems.length >= 3 ? recentItems : items; // 過濾後太少就用全部
 
     if (uid) fsIncrement(`users/${uid}`, 'usage_news').catch(() => {});
 
