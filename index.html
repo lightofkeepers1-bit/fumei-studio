@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2903,7 +2903,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.9.8';
+const APP_VERSION = '5.9.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4044,7 +4044,7 @@ ${pttHeadlines}
 只輸出6行，不要額外說明。編號必須對應上面清單的數字。`;
 
       const txt = await claudeScan(pttPrompt, false);
-      const lines = txt.split('\n').filter(l => l.includes('｜'));
+      const lines = txt.split('\n').filter(l => l.includes('｜') || l.includes('|'));
       const topicList = lines.map(l => {
         const commaIdx = l.search(/^\d+,/);
         let rssIndex = -1, rest = l;
@@ -4183,8 +4183,20 @@ ${newsHeadlines}
     }
 
     // 時事：RSS 已提供新聞，Claude 不需要 web_search；其他類型也不需要
-    const txt = await claudeScan(prompt, false);
-    const lines = txt.split('\n').filter(l => l.includes('｜'));
+    // 解析失敗自動 retry 一次（Claude 偶爾會用 | 或多輸出說明文字）
+    function parseTopicLines(txt) {
+      // 同時支援全形｜和半形|
+      return txt.split('\n').filter(l => l.includes('｜') || l.includes('|'));
+    }
+    let txt = await claudeScan(prompt, false);
+    let lines = parseTopicLines(txt);
+    if (!lines.length) {
+      // 自動 retry，不扣點
+      try {
+        txt = await claudeScan(prompt + '\n（請嚴格按格式輸出，每行必須包含｜符號）', false);
+        lines = parseTopicLines(txt);
+      } catch(retryErr) {}
+    }
     if (!lines.length) {
       err.textContent = '❌ 話題解析失敗，請再試一次';
       err.classList.add('show');
@@ -4213,7 +4225,7 @@ ${newsHeadlines}
         rssIndex = parseInt(l.slice(0, comma));
         rest = l.slice(comma + 1);
       }
-      const sepIdx = rest.indexOf('｜');
+      const sepIdx = rest.indexOf('｜') >= 0 ? rest.indexOf('｜') : rest.indexOf('|');
       const title = rest.slice(0, sepIdx).trim();
       const sub = rest.slice(sepIdx + 1).trim();
       return { title, sub, rssIndex };
