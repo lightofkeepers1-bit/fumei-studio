@@ -1863,14 +1863,14 @@ onAuthStateChanged(auth, async (user) => {
     if (referralBanner) referralBanner.style.display = 'none';
     // 未登入一律套用功能限制
     applyGuestRestrictions();
-    // 主動登出 → 跳 IntroModal，讓用戶重新選擇
-    // 刷新頁面 → 直接恢復訪客狀態
     const wasGuest = localStorage.getItem('fumei_guest_onboarded') === '1';
     const guestChars = localStorage.getItem('fumei_guest_chars') || '';
+    const isActiveGuest = localStorage.getItem('fumei_guest_mode') === '1'; // 正在訪客模式中刷新
     const isPageRefresh = !window._loggingOut && !window._pendingEmailVerification && !window._switchingAccount;
-    window._loggingOut = false; // 重置 flag
-    if (wasGuest && guestChars && isPageRefresh) {
-      // 刷新頁面：直接恢復訪客狀態
+    window._loggingOut = false;
+
+    if (wasGuest && guestChars && isPageRefresh && isActiveGuest) {
+      // 訪客模式中刷新頁面：直接恢復
       window._guestMode = true;
       localStorage.setItem('fumei_guest_mode', '1');
       localStorage.setItem('fumei_chars', guestChars);
@@ -1879,18 +1879,10 @@ onAuthStateChanged(auth, async (user) => {
       applyGuestRestrictions();
       renderTasks();
       if (window.updateCharNameUI) window.updateCharNameUI();
-    } else if (wasGuest && !guestChars && isPageRefresh) {
-      // 刷新頁面但訪客角色資料遺失
-      localStorage.removeItem('fumei_guest_onboarded');
-      localStorage.removeItem('fumei_guest_chars');
-      if (!window._pendingEmailVerification && !window._switchingAccount) {
-        setTimeout(() => { showIntroModal(); }, 500);
-      }
     } else if (!window._pendingEmailVerification && !window._switchingAccount) {
-      // 主動登出或初次進入：跳登入選擇視窗
+      // 登出、第一次進入、或非訪客模式 → 跳 IntroModal
       // 如果有訪客記憶，先在背景顯示訪客點數
-      const hadGuest = localStorage.getItem('fumei_guest_onboarded') === '1';
-      if (hadGuest) {
+      if (wasGuest && guestChars) {
         fetchGuestCredits().then(c => {
           const creditsDisplay = document.getElementById('creditsDisplay');
           const creditsNum = document.getElementById('creditsNum');
@@ -2288,7 +2280,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.6</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2908,7 +2900,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.6';
+const APP_VERSION = '5.8.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
