@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2794,11 +2794,8 @@ function getImgPromptStill() {
   if (custom.trim()) return custom.trim();
   const ch = loadChars()[getActiveIdx()] || DEFAULT_CHAR;
   const appearance = ch.appearance || '';
-  const appearanceNote = appearance ? '角色外觀參考：' + appearance + '
-' : '';
-  return appearanceNote + '換服裝換場景，表情要豐富
-不要更換提供的原人物的材質
-依照提供圖片材質出圖';
+  const appearanceNote = appearance ? ('角色外觀參考：' + appearance + '\n') : '';
+  return appearanceNote + '換服裝換場景，表情要豐富\n不要更換提供的原人物的材質\n依照提供圖片材質出圖';
 }
 
 function getImgPromptVideo() {
@@ -2906,7 +2903,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.9.3';
+const APP_VERSION = '5.9.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
