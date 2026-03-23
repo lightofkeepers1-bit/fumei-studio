@@ -1842,6 +1842,19 @@ onAuthStateChanged(auth, async (user) => {
     // 重置 header logo
     const logoIcon = document.querySelector('.logo-icon');
     if (logoIcon) logoIcon.innerHTML = '🐾';
+    // 登出後切回每日任務頁，清除殘留內容
+    const dailyTabBtn = document.querySelector('.tab[onclick*="daily"]');
+    if (dailyTabBtn) switchTab('daily', dailyTabBtn);
+    // 清除產腳本殘留
+    const scriptArea = document.getElementById('scriptArea');
+    if (scriptArea) scriptArea.style.display = 'none';
+    const topicsGrid = document.getElementById('topicsGrid');
+    if (topicsGrid) topicsGrid.innerHTML = '';
+    const selectedCard = document.getElementById('selectedCard');
+    if (selectedCard) selectedCard.style.display = 'none';
+    // 清除邀請橫幅
+    const referralBanner = document.getElementById('referralBanner');
+    if (referralBanner) referralBanner.style.display = 'none';
     // 未登入一律套用功能限制
     applyGuestRestrictions();
     // 主動登出 → 跳 IntroModal，讓用戶重新選擇
@@ -1861,15 +1874,15 @@ onAuthStateChanged(auth, async (user) => {
       renderTasks();
       if (window.updateCharNameUI) window.updateCharNameUI();
     } else if (wasGuest && !guestChars && isPageRefresh) {
-      // 刷新頁面但訪客角色資料遺失 → 清旗標，讓下次進訪客時重跑 Onboarding
+      // 刷新頁面但訪客角色資料遺失
       localStorage.removeItem('fumei_guest_onboarded');
       localStorage.removeItem('fumei_guest_chars');
       if (!window._pendingEmailVerification && !window._switchingAccount) {
-        setTimeout(() => { showIntroModal(); }, 300);
+        setTimeout(() => { showIntroModal(); }, 500);
       }
     } else if (!window._pendingEmailVerification && !window._switchingAccount) {
-      // 登出或初次進入：跳登入選擇視窗
-      setTimeout(() => { showIntroModal(); }, 300);
+      // 主動登出或初次進入：跳登入選擇視窗
+      setTimeout(() => { showIntroModal(); }, 500);
     }
   }
 });
@@ -2257,7 +2270,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2873,7 +2886,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.7.9';
+const APP_VERSION = '5.8.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
