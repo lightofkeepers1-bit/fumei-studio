@@ -2280,7 +2280,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2900,7 +2900,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.7';
+const APP_VERSION = '5.8.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6549,6 +6549,18 @@ window.showWelcomeModal = function(msg) {
 
 function closeIntro() {
   document.getElementById('introModal').style.display = 'none';
+  // 未登入且非訪客 → 跳登入選擇視窗
+  if (!window._currentUid && !window._guestMode) {
+    setTimeout(() => {
+      const wm = document.getElementById('welcomeModal');
+      if (wm) {
+        wm.style.display = 'flex';
+        if (window.switchEmailTab) window.switchEmailTab('login');
+        const area = document.getElementById('emailFormArea');
+        if (area) area.style.display = 'none';
+      }
+    }, 200);
+  }
 }
 window.closeIntro = closeIntro;
 
