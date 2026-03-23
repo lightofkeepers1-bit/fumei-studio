@@ -45,13 +45,16 @@ const CATEGORY_QUERY = {
 };
 
 function buildRssUrl(category) {
+  // 今天日期，格式 YYYY-MM-DD（Google News after: 參數）
+  const today = new Date().toISOString().slice(0, 10);
   const topicId = CATEGORY_TOPICS[category];
   if (topicId) {
     // 有 topic ID：用 Google News topic RSS
     return `https://news.google.com/rss/topics/${topicId}?hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
   }
-  // 沒有 topic ID：用關鍵字搜尋 RSS
-  const q = encodeURIComponent(CATEGORY_QUERY[category] || 'tw');
+  // 沒有 topic ID：用關鍵字搜尋 RSS，加 after: 限制今天
+  const baseQ = CATEGORY_QUERY[category] || 'tw';
+  const q = encodeURIComponent(`${baseQ} after:${today}`);
   return `https://news.google.com/rss/search?q=${q}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
 }
 
@@ -92,9 +95,18 @@ export default async function handler(req, res) {
       if (items.length >= 30) break;
     }
 
+    // 只保留 3 天內的新聞（過濾舊文章）
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    const recentItems = items.filter(item => {
+      if (!item.pubDate) return true;
+      const pub = new Date(item.pubDate).getTime();
+      return isNaN(pub) || pub >= threeDaysAgo;
+    });
+    const finalItems = recentItems.length >= 5 ? recentItems : items; // 過濾後太少就用全部（避免回傳空）
+
     if (uid) fsIncrement(`users/${uid}`, 'usage_news').catch(() => {});
 
-    return res.status(200).json({ items, category, total: items.length });
+    return res.status(200).json({ items: finalItems, category, total: finalItems.length });
   } catch(e) {
     console.error('[news] error:', e.message);
     return res.status(500).json({ error: e.message, items: [] });
