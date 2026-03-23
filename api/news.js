@@ -83,7 +83,9 @@ export default async function handler(req, res) {
       const block = match[1];
       const title = (block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) ||
                      block.match(/<title>(.*?)<\/title>/))?.[1]?.trim() || '';
-      const link  = (block.match(/<link>(.*?)<\/link>/) ||
+      // Google News RSS 的 <link> 是自閉合空標籤，真正 URL 在 <guid>
+      const link  = (block.match(/<guid[^>]*>(.*?)<\/guid>/) ||
+                     block.match(/<link>(.*?)<\/link>/) ||
                      block.match(/<link\s+href="(.*?)"/))?.[1]?.trim() || '';
       const source = (block.match(/<source[^>]*>(.*?)<\/source>/))?.[1]?.trim() ||
                      (block.match(/<source[^>]*url="[^"]*"[^>]*>(.*?)<\/source>/))?.[1]?.trim() || '未知來源';
