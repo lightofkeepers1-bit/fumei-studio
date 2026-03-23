@@ -1836,12 +1836,18 @@ onAuthStateChanged(auth, async (user) => {
     ].forEach(k => localStorage.removeItem(k));
     window._guestMode = false;
     window.updateCreditsUI(-1);
+    // 隱藏點數顯示
+    const creditsDisplay = document.getElementById('creditsDisplay');
+    if (creditsDisplay) creditsDisplay.style.display = 'none';
     document.getElementById('syncStatus').textContent = '';
     // 未登入時固定顯示預設名稱
     document.querySelectorAll('.char-name-ui').forEach(el => el.textContent = '尚未設定角色');
     // 重置 header logo
     const logoIcon = document.querySelector('.logo-icon');
     if (logoIcon) logoIcon.innerHTML = '🐾';
+    // 清除角色快速切換列
+    const charSwitchBar = document.getElementById('charSwitchBar');
+    if (charSwitchBar) charSwitchBar.style.display = 'none';
     // 登出後切回每日任務頁，清除殘留內容
     const dailyTabBtn = document.querySelector('.tab[onclick*="daily"]');
     if (dailyTabBtn) switchTab('daily', dailyTabBtn);
@@ -2270,7 +2276,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2890,7 +2896,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.4';
+const APP_VERSION = '5.8.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2923,6 +2929,9 @@ window.updateCreditsUI = (credits) => {
   num.textContent = credits >= 0 ? credits : '…';
   const display = document.getElementById('creditsDisplay');
   if (display) {
+    // 有點數（含 loading 狀態 -1）登入中才顯示，純未登入(-1且非訪客)隱藏
+    const shouldShow = credits >= 0 || window._currentUid || window._guestMode;
+    display.style.display = shouldShow ? 'inline-flex' : 'none';
     display.style.background = (credits >= 0 && credits <= 3)
       ? 'rgba(232,93,138,0.7)'
       : 'rgba(255,255,255,0.2)';
