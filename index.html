@@ -1888,6 +1888,18 @@ onAuthStateChanged(auth, async (user) => {
       }
     } else if (!window._pendingEmailVerification && !window._switchingAccount) {
       // 主動登出或初次進入：跳登入選擇視窗
+      // 如果有訪客記憶，先在背景顯示訪客點數
+      const hadGuest = localStorage.getItem('fumei_guest_onboarded') === '1';
+      if (hadGuest) {
+        fetchGuestCredits().then(c => {
+          const creditsDisplay = document.getElementById('creditsDisplay');
+          const creditsNum = document.getElementById('creditsNum');
+          if (creditsDisplay && creditsNum) {
+            creditsNum.textContent = c;
+            creditsDisplay.style.display = 'inline-flex';
+          }
+        }).catch(() => {});
+      }
       setTimeout(() => { showIntroModal(); }, 500);
     }
   }
@@ -2276,7 +2288,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2896,7 +2908,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.5';
+const APP_VERSION = '5.8.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
