@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2791,10 +2791,14 @@ const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
 
 function getImgPromptStill() {
   const custom = localStorage.getItem('fumei_img_prompt_still') || '';
-  const charName = (loadChars()[getActiveIdx()] || DEFAULT_CHAR).name || '我的角色';
-  return custom.trim() || `換服裝換場景，表情要豐富
+  if (custom.trim()) return custom.trim();
+  const ch = loadChars()[getActiveIdx()] || DEFAULT_CHAR;
+  const appearance = ch.appearance || '';
+  const appearanceNote = appearance ? '角色外觀參考：' + appearance + '
+' : '';
+  return appearanceNote + '換服裝換場景，表情要豐富
 不要更換提供的原人物的材質
-依照提供圖片材質出圖`;
+依照提供圖片材質出圖';
 }
 
 function getImgPromptVideo() {
@@ -2902,7 +2906,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.9';
+const APP_VERSION = '5.9.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4126,9 +4130,17 @@ ${pttHeadlines}
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
+            // 過濾掉超過 7 天的舊新聞
+            const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            const recentItems = newsData.items.filter(item => {
+              if (!item.pubDate) return true; // 沒有日期就保留
+              const pub = new Date(item.pubDate).getTime();
+              return !isNaN(pub) && pub >= sevenDaysAgo;
+            });
+            const itemsToUse = recentItems.length >= 3 ? recentItems : newsData.items; // 過濾後太少就用全部
             // 每家最多2筆，然後洗牌，讓來源更多元
             const capPerSource = {};
-            const balanced = newsData.items.filter(item => {
+            const balanced = itemsToUse.filter(item => {
               capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
               return capPerSource[item.source] <= 2;
             });
@@ -4779,6 +4791,8 @@ async function genScript() {
 
   try {
     const charName = getCharName();
+    const charAppearance = (loadChars()[getActiveIdx()] || DEFAULT_CHAR).appearance || '';
+    const appearanceHint = charAppearance ? `\n角色外觀：${charAppearance}` : '';
     if (isAuto) {
       notice.style.display='block';
       loadTxt.textContent='正在搜尋今日時事...';
@@ -4822,7 +4836,15 @@ async function genScript() {
           });
           if (newsRes.ok) {
             const newsData = await newsRes.json();
-            if (newsData.items) window._rssItems = newsData.items;
+            if (newsData.items) {
+              const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+              const recent = newsData.items.filter(item => {
+                if (!item.pubDate) return true;
+                const pub = new Date(item.pubDate).getTime();
+                return !isNaN(pub) && pub >= sevenDaysAgo;
+              });
+              window._rssItems = recent.length >= 3 ? recent : newsData.items;
+            }
           }
         } catch(e) {}
       }
@@ -4854,69 +4876,87 @@ async function genScript() {
     if (format === '一格') {
       scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
+【本次風格指令】${randomStyle}
 
-產出 ${charName} 一格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+產出 ${charName} 一格梗圖腳本。
+
+⚠️ 梗圖邏輯必須符合：情境（發生了什麼）→ ${charName} 的反應（感受/行動）→ 台詞（一句話帶出笑點或共鳴），三者要有因果關係，不能跳接。
+台詞要讓一般台灣人一看就懂，不需要背景知識，笑點要自然。
+
+輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
 【情境】
-（一句話描述畫面）
+（一句話：什麼人、在哪、發生了什麼事）
 
 【台詞】
-（${charName} 的精華一句話，要有笑點或共鳴感）
+（${charName} 的一句話——必須是情境的直接反應，有轉折或共鳴，讓人秒懂）
 
 【場景說明】
-（背景場景描述，服裝由 AI 自由發揮選擇符合情境的造型，表情要生動有戲劇張力）
+（背景描述；服裝符合情境；表情要誇張有戲劇張力${appearanceHint}）
 
 【IG 說明文字】
-（文案 + hashtag）
+（2-3行文案呼應梗點 + hashtag）
 
 【FB 說明文字】
-（比 IG 稍長 + hashtag）
+（比 IG 稍長，補一點背景或感受 + hashtag）
 
 【互動問句】
-（一句開放性問題讓粉絲留言，要符合 ${charName} 語氣，輕鬆有趣，例如「你們公司也有這種人嗎？」）${styleNote}`;
+（一句讓粉絲留言的問題，符合 ${charName} 語氣，例如「你也有這種時刻嗎？」）`;
 
     } else if (format === '兩格') {
       scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
+【本次風格指令】${randomStyle}
 
-產出 ${charName} 兩格梗圖腳本，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+產出 ${charName} 兩格梗圖腳本。
+
+⚠️ 兩格結構必須是：上格（鋪陳情境/預期）→ 下格（反轉/現實打臉），形成強烈對比。
+對比要讓人一看就懂，不需要解釋。兩格場景、服裝要一致。
+
+輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
 【情境】
-（一句話描述主題）
+（一句話說明這個梗在講什麼）
 
 【上格】
-（第一格的情境或台詞，可以是獨自一人的心理狀態、動作、或對話，自然描述就好）
+（鋪陳：預期、理想、或說出口的話——讓人以為會往某個方向走）
 
 【下格】
-（第二格的反轉或結果，要有笑點或共鳴，跟上格形成對比）
+（反轉：現實、實際行動、或心裡真正想的——要跟上格形成對比，笑點在這裡）
 
 【IG 說明文字】
-（文案 + hashtag）
+（2-3行文案，點出梗的核心 + hashtag）
 
 【FB 說明文字】
 （比 IG 稍長 + hashtag）
 
 【互動問句】
-（一句開放性問題讓粉絲留言，要符合 ${charName} 語氣，輕鬆有趣）${styleNote}`;
+（一句讓粉絲留言的問題，符合 ${charName} 語氣）`;
 
     } else if (format === '純文案') {
       const wordCount = document.getElementById('pureTextLength')?.value || '400';
       scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
+【本次風格指令】${randomStyle}
 
-產出 ${charName} 風格的純文案貼文，全文字數控制在 ${wordCount} 字左右，輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
+產出 ${charName} 風格的純文案貼文，全文字數控制在 ${wordCount} 字左右。
+
+⚠️ 文案要像真人在說話：有一個清楚的觀點或感受，用具體的例子或細節支撐，結尾要有力量或餘韻。
+不要像廣告，不要說教，不要無病呻吟。
+
+輸出格式嚴格按照以下結構，不要加 markdown、不要加 ##、不要加粗體：
 
 【文案主體】
-（用 ${charName} 的口吻寫，有觀點、有共鳴、有溫度，不要像廣告，像真人在說話，字數約 ${wordCount} 字）
+（用 ${charName} 的口吻，約 ${wordCount} 字，有觀點有溫度，像真人發文）
 
 【IG 說明文字】
-（可直接複製貼上的 IG 版本，開頭要吸睛，結尾加 hashtag）
+（可直接複製的 IG 版，開頭吸睛 + hashtag）
 
 【FB 說明文字】
-（比 IG 稍長，更完整表達觀點 + hashtag）
+（比 IG 稍長，更完整 + hashtag）
 
 【互動問句】
-（一句讓粉絲留言的問題，要符合 ${charName} 語氣）${styleNote}`;
+（一句讓粉絲留言的問題，符合 ${charName} 語氣）`;
 
     } else {
       const is15 = format === '影片15';
@@ -4924,92 +4964,103 @@ async function genScript() {
       if (is15) {
         scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
+【本次風格指令】${randomStyle}
 
-產出 ${charName} 15秒短影片腳本（精準控制在15秒內，每個鏡頭要非常精簡有力）：
+產出 ${charName} 15秒短影片腳本。
+
+⚠️ 結構必須是：開場3秒內抓住人（一句話讓人停下來）→ 中段鋪陳 → 結尾反轉或金句收尾。
+每句台詞都要能獨立成立，不需要上下文才懂。節奏快，廢話全刪。
+
+輸出格式如下，不要加多餘說明：
 
 ## 【影片主題】
-（一句話，要讓人一看就想點進來）
+（一句話，讓人一看就想點進來）
 
 ## 【開場鉤子（0-3秒）】
-鏡頭說明：（畫面描述）
-台詞：（一句話，必須在3秒內抓住注意力）
+鏡頭說明：（畫面）
+台詞：（一句話，3秒內讓人停止滑動）
 
 ## 【中段（3-12秒）】
 鏡頭1（3-7秒）：
 - 畫面：（描述）
-- 台詞：（簡短有力）
+- 台詞：（簡短有力，是開場的延伸或鋪陳）
 
 鏡頭2（7-12秒）：
 - 畫面：（描述）
-- 台詞：（簡短有力）
+- 台詞：（把情緒或情境推到最高點）
 
 ## 【結尾反轉（12-15秒）】
-鏡頭說明：（畫面描述）
-台詞：（一句話神結尾，讓人想截圖或分享）
+鏡頭說明：（畫面）
+台詞：（一句神結尾，要跟開場形成呼應或反差）
 
 ## 【畫面說明（給 AI 影片工具）】
 場景：（背景環境）
-${charName} 造型：（服裝描述，要換一套不同的服裝）
+${charName} 造型：（服裝，要符合情境）
 表情變化：（從XXX→XXX→XXX）
-動作：（列出關鍵動作）
+動作：（關鍵動作）
 
 ## 【配樂建議】
-（曲風 + 情緒節奏說明）
+（曲風 + 情緒節奏）
 
 ## 【IG Reels 說明文字】
-（15秒版吸睛文案 + hashtag）
+（吸睛文案 + hashtag）
 
 ## 【FB 說明文字】
 （比 IG 稍長 + hashtag）
 
 ## 【互動問句】
-（一句讓粉絲留言的問題，${charName} 語氣）${styleNote}`;
+（一句讓粉絲留言的問題，${charName} 語氣）`;
       } else {
         scriptPrompt = `話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
+【本次風格指令】${randomStyle}
 
-產出 ${charName} 30秒短影片腳本（完整節奏，有起承轉合）：
+產出 ${charName} 30秒短影片腳本。
+
+⚠️ 結構必須是完整的起承轉合：開場抓人 → 中段建立情境與情緒 → 結尾反轉或升華。
+每個鏡頭的台詞要跟畫面強綁定，看畫面就能懂台詞在說什麼。
+
+輸出格式如下：
 
 ## 【影片主題】
-（一句話說明這支影片在講什麼）
+（一句話說明這支影片的核心）
 
 ## 【開場鉤子（0-3秒）】
-鏡頭說明：（畫面描述）
+鏡頭說明：（畫面）
 台詞：（讓人停止滑動的第一句話）
 
 ## 【中段內容（3-22秒）】
 鏡頭1（3-8秒）：
 - 畫面：（描述）
-- 台詞：（${charName} 的表演或旁白）
+- 台詞：（情境鋪陳，讓觀眾代入）
 
 鏡頭2（8-13秒）：
 - 畫面：（描述）
-- 台詞：
+- 台詞：（情緒或衝突升溫）
 
 鏡頭3（13-18秒）：
 - 畫面：（描述）
-- 台詞：
+- 台詞：（推向高潮）
 
 鏡頭4（18-22秒）：
 - 畫面：（描述）
-- 台詞：
+- 台詞：（為結尾反轉做準備）
 
 ## 【結尾反轉（22-30秒）】
-鏡頭說明：（畫面描述）
-台詞：（神回覆或意外反轉，讓人笑出來或想分享）
-定格畫面：（最後一幕的定格說明）
+鏡頭說明：（畫面）
+台詞：（意外反轉或金句，跟開場形成呼應）
+定格畫面：（最後一幕）
 
 ## 【畫面說明（給 AI 影片工具）】
 場景：（背景環境）
-${charName} 造型：（服裝描述，要換一套不同的服裝）
+${charName} 造型：（服裝，符合情境）
 表情變化：（從XXX→XXX→XXX）
 道具：（需要的道具）
-動作：（列出所有關鍵動作）
+動作：（所有關鍵動作）
 
 ## 【配樂建議】
 前半段：（曲風）
-後半段：（曲風轉變）
-推薦曲風：（具體建議）
+後半段：（轉變）
 
 ## 【IG Reels 說明文字】
 （吸引人的文案 + hashtag）
@@ -5018,7 +5069,7 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
 （比 IG 稍長 + hashtag）
 
 ## 【互動問句】
-（一句讓粉絲留言的問題，${charName} 語氣）${styleNote}`;
+（一句讓粉絲留言的問題，${charName} 語氣）`;
       }
     }
 
@@ -5051,7 +5102,7 @@ ${charName} 造型：（服裝描述，要換一套不同的服裝）
     if (format === '一格') {
       const line1 = (script.match(/(?:##\s*)?【台詞】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
       const situation = (script.match(/(?:##\s*)?【情境】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
-      geminiContent = `${situation}\nfumei:${line1}`;
+      geminiContent = `${situation}\n${line1}`;
     } else if (format === '兩格') {
       const upper = (script.match(/(?:##\s*)?【上格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
       const lower = (script.match(/(?:##\s*)?【下格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
