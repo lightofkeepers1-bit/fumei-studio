@@ -2204,6 +2204,22 @@ window.syncToCloud = async () => {
   if (!window._currentUid) return;
   const el = document.getElementById('syncStatus');
   el.textContent = '☁️ 同步中...';
+  const charsVal = localStorage.getItem('fumei_chars') || '';
+  // 保護：fumei_chars 是空的時候不覆蓋雲端（防止 bug 把角色洗掉）
+  if (!charsVal || charsVal === '[]' || charsVal === 'null') {
+    // 先從雲端把角色撈回來
+    try {
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const snap = await getDoc(doc(window.db, 'users', window._currentUid));
+      if (snap.exists() && snap.data().fumei_chars) {
+        localStorage.setItem('fumei_chars', snap.data().fumei_chars);
+        if (window.renderCharCards) window.renderCharCards();
+        if (window.updateCharNameUI) window.updateCharNameUI();
+      }
+    } catch(e) {}
+    el.textContent = '☁️ 已同步';
+    return;
+  }
   await window.saveToCloud(window._currentUid, {
     fumei_tasks:            localStorage.getItem('fumei_tasks') || '[]',
     fumei_history:          localStorage.getItem('fumei_history') || '[]',
@@ -2241,7 +2257,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2857,7 +2873,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.7.8';
+const APP_VERSION = '5.7.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
