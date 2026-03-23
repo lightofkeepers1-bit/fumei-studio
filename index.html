@@ -1497,6 +1497,8 @@ onAuthStateChanged(auth, async (user) => {
       syncMobileCheckinBar();
     }, 300);
     // ⚡ 先顯示 loading 狀態，等雲端回來再更新
+    const creditsDisplayEl = document.getElementById('creditsDisplay');
+    if (creditsDisplayEl) creditsDisplayEl.style.display = 'inline-flex';
     window.updateCreditsUI(window.getCredits()); // 先用 localStorage 緩存值（可能是 -1 顯示 …）
 
     // ⚡ 同步點數（訪客點數完全獨立，不合併到正式帳號）
@@ -2280,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2900,7 +2902,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.8';
+const APP_VERSION = '5.8.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
