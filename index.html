@@ -2241,7 +2241,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.7.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2857,7 +2857,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.7.7';
+const APP_VERSION = '5.7.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6384,10 +6384,11 @@ function buildCharPrompt() {
 
   return `你現在是「${name} 梗圖腳本創作師」。
 角色：${name}，${appearance}。
-${role ? `人物設定：${role}。` : ''}個性：${personality}。
+${role ? '人物設定：' + role + '。' : ''}個性：${personality}。
 說話風格：${style}。
 內容立場：${politics}。
-${tone     ? `發文語氣：${tone}。` : ''}${focus    ? `內容主打方向：${focus}。` : ''}${boldness ? `內容尺度：${boldness}。` : ''}`;\n}
+${tone ? '發文語氣：' + tone + '。' : ''}${focus ? '內容主打方向：' + focus + '。' : ''}${boldness ? '內容尺度：' + boldness + '。' : ''}`;
+}
 
 
 function clearSocial(id) {
