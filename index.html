@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.9.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2903,7 +2903,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.9.5';
+const APP_VERSION = '5.9.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4380,7 +4380,11 @@ function showNewsLinks(rssIndex) {
 
   // 用精確 index 取主要來源，再用關鍵字找相關的補到3則
   const main = rssIndex >= 0 && rssItems[rssIndex] ? [rssItems[rssIndex]] : [];
-  const keywords = currentTopic.replace(/[【】「」『』《》\s,，。！？]/g, ' ').split(' ').filter(w => w.length > 1);
+  // 中文 2-gram 切詞，提高比對率
+  const _ct = currentTopic.replace(/[【】「」『』《》\s,，。！？]/g, '');
+  const keywords = [];
+  for (let _i = 0; _i < _ct.length - 1; _i++) keywords.push(_ct.slice(_i, _i + 2));
+  if (_ct.length) keywords.push(..._ct.split(''));
   const related = rssItems
     .filter((item, i) => i !== rssIndex)
     .map(item => ({ ...item, score: keywords.reduce((s, kw) => s + (item.title.includes(kw) ? 1 : 0), 0) }))
@@ -4845,8 +4849,11 @@ async function genScript() {
           }
         } catch(e) {}
       }
-      // 關鍵字比對
-      const keywords = topic.replace(/[【】「」『』《》\s,，。！？]/g, ' ').split(' ').filter(w => w.length > 1);
+      // 中文 2-gram 切詞，提高比對率
+      const _t2 = topic.replace(/[【】「」『』《》\s,，。！？]/g, '');
+      const keywords = [];
+      for (let _j = 0; _j < _t2.length - 1; _j++) keywords.push(_t2.slice(_j, _j + 2));
+      if (_t2.length) keywords.push(..._t2.split(''));
       const matched = (window._rssItems || [])
         .map(item => ({ ...item, score: keywords.reduce((s, kw) => s + (item.title.includes(kw) ? 1 : 0), 0) }))
         .filter(item => item.score > 0)
