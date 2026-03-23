@@ -2270,7 +2270,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.8.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2409,14 +2409,14 @@ AI 幫你掃話題、產腳本、一鍵生圖，台灣最懂梗圖的創作助�
           <span id="topicCatLabel">🗞️ 今日時事</span>
           <span style="color:#ccc;font-size:0.7rem">▼</span>
         </div>
-        <div id="topicCatMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1.5px solid #f0d8e0;border-radius:16px;box-shadow:0 8px 24px rgba(224,122,149,0.15);z-index:100;overflow:hidden">
-          <div class="topic-opt" data-val="時事"   onclick="pickTopicCat(this)"><span>🗞️ 今日時事</span>  <span class="opt-badge" style="background:#fff0f5;color:var(--pink-deep)">⚡2</span></div>
-          <div class="topic-opt" data-val="職場"   onclick="pickTopicCat(this)"><span>💼 職場話題</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
-          <div class="topic-opt" data-val="單身生活" onclick="pickTopicCat(this)"><span>💅 單身生活</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
-          <div class="topic-opt" data-val="日常趣事" onclick="pickTopicCat(this)"><span>😂 日常趣事</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
-          <div class="topic-opt" data-val="生活日常" onclick="pickTopicCat(this)"><span>🏠 生活日常</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
-          <div class="topic-opt" data-val="學園日常" onclick="pickTopicCat(this)"><span>🎒 學園日常</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
-          <div class="topic-opt" data-val="旅遊"   onclick="pickTopicCat(this)"><span>✈️ 旅遊話題</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+        <div id="topicCatMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1.5px solid #f0d8e0;border-radius:16px;box-shadow:0 8px 24px rgba(224,122,149,0.15);z-index:100;overflow-y:auto;max-height:320px">
+          <div class="topic-opt topic-opt-builtin" data-val="時事"   onclick="pickTopicCat(this)"><span>🗞️ 今日時事</span>  <span class="opt-badge" style="background:#fff0f5;color:var(--pink-deep)">⚡2</span></div>
+          <div class="topic-opt topic-opt-builtin" data-val="職場"   onclick="pickTopicCat(this)"><span>💼 職場話題</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt topic-opt-builtin" data-val="單身生活" onclick="pickTopicCat(this)"><span>💅 單身生活</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt topic-opt-builtin" data-val="日常趣事" onclick="pickTopicCat(this)"><span>😂 日常趣事</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt topic-opt-builtin" data-val="生活日常" onclick="pickTopicCat(this)"><span>🏠 生活日常</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt topic-opt-builtin" data-val="學園日常" onclick="pickTopicCat(this)"><span>🎒 學園日常</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
+          <div class="topic-opt topic-opt-builtin" data-val="旅遊"   onclick="pickTopicCat(this)"><span>✈️ 旅遊話題</span>  <span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span></div>
           <div class="topic-opt topic-opt-ptt" data-val="PTT" onclick="pickTopicCat(this)" style="border-top:2px solid #f0d8e0;background:linear-gradient(135deg,#fff8f0,#fff5f8)"><span>💬 PTT 熱門</span><span class="opt-badge" style="background:linear-gradient(135deg,#ff9a56,var(--pink-deep));color:white">⚡3</span></div>
         </div>
       </div>
@@ -2890,7 +2890,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.8.3';
+const APP_VERSION = '5.8.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3500,7 +3500,25 @@ let _selectedPttBoard = 'gossiping';
 
 function toggleTopicDropdown() {
   const menu = document.getElementById('topicCatMenu');
-  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  const isOpen = menu.style.display === 'block';
+  if (!isOpen) {
+    // 動態重建：內建 + 自訂主題
+    const custom = loadCustomTopics();
+    const builtinItems = menu.querySelectorAll('.topic-opt-builtin, .topic-opt-ptt');
+    // 先清除舊的自訂項目
+    menu.querySelectorAll('.topic-opt-custom').forEach(el => el.remove());
+    // PTT 前插入自訂主題
+    const pttEl = menu.querySelector('.topic-opt-ptt');
+    custom.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'topic-opt topic-opt-custom';
+      div.dataset.val = t.key;
+      div.onclick = function() { pickTopicCat(this); };
+      div.innerHTML = `<span>${t.emoji || '🏷️'} ${t.name}</span><span class="opt-badge" style="background:#f5f5f5;color:#999">⚡1</span>`;
+      menu.insertBefore(div, pttEl);
+    });
+  }
+  menu.style.display = isOpen ? 'none' : 'block';
 }
 
 function pickTopicCat(el) {
