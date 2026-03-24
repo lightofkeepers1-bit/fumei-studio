@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.10.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.10.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2795,7 +2795,7 @@ function getImgPromptStill() {
   const ch = loadChars()[getActiveIdx()] || DEFAULT_CHAR;
   const appearance = ch.appearance || '';
   const appearanceNote = appearance ? ('角色外觀參考：' + appearance + '\n') : '';
-  return appearanceNote + '換服裝換場景，表情要豐富\n不要更換提供的原人物的材質\n依照提供圖片材質出圖';
+  return appearanceNote + '換服裝換場景，表情要豐富\n依照上傳圖片的角色風格出圖，不要更換角色的材質與風格';
 }
 
 function getImgPromptVideo() {
@@ -2815,14 +2815,17 @@ function getCharName() {
 
 const GEMINI_FRAME_ONE = (content) => {
   const name = getCharName();
-  const basePrompt = getImgPromptStill();
-  return `用這個角色(${name})，${basePrompt}
-主題：${content.split('\n')[0] || '梗圖'}
-給我梗圖:
+  const ch = loadChars()[getActiveIdx()] || DEFAULT_CHAR;
+  const appearance = ch.appearance || '';
+  const appearanceNote = appearance ? `角色外觀參考：${appearance}` : '';
+  return `用這個角色(${name})，${appearanceNote}
+不要用原本的服裝，要換一套符合情境的服裝，要換場景
+表情要豐富
+依照上傳圖片的角色風格出圖，不要更換角色的材質與風格
+給我一格梗圖：
 
 ${content}
 
-**不要更換提供的原人物的材質**
 **對話框和所有文字請用繁體中文**
 輸出尺寸為9:16
 請出圖`;
@@ -2830,17 +2833,19 @@ ${content}
 
 const GEMINI_FRAME = (content) => {
   const name = getCharName();
-  const basePrompt = getImgPromptStill();
-  return `用這個角色(${name})，${basePrompt}
-主題：${content.split('\n')[0] || '梗圖'}
-給我兩格的梗圖:
+  const ch = loadChars()[getActiveIdx()] || DEFAULT_CHAR;
+  const appearance = ch.appearance || '';
+  const appearanceNote = appearance ? `角色外觀參考：${appearance}` : '';
+  return `用這個角色(${name})，${appearanceNote}
+不要用原本的服裝，要換一套符合情境的服裝，要換場景
+表情要豐富，兩格服裝場景要一致
+依照上傳圖片的角色風格出圖，不要更換角色的材質與風格
+給我兩格的梗圖：
 
 ${content}
 
-**不要更換提供的原人物的材質**
 **對話框和所有文字請用繁體中文**
 輸出尺寸為3:4
-兩格場景跟服裝要一致
 請出圖`;
 };
 
@@ -2851,7 +2856,7 @@ const GEMINI_FRAME_VIDEO = (content) => {
   const injected = content.includes(marker)
     ? content.replace(marker, `${videoPrompt}\n\n${marker}`)
     : `${content}\n\n${videoPrompt}`;
-  return `用這個角色(${name})，不要用原本的服裝，要換服裝
+  return `用這個角色(${name})，不要用原本的服裝，要換一套符合情境的服裝，要換場景
 表情要豐富
 
 ${injected}`;
@@ -2903,7 +2908,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.10.0';
+const APP_VERSION = '5.10.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4907,9 +4912,14 @@ async function genScript() {
 
     const format = document.getElementById('scriptFormat').value;
     let scriptPrompt = '';
+    // 今天日期與星期，注入所有格式的 prompt
+    const _weekDays = ['日','一','二','三','四','五','六'];
+    const _now = new Date();
+    const _todayStr = `${_now.getFullYear()}年${_now.getMonth()+1}月${_now.getDate()}日（週${_weekDays[_now.getDay()]}）`;
 
     if (format === '一格') {
-      scriptPrompt = `話題：${topic}
+      scriptPrompt = `今天是 ${_todayStr}。
+話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
 【本次風格指令】${randomStyle}
 
@@ -4926,10 +4936,20 @@ async function genScript() {
 （${charName} 的一句話，是情境的直接反應，有反差或共鳴，讓人秒懂）
 
 【場景說明】
-（角色表情＋動作＋背景，一行，服裝符合情境${appearanceHint}）`;
+（角色表情＋動作＋背景，一行，服裝符合情境${appearanceHint}）
+
+【IG 說明文字】
+（2-3行，點出梗的核心，開頭吸睛 + hashtag）
+
+【FB 說明文字】
+（比 IG 稍長，補一點感受或背景 + hashtag）
+
+【互動問句】
+（一句讓粉絲留言的問題，用 ${charName} 的語氣）`;
 
     } else if (format === '兩格') {
-      scriptPrompt = `話題：${topic}
+      scriptPrompt = `今天是 ${_todayStr}。
+話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
 【本次風格指令】${randomStyle}
 
@@ -4945,11 +4965,21 @@ async function genScript() {
 
 【第二格】
 畫面：（表情＋動作，一行，跟第一格形成對比）
-文字：（現實，或心裡真正想的——笑點在這裡）`;
+文字：（現實，或心裡真正想的——笑點在這裡）
+
+【IG 說明文字】
+（2-3行，點出梗的核心 + hashtag）
+
+【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+【互動問句】
+（一句讓粉絲留言的問題，用 ${charName} 的語氣）`;
 
     } else if (format === '純文案') {
       const wordCount = document.getElementById('pureTextLength')?.value || '400';
-      scriptPrompt = `話題：${topic}
+      scriptPrompt = `今天是 ${_todayStr}。
+話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
 【本次風格指令】${randomStyle}
 
@@ -4957,15 +4987,16 @@ async function genScript() {
 第一句話要夠衝或夠真實，讓人停下來繼續看。
 中段像在跟朋友說話，用具體細節支撐觀點，不說教。
 結尾一句共鳴句或自嘲，讓人想按讚或留言。
-不要 hashtag，不要表情符號堆疊，不要像廣告。
+不要像廣告，不要說教，不要 hashtag，不要表情符號堆疊。
 
-只輸出貼文內容本身，不要加任何標籤或說明。`;
+直接輸出貼文內容，結尾加一句讓粉絲留言的互動問句，用 ${charName} 的語氣。不要加任何標籤或說明。`;
 
     } else {
       const is15 = format === '影片15';
 
       if (is15) {
-        scriptPrompt = `話題：${topic}
+        scriptPrompt = `今天是 ${_todayStr}。
+話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
 【本次風格指令】${randomStyle}
 
@@ -4990,9 +5021,19 @@ async function genScript() {
 
 【結尾】
 畫面：（一行）
-台詞：（反轉或呼應開場，讓人想截圖）`;
+台詞：（反轉或呼應開場，讓人想截圖）
+
+【IG Reels 說明文字】
+（開頭吸睛，2-3行 + hashtag）
+
+【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+【互動問句】
+（一句讓粉絲留言的問題，用 ${charName} 的語氣）`;
       } else {
-        scriptPrompt = `話題：${topic}
+        scriptPrompt = `今天是 ${_todayStr}。
+話題：${topic}
 類型：${type}${topicRuleNote}${newsContext}
 【本次風格指令】${randomStyle}
 
@@ -5020,7 +5061,16 @@ async function genScript() {
 
 【結尾】
 畫面：（一行）
-台詞：（反轉或升華，跟開場形成呼應，讓人想分享）`;
+台詞：（反轉或升華，跟開場形成呼應，讓人想分享）
+
+【IG Reels 說明文字】
+（開頭吸睛，2-3行 + hashtag）
+
+【FB 說明文字】
+（比 IG 稍長 + hashtag）
+
+【互動問句】
+（一句讓粉絲留言的問題，用 ${charName} 的語氣）`;
       }
     }
 
@@ -5055,10 +5105,9 @@ async function genScript() {
       const situation = (script.match(/(?:##\s*)?【情境】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
       geminiContent = `${situation}\n${line1}`;
     } else if (format === '兩格') {
-      const upper = (script.match(/(?:##\s*)?【上格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
-      const lower = (script.match(/(?:##\s*)?【下格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
-      const situation = (script.match(/(?:##\s*)?【情境】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
-      geminiContent = `${situation}\n${upper}\n\n${lower}`;
+      const upper = (script.match(/(?:##\s*)?【第一格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      const lower = (script.match(/(?:##\s*)?【第二格】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
+      geminiContent = upper && lower ? `${upper}\n\n${lower}` : script;
     } else if (format === '純文案') {
       // 純文案不需要生圖 prompt，直接顯示文案主體
       const body = (script.match(/(?:##\s*)?【文案主體】\s*([\s\S]*?)(?=\n(?:##\s*)?【|\n---|$)/)||['',''])[1].trim();
