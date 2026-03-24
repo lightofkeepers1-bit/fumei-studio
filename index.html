@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.11.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.11.6</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2905,7 +2905,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.11.5';
+const APP_VERSION = '5.11.6';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4344,7 +4344,8 @@ ${newsHeadlines}
       } else {
         err.textContent = '⏳ API 使用量暫時超限，請稍後再試';
         err.classList.add('show');
-        startCooldown('scanBtn', '🔍 掃描話題', 60);
+        btn.disabled = false;
+        load.classList.remove('show');
       }
       return;
     }
@@ -5223,7 +5224,7 @@ async function genScript() {
       } else {
         err.textContent = '⏳ API 使用量暫時超限，請稍後再試';
         err.classList.add('show');
-        startCooldown('scriptBtn', '✨ 產腳本', 60);
+        btn.disabled = false;
       }
       return;
     }
