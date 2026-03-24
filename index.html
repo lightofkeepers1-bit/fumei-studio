@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.12.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.12.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2905,7 +2905,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.12.1';
+const APP_VERSION = '5.12.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4123,6 +4123,7 @@ ${pttHeadlines}
     const rule = topic.rule || '自行判斷最適合的多樣化切角，確保6個話題方向完全不同';
 
     let prompt;
+    let useWebSearch = false;
     if (isNews) {
       // 先用 web_search 搜尋今日台灣時事，RSS 當備援
       window._rssItems = [];
@@ -4958,6 +4959,7 @@ async function genScript() {
 寫一個預期 vs 現實的兩格梗圖腳本。
 第一格設陷阱，第二格一句話踩進去打臉，反差要強到不需要解釋。
 第二格打臉的必須是第一格說出口的「目標或期待」本身，不是過程中的副作用或無關細節。
+要打臉的是「觀眾心裡最在意、最痛的那個點」——想想台灣人看到這個情境，心裡最想吐槽的是什麼，那才是第二格。
 觀眾看到第二格的第一反應要是「哈」不是「蛤？」。
 第二格的文字越短越有力，不要解釋、不要囉嗦，一句話收尾。
 範例思路：上格「喝咖啡提神準備衝業績」→ 下格「業績沒動，咖啡錢先衝走了」（打臉目標本身）
