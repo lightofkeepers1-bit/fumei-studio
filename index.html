@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.11.9</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.12.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2905,7 +2905,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.11.9';
+const APP_VERSION = '5.12.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4124,9 +4124,13 @@ ${pttHeadlines}
 
     let prompt;
     if (isNews) {
-      // 抓 RSS 標題+連結，存到全域供點話題時配對
+      // 先用 web_search 搜尋今日台灣時事，RSS 當備援
       window._rssItems = [];
       let newsHeadlines = '';
+      let useWebSearch = false;
+
+      // 主力：web_search（Haiku，在 claudeScan 裡處理）
+      // 先抓 RSS 備用連結，供點話題時配對用
       try {
         const uid = window._currentUid;
         const catParam = (_selectedNewsCat && _selectedNewsCat !== 'all') ? `&category=${_selectedNewsCat}` : '';
@@ -4136,30 +4140,28 @@ ${pttHeadlines}
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            // 過濾掉超過 7 天的舊新聞
             const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
             const recentItems = newsData.items.filter(item => {
-              if (!item.pubDate) return true; // 沒有日期就保留
+              if (!item.pubDate) return true;
               const pub = new Date(item.pubDate).getTime();
               return !isNaN(pub) && pub >= sevenDaysAgo;
             });
-            const itemsToUse = recentItems.length >= 3 ? recentItems : newsData.items; // 過濾後太少就用全部
-            // 每家最多2筆，然後洗牌，讓來源更多元
+            const itemsToUse = recentItems.length >= 3 ? recentItems : newsData.items;
             const capPerSource = {};
             const balanced = itemsToUse.filter(item => {
               capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
               return capPerSource[item.source] <= 2;
             });
-            // Fisher-Yates shuffle
             for (let i = balanced.length - 1; i > 0; i--) {
               const j = Math.floor(Math.random() * (i + 1));
               [balanced[i], balanced[j]] = [balanced[j], balanced[i]];
             }
             window._rssItems = balanced;
+            // RSS 標題當備援用，但主力改用 web_search
             newsHeadlines = balanced.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
           }
         }
-      } catch(e) { /* RSS 失敗就讓 Claude 自己推 */ }
+      } catch(e) { /* RSS 失敗，純靠 web_search */ }
 
       // 分類過濾提示
       const catKw = NEWS_CAT_KEYWORDS[_selectedNewsCat] || '';
@@ -4167,21 +4169,14 @@ ${pttHeadlines}
         ? `\n重點篩選：請優先選擇與「${catKw}」相關的新聞。`
         : '';
 
-      prompt = newsHeadlines
-        ? `今天是 ${today.toLocaleDateString('zh-TW')}。以下是剛剛從台灣新聞網站抓到的最新標題（每行前面是編號）：
-
-${newsHeadlines}
-
-請從上面挑出6個最適合做成梗圖的話題，${rule}，切角各不同。${catNote}
-
-嚴格按照以下格式，每行輸出：編號,梗圖話題標題｜角色一句反應台詞
-範例：3,WBC台灣隊提前出局球迷傻眼｜「我剛換好應援服，還沒穿到就結束了」
-只輸出6行，不要額外說明。編號必須對應上面清單的數字。`
-        : `今天是 ${today.toLocaleDateString('zh-TW')}，請列出最近台灣社會上熱門討論的時事話題，選6個最適合做成梗圖的，${rule}，切角各不同。${catNote}
+      // 用 web_search 搜尋今日時事，結果比 RSS 標題更豐富
+      prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新時事新聞，挑出6個最適合做成梗圖的話題，${rule}，切角各不同。${catNote}
+${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : ''}
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
-範例：股市大跌上班族哀嚎｜「帳面虧損跟薪水一樣，都很難看」
+範例：股市大跌上班族哀嚎｜帳面虧損跟薪水一樣，都很難看
 只輸出6行，不要編號、不要額外說明。`;
+      useWebSearch = true;
     } else {
       window._rssItems = []; // 非時事類清空
       prompt = `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。
@@ -4197,7 +4192,7 @@ ${newsHeadlines}
       // 同時支援全形｜和半形|
       return txt.split('\n').filter(l => l.includes('｜') || l.includes('|'));
     }
-    let txt = await claudeScan(prompt, false);
+    let txt = await claudeScan(prompt, useWebSearch || false);
     let lines = parseTopicLines(txt);
     if (!lines.length) {
       // 自動 retry，不扣點
@@ -4837,18 +4832,15 @@ async function genScript() {
     const appearanceHint = charAppearance ? '\n角色外觀：' + charAppearance : '';
     if (isAuto) {
       notice.style.display='block';
-      // 從現有主題（排除時事）隨機選一個，讓 Claude 發想具體話題
-      const _allT = getAllTopics().filter(t => !t.isNews && t.key !== 'PTT');
-      const _picked = _allT[Math.floor(Math.random() * _allT.length)] || _allT[0];
-      loadTxt.textContent = `正在發想「${_picked.name}」話題...`;
-      const res = await claude(buildCharPrompt(),
-        `今天是 ${new Date().toLocaleDateString('zh-TW')}。
-幫 ${charName} 想一個「${_picked.name}」類型的梗圖話題。
-規則：${_picked.rule || '貼近台灣生活、有共鳴感'}。
-只輸出話題名稱，一行，不要其他說明。`, false);
+      loadTxt.textContent='正在搜尋今日台灣時事...';
+      // 用 Haiku + web_search 搜尋今日台灣時事，速度快費用低
+      const res = await claudeScan(
+        `今天是 ${new Date().toLocaleDateString('zh-TW')}，搜尋台灣今日最熱門的時事新聞，選一個最適合 ${charName} 做成梗圖的話題。
+優先選擇職場、生活、消費、社會類話題，避免純政治選舉類。
+只輸出話題名稱，一行，不要其他說明。`, true);
       topic = res.split('\n')[0].trim();
       notice.style.display='none';
-      used.textContent = `🎲 隨機選到「${_picked.name}」，話題：「${topic}」`;
+      used.textContent = `🔍 自動找到今日話題：「${topic}」`;
     } else if (!topic && type !== '時事反應') {
       // 非時事反應 + 空白 → Claude 自己想一個符合類型的話題
       loadTxt.textContent = 'AI 正在發想話題...';
@@ -4965,8 +4957,10 @@ async function genScript() {
 
 寫一個預期 vs 現實的兩格梗圖腳本。
 第一格設陷阱，第二格一句話踩進去打臉，反差要強到不需要解釋。
+第二格打臉的必須是第一格說出口的「目標或期待」本身，不是過程中的副作用或無關細節。
+觀眾看到第二格的第一反應要是「哈」不是「蛤？」。
 第二格的文字越短越有力，不要解釋、不要囉嗦，一句話收尾。
-範例思路：上格「Boss說妳業績超標！」→ 下格「薪水沒有超標」
+範例思路：上格「喝咖啡提神準備衝業績」→ 下格「業績沒動，咖啡錢先衝走了」（打臉目標本身）
 對話框內的文字不要加「」符號，直接寫文字就好。
 台詞像真人說話，兩格場景服裝一致。
 
