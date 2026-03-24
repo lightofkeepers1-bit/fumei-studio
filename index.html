@@ -2282,7 +2282,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.11.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.11.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2905,7 +2905,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.11.8';
+const APP_VERSION = '5.11.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4837,14 +4837,18 @@ async function genScript() {
     const appearanceHint = charAppearance ? '\n角色外觀：' + charAppearance : '';
     if (isAuto) {
       notice.style.display='block';
-      loadTxt.textContent='正在搜尋今日時事...';
+      // 從現有主題（排除時事）隨機選一個，讓 Claude 發想具體話題
+      const _allT = getAllTopics().filter(t => !t.isNews && t.key !== 'PTT');
+      const _picked = _allT[Math.floor(Math.random() * _allT.length)] || _allT[0];
+      loadTxt.textContent = `正在發想「${_picked.name}」話題...`;
       const res = await claude(buildCharPrompt(),
         `今天是 ${new Date().toLocaleDateString('zh-TW')}。
-根據你對台灣近期時事的認識，選一個最熱門、最有梗圖潛力的話題給 ${charName}。
+幫 ${charName} 想一個「${_picked.name}」類型的梗圖話題。
+規則：${_picked.rule || '貼近台灣生活、有共鳴感'}。
 只輸出話題名稱，一行，不要其他說明。`, false);
       topic = res.split('\n')[0].trim();
       notice.style.display='none';
-      used.textContent = `🔍 自動找到今日話題：「${topic}」`;
+      used.textContent = `🎲 隨機選到「${_picked.name}」，話題：「${topic}」`;
     } else if (!topic && type !== '時事反應') {
       // 非時事反應 + 空白 → Claude 自己想一個符合類型的話題
       loadTxt.textContent = 'AI 正在發想話題...';
