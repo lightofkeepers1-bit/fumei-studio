@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.2</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2913,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.1';
+const APP_VERSION = '5.13.2';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6380,9 +6380,12 @@ function selectChar(i) {
 // ── 角色圖片上傳 & AI 分析 ────────────────────────
 let _charImgBase64 = '';
 
+let _charImgMimeType = 'image/jpeg'; // 預設，動態更新
+
 function previewCharImg(event) {
   const file = event.target.files[0];
   if (!file) return;
+  _charImgMimeType = file.type || 'image/jpeg'; // 記錄真實 mime type
   const reader = new FileReader();
   reader.onload = (e) => {
     const dataUrl = e.target.result;
@@ -6424,7 +6427,7 @@ async function analyzeCharImg() {
         content: [
           {
             type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: _charImgBase64 }
+            source: { type: 'base64', media_type: _charImgMimeType, data: _charImgBase64 }
           },
           {
             type: 'text',
