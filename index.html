@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2913,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.4';
+const APP_VERSION = '5.13.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6545,7 +6545,6 @@ async function saveCurrentChar() {
 
   chars[i] = charData;
   saveChars(chars);
-  bumpVersion();
   renderCharCards();
 
   // 顯示 AI 分析結果
