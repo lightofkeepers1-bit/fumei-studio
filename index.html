@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2512,12 +2512,11 @@ AI 幫你掃話題、產腳本、一鍵生圖，台灣最懂梗圖的創作助�
         <option value="400" selected>400 字</option>
         <option value="600">600 字</option>
       </select>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:0.75rem;font-weight:800;color:#aaa">🤖 AI：</span>
-        <button class="model-chip active" id="modelChip_claude" onclick="selectScriptModel('claude',this)" title="Claude">Claude</button>
-        <button class="model-chip" id="modelChip_gpt" onclick="selectScriptModel('gpt',this)" title="GPT">GPT</button>
-        <button class="model-chip" id="modelChip_gemini" onclick="selectScriptModel('gemini',this)" title="Gemini">Gemini</button>
-      </div>
+      <select id="scriptModel" onchange="selectScriptModel(this.value)">
+        <option value="claude">🤖 Claude</option>
+        <option value="gpt">🟢 GPT</option>
+        <option value="gemini">🔵 Gemini</option>
+      </select>
       <button class="btn" onclick="genScript()" id="scriptBtn">✨ 產出腳本 <span class="cost-badge">⚡1</span></button>
       <button class="btn" onclick="genInspo()" id="inspoBtn" style="background:linear-gradient(135deg,#667eea,#764ba2)">🤖 三AI發想 <span class="cost-badge" style="background:rgba(255,255,255,0.25)">⚡2</span></button>
     </div>
@@ -2914,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.0';
+const APP_VERSION = '5.13.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3562,10 +3561,8 @@ async function callGeminiScript(sys, msg) {
 // ── 產腳本 AI 模型選擇 ──────────────────────────────
 let _scriptModel = 'claude'; // 預設 Claude
 
-function selectScriptModel(model, el) {
+function selectScriptModel(model) {
   _scriptModel = model;
-  document.querySelectorAll('.model-chip').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
 }
 
 // ── RANDOM STYLE ──────────────────────────────────
