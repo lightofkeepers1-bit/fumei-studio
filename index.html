@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2913,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.2';
+const APP_VERSION = '5.13.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6480,7 +6480,9 @@ function addNewChar() {
 
 async function saveCurrentChar() {
   const chars = loadChars();
-  const i = getActiveIdx();
+  // 優先用正在編輯的 index，沒有才用主要角色 index
+  const _editingIdx = parseInt(document.getElementById('charCards')?.dataset?.editingIdx ?? '-1');
+  const i = _editingIdx >= 0 ? _editingIdx : getActiveIdx();
   const charData = {
     ...chars[i],
     name:        document.getElementById('charName').value.trim() || '新角色',
@@ -6495,6 +6497,13 @@ async function saveCurrentChar() {
   const btn = document.getElementById('saveCharBtn');
   btn.textContent = '🤖 AI 分析中...';
   btn.disabled = true;
+
+  // 10秒 timeout 保護，避免卡住
+  const _analysisTimeout = setTimeout(() => {
+    btn.textContent = '💾 儲存角色';
+    btn.style.background = 'linear-gradient(135deg,#C9B8E8,#764ba2)';
+    btn.disabled = false;
+  }, 10000);
 
   // AI 自動分析語氣、方向、尺度
   try {
@@ -6517,14 +6526,14 @@ async function saveCurrentChar() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 200,
           temperature: 0.3,
           messages: [{ role: 'user', content: analysisPrompt }]
         })
       });
       const d = await r.json();
-      const text = d.content?.map(c => c.text || '').join('') || '';
+      const text = (d.content || []).map(blk => blk.text || '').join('') || '';
       const tone     = (text.match(/語氣[：:]\s*(.+)/) || [])[1]?.trim() || '';
       const focus    = (text.match(/方向[：:]\s*(.+)/) || [])[1]?.trim() || '';
       const boldness = (text.match(/尺度[：:]\s*(.+)/) || [])[1]?.trim() || '';
@@ -6532,7 +6541,7 @@ async function saveCurrentChar() {
       if (focus)    charData.focus    = focus;
       if (boldness) charData.boldness = boldness;
     }
-  } catch(e) { /* 分析失敗不影響儲存 */ }
+  } catch(e) { /* 分析失敗不影響儲存 */ } finally { clearTimeout(_analysisTimeout); }
 
   chars[i] = charData;
   saveChars(chars);
