@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.7</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2913,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.5';
+const APP_VERSION = '5.13.7';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4003,7 +4003,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   }
   const body = {
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: useSearch ? 1200 : 800,
+    max_tokens: useSearch ? 2000 : 800,
     temperature: 0.9,
     system: '你是台灣梗圖話題助手，只輸出指定格式，不說廢話。',
     messages: [{role:'user', content:msg}]
@@ -4241,6 +4241,7 @@ ${pttHeadlines}
       // 用 web_search 搜尋今日時事，結果比 RSS 標題更豐富
       prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新時事新聞，挑出6個最適合做成梗圖的話題，${rule}，切角各不同。${catNote}
 ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : ''}
+重要：所有話題必須跟今天的時間點有共鳴，不要選已經過去的節慶或時節。
 
 嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
 範例：股市大跌上班族哀嚎｜帳面虧損跟薪水一樣，都很難看
@@ -4264,9 +4265,13 @@ ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : '
     let txt = await claudeScan(prompt, useWebSearch || false);
     let lines = parseTopicLines(txt);
     if (!lines.length) {
-      // 自動 retry，不扣點
+      // 自動 retry，改用 RSS 備援資料，不用 web_search
       try {
-        txt = await claudeScan(prompt + '\n（請嚴格按格式輸出，每行必須包含｜符號）', false);
+        const _rssBackup = (window._rssItems || []).slice(0, 15).map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
+        const _retryPrompt = _rssBackup
+          ? `今天是 ${new Date().toLocaleDateString('zh-TW')}。以下是台灣新聞標題：\n${_rssBackup}\n\n從上面挑出6個最適合做成梗圖的話題。\n嚴格按照格式，每行輸出：話題標題｜角色一句反應台詞\n只輸出6行。`
+          : prompt + '\n（請嚴格按格式輸出，每行必須包含｜符號）';
+        txt = await claudeScan(_retryPrompt, false);
         lines = parseTopicLines(txt);
       } catch(retryErr) {}
     }
@@ -4906,6 +4911,7 @@ async function genScript() {
       const res = await claudeScan(
         `今天是 ${new Date().toLocaleDateString('zh-TW')}，搜尋台灣今日最熱門的時事新聞，選一個最適合 ${charName} 做成梗圖的話題。
 優先選擇職場、生活、消費、社會類話題，避免純政治選舉類。
+重要：選出的話題必須跟今天的時間點有共鳴，不要選已經過去的節慶或活動。
 只輸出話題名稱，一行，不要其他說明。`, true);
       topic = res.split('\n')[0].trim();
       notice.style.display='none';
