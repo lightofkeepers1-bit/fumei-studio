@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2913,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.7';
+const APP_VERSION = '5.13.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4916,6 +4916,19 @@ async function genScript() {
       topic = res.split('\n')[0].trim();
       notice.style.display='none';
       used.textContent = `🔍 自動找到今日話題：「${topic}」`;
+    } else if (!topic && type === '時事反應') {
+      // 時事反應 + 空白 → web_search 找今日時事（跟 isAuto 一樣的邏輯）
+      notice.style.display='block';
+      loadTxt.textContent='正在搜尋今日台灣時事...';
+      const res = await claudeScan(
+        `今天是 ${new Date().toLocaleDateString('zh-TW')}，搜尋台灣今日最熱門的時事新聞，選一個最適合 ${charName} 做成梗圖的話題。
+優先選擇職場、生活、消費、社會類話題，避免純政治選舉類。
+重要：選出的話題必須跟今天的時間點有共鳴，不要選已經過去的節慶或活動。
+只輸出話題名稱，一行，不要其他說明。`, true);
+      topic = res.split('\n')[0].trim();
+      notice.style.display='none';
+      used.textContent = `🔍 自動找到今日時事：「${topic}」`;
+      used.style.display = 'block';
     } else if (!topic && type !== '時事反應') {
       // 非時事反應 + 空白 → Claude 自己想一個符合類型的話題
       loadTxt.textContent = 'AI 正在發想話題...';
