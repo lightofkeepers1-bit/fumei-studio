@@ -1725,7 +1725,7 @@ onAuthStateChanged(auth, async (user) => {
     // 還原 scriptType 的時事反應選項
     const scriptType = document.getElementById('scriptType');
     if (scriptType && ![...scriptType.options].find(o => o.value === '時事反應')) {
-      const opt = new Option('🗞️ 時事反應', '時事反應');
+      const opt = new Option('📅 今天發什麼？', '時事反應');
       scriptType.appendChild(opt);
     }
     // 還原 topicCat 的時事 & PTT 選項
@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.13.9</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2913,7 +2913,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.13.8';
+const APP_VERSION = '5.13.9';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3724,7 +3724,7 @@ const BUILTIN_TOPICS = [
 // script panel label mapping (builtin keys → scriptType value)
 const BUILTIN_SCRIPT_LABELS = {
   '職場':    { value:'職場梗',  label:'💼 職場梗' },
-  '時事':    { value:'時事反應',label:'🗞️ 時事反應' },
+  '時事':    { value:'時事反應',label:'📅 今天發什麼？' },
   '旅遊':    { value:'旅遊心得',label:'✈️ 旅遊心得' },
   '日常趣事':{ value:'生活趣事',label:'😂 生活趣事' },
   '生活日常':{ value:'生活日常',label:'🏠 生活日常' },
@@ -4529,7 +4529,7 @@ function goToScript() {
   const sel = document.getElementById('scriptType');
   // 先確保有時事反應選項
   if (![...sel.options].find(o => o.value === '時事反應')) {
-    const opt = new Option('🗞️ 時事反應', '時事反應');
+    const opt = new Option('📅 今天發什麼？', '時事反應');
     sel.insertBefore(opt, sel.firstChild);
   }
   sel.value = '時事反應';
