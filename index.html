@@ -730,6 +730,7 @@ window._checkInviteMergeByEmail = async (user) => {
 // ── 管理員邀請碼功能 ──────────────────────────────
 // 超級管理員（永遠有權限，不能被移除）
 const SUPER_ADMIN = 'lightofkeepers1@gmail.com';
+window.SUPER_ADMIN = SUPER_ADMIN;
 
 window._isAdmin = false;
 
@@ -2290,7 +2291,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.8</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.15.0</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2937,7 +2938,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.14.8';
+const APP_VERSION = '5.15.0';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3003,7 +3004,7 @@ window.syncCreditsFromCloud = async (uid) => {
       // 文件不存在 → 檢查是否曾經刪過帳號（黑名單防刷點）
       const email = window._currentUserEmail || '';
       // 管理員帳號不受黑名單限制
-      const isAdmin = email === SUPER_ADMIN;
+      const isAdmin = email === window.SUPER_ADMIN;
       let isDeletedUser = false;
       let delSnap = null;
       if (email && !isAdmin) {
@@ -5857,6 +5858,7 @@ async function refreshHistory() {
       <div style="margin-bottom:16px">
         <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:8px">行業別</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <span class="char-chip" onclick="obToggleChip(this,'ob-industry')">無</span>
           <span class="char-chip" onclick="obToggleChip(this,'ob-industry')">科技業</span>
           <span class="char-chip" onclick="obToggleChip(this,'ob-industry')">金融業</span>
           <span class="char-chip" onclick="obToggleChip(this,'ob-industry')">醫療業</span>
@@ -6075,6 +6077,7 @@ async function refreshHistory() {
           <div>
             <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">行業別</div>
             <div class="char-preset-chips">
+              <span class="char-chip" onclick="toggleChip(this,'charIndustry')">無</span>
               <span class="char-chip" onclick="toggleChip(this,'charIndustry')">科技業</span>
               <span class="char-chip" onclick="toggleChip(this,'charIndustry')">金融業</span>
               <span class="char-chip" onclick="toggleChip(this,'charIndustry')">醫療業</span>
@@ -7076,7 +7079,7 @@ function obToggleChip(el, targetId) {
   const group = el.closest('div');
   const active = [...group.querySelectorAll('.char-chip.active')].map(c => c.textContent);
   const input = document.getElementById(targetId);
-  const manual = input.value.split('、').filter(v => !['上班族','自信聰明','偶爾脫線','白富美','單身驕傲','愛旅遊','愛美食','宅宅','毒舌','正能量','熱愛時事','知識型','台灣用語','直接自嗨','誇張共鳴','神邏輯','冷笑話','溫柔親切','毒舌犀利','學生','博士生','時事評論員','全職媽媽','自由工作者','創作者','一般人','科技業','金融業','醫療業','教育業','服務業','製造業','傳播媒體','電商零售','政府公務','自由接案'].includes(v.trim())).filter(Boolean);
+  const manual = input.value.split('、').filter(v => !['無','上班族','自信聰明','偶爾脫線','白富美','單身驕傲','愛旅遊','愛美食','宅宅','毒舌','正能量','熱愛時事','知識型','台灣用語','直接自嗨','誇張共鳴','神邏輯','冷笑話','溫柔親切','毒舌犀利','學生','博士生','時事評論員','全職媽媽','自由工作者','創作者','一般人','科技業','金融業','醫療業','教育業','服務業','製造業','傳播媒體','電商零售','政府公務','自由接案'].includes(v.trim())).filter(Boolean);
   input.value = [...active, ...manual].join('、');
 }
 
@@ -7246,7 +7249,7 @@ function openSettings() {
   document.getElementById('settingsModal').classList.add('show');
   // 初始化公告圖片上傳區（等 admin section 顯示後再初始化）
   setTimeout(() => {
-    initAnnImgDropZone();
+    if (typeof initAnnImgDropZone === 'function') initAnnImgDropZone();
     // 預填目前的公告內容給管理員編輯
     if (window._isAdmin) {
       const titleEl = document.getElementById('adminAnnouncementTitle');
