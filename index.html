@@ -2291,7 +2291,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.15.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.15.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2938,7 +2938,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.15.0';
+const APP_VERSION = '5.15.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4029,7 +4029,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
     if (window._guestToken) headers['x-guest-token'] = window._guestToken;
   }
   const body = {
-    model: 'claude-haiku-4-5-20251001',
+    model: useSearch ? 'claude-sonnet-4-20250514' : 'claude-haiku-4-5-20251001',
     max_tokens: useSearch ? 2000 : 800,
     temperature: 0.9,
     system: '你是台灣梗圖話題助手，只輸出指定格式，不說廢話。',
@@ -4043,7 +4043,7 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
     if (d.needLogin) err.needLogin = true;
     throw err;
   }
-  const texts = d.content.map(i=>i.type==='text'?i.text:'').filter(Boolean).join('\n').trim();
+  const texts = (d.content || []).filter(i => i.type === 'text').map(i => i.text).filter(Boolean).join('\n').trim();
   if (!texts) throw new Error(`回傳空白｜stop:${d.stop_reason}｜${d.content.map(b=>b.type).join(',')}`);
   return texts;
 }
