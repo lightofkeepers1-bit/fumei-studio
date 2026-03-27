@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.0</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.1</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2914,7 +2914,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.14.0';
+const APP_VERSION = '5.14.1';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -3966,10 +3966,12 @@ function rebuildTopicSelects() {
   const scriptSel = document.getElementById('scriptType');
   if (scriptSel) {
     const cur2 = scriptSel.value;
-    scriptSel.innerHTML = all.map(t => {
-      const bl = BUILTIN_SCRIPT_LABELS[t.key];
-      return `<option value="${bl ? bl.value : t.key}">${t.emoji} ${bl ? bl.label.replace(/^[^\s]+\s/,'') : t.name}</option>`;
-    }).join('');
+    scriptSel.innerHTML =
+      `<option value="今天發什麼">📅 今天發什麼？</option>` +
+      all.map(t => {
+        const bl = BUILTIN_SCRIPT_LABELS[t.key];
+        return `<option value="${bl ? bl.value : t.key}">${t.emoji} ${bl ? bl.label.replace(/^[^\s]+\s/,'') : t.name}</option>`;
+      }).join('');
     if ([...scriptSel.options].some(o => o.value === cur2)) scriptSel.value = cur2;
   }
 }
