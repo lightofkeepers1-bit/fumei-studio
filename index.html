@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.4</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2809,9 +2809,12 @@ function resetImgPrompts() {
 }
 
 function getImgPromptStill() {
-  const custom = localStorage.getItem('fumei_img_prompt_still') || '';
-  if (custom.trim()) return custom.trim();
   const ch = loadChars()[getActiveIdx()] || DEFAULT_CHAR;
+  // 優先用角色自訂指令，再用全域設定，最後用預設
+  const charCustom = ch.imgPromptStill || '';
+  if (charCustom.trim()) return charCustom.trim();
+  const globalCustom = localStorage.getItem('fumei_img_prompt_still') || '';
+  if (globalCustom.trim()) return globalCustom.trim();
   const appearance = ch.appearance || '';
   const appearanceNote = appearance ? ('角色外觀參考：' + appearance + '\n') : '';
   return appearanceNote + '換服裝換場景，表情要豐富\n依照上傳圖片的角色風格出圖，不要更換角色的材質與風格';
@@ -2927,7 +2930,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.14.4';
+const APP_VERSION = '5.14.5';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6057,6 +6060,10 @@ async function refreshHistory() {
             </div>
             <input class="settings-input" id="charPolitics" placeholder="或自由輸入立場方向..." style="margin-top:6px">
           </div>
+          <div>
+            <div style="font-size:0.72rem;font-weight:800;color:#bbb;margin-bottom:4px">🎨 生圖風格指令 <span style="font-weight:400;color:#ccc">（選填，留空使用預設）</span></div>
+            <textarea class="settings-input" id="charImgPromptStill" rows="3" placeholder="換服裝換場景，表情要豐富&#10;依照上傳圖片的角色風格出圖，不要更換角色的材質與風格" style="margin:0;resize:vertical;font-size:0.82rem;line-height:1.6"></textarea>
+          </div>
           <button id="saveCharBtn" onclick="saveCurrentChar()" style="padding:10px;border-radius:12px;border:none;background:linear-gradient(135deg,#C9B8E8,#764ba2);color:white;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.2s">💾 儲存角色</button>
         </div>
       </div>
@@ -6418,6 +6425,7 @@ function selectChar(i) {
   document.getElementById('charStyle').value       = ch.style || '';
   document.getElementById('charPolitics').value    = ch.politics || '';
   document.getElementById('charRole').value        = ch.role || '';
+  document.getElementById('charImgPromptStill').value = ch.imgPromptStill || '';
   document.getElementById('charEditTitle').textContent = '✏️ 編輯：' + (ch.name || '角色');
   document.getElementById('charEditPanel').style.display = 'flex';
   document.querySelectorAll('.char-chip').forEach(c => c.classList.remove('active'));
@@ -6542,6 +6550,7 @@ async function saveCurrentChar() {
     style:       document.getElementById('charStyle').value.trim(),
     politics:    document.getElementById('charPolitics').value.trim(),
     role:        document.getElementById('charRole').value.trim(),
+    imgPromptStill: document.getElementById('charImgPromptStill')?.value.trim() || '',
   };
 
   const btn = document.getElementById('saveCharBtn');
