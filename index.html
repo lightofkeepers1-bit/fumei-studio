@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2918,7 +2918,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.14.2';
+const APP_VERSION = '5.14.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4843,6 +4843,9 @@ async function genScript() {
   const err = document.getElementById('scriptErr');
   const area = document.getElementById('scriptArea');
   const notice = document.getElementById('autoNotice');
+  // 清掉三AI發想的錯誤訊息
+  const inspoErr = document.getElementById('inspoErr');
+  if (inspoErr) inspoErr.classList.remove('show');
   const used = document.getElementById('autoUsed');
   const isAuto = !topic && (type === '時事反應' || type === '今天發什麼');
 
