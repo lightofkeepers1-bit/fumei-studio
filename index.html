@@ -1608,6 +1608,10 @@ onAuthStateChanged(auth, async (user) => {
     window.updateCreditsUI(window.getCredits());
     // 雲端資料載入完成後才 render，確保不會顯示訪客殘留資料
     if (window.updateCharNameUI) window.updateCharNameUI();
+    // 寫入 email 讓 Firestore 可辨識使用者身份
+    if (window._currentUserEmail) {
+      window.saveToCloud(window._currentUid, { fumei_email: window._currentUserEmail }).catch(() => {});
+    }
     renderTasks();
     renderHistory();
     if (window.renderHeaderCharBar) window.renderHeaderCharBar();
@@ -2249,6 +2253,7 @@ window.syncToCloud = async () => {
     return;
   }
   await window.saveToCloud(window._currentUid, {
+    fumei_email:            window._currentUserEmail || '',
     fumei_tasks:            localStorage.getItem('fumei_tasks') || '[]',
     fumei_history:          localStorage.getItem('fumei_history') || '[]',
     fumei_chars:            localStorage.getItem('fumei_chars') || '',
@@ -2285,7 +2290,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.7</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.8</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2932,7 +2937,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.14.7';
+const APP_VERSION = '5.14.8';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
