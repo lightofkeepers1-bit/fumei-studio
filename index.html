@@ -2285,7 +2285,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.14.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2799,6 +2799,15 @@ const FUMEI = `你現在是「Fumei 梗圖腳本創作師」。
 - 不製作攻擊特定個人的惡意內容，但可以對政治現象做出有立場的幽默評論
 - 台灣意識、本土文化、民主價值是 Fumei 梗圖的核心精神`;
 
+function resetImgPrompts() {
+  document.getElementById('imgPromptStill').value = '換服裝換場景，表情要豐富\n依照上傳圖片的角色風格出圖，不要更換角色的材質與風格';
+  document.getElementById('imgPromptVideo').value = '不要字幕\n中文版';
+  localStorage.removeItem('fumei_img_prompt_still');
+  localStorage.removeItem('fumei_img_prompt_video');
+  const btn = document.querySelector('[onclick="resetImgPrompts()"]');
+  if (btn) { btn.textContent = '✓ 已重置'; setTimeout(() => btn.textContent = '🔄 重置預設', 1500); }
+}
+
 function getImgPromptStill() {
   const custom = localStorage.getItem('fumei_img_prompt_still') || '';
   if (custom.trim()) return custom.trim();
@@ -2918,7 +2927,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.14.3';
+const APP_VERSION = '5.14.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -6142,10 +6151,7 @@ async function refreshHistory() {
 
         <div style="margin-bottom:14px">
           <div style="font-size:0.78rem;font-weight:800;color:#bbb;margin-bottom:6px">🎨 一格 / 兩格梗圖指令</div>
-          <textarea id="imgPromptStill" rows="4" class="settings-input" style="margin:0;resize:vertical;font-size:0.82rem;line-height:1.6" placeholder="留空使用預設。例如：
-換服裝換場景，表情要豐富
-不要更換原人物材質
-輸出尺寸 9:16"></textarea>
+          <textarea id="imgPromptStill" rows="4" class="settings-input" style="margin:0;resize:vertical;font-size:0.82rem;line-height:1.6" placeholder="可直接修改預設指令，或完全自訂"></textarea>
         </div>
 
         <div>
@@ -6156,7 +6162,10 @@ async function refreshHistory() {
         </div>
       </div>
 
-      <button class="settings-save-btn" onclick="saveSettings()">💾 儲存設定</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="settings-save-btn" onclick="saveSettings()" style="flex:1">💾 儲存設定</button>
+        <button onclick="resetImgPrompts()" style="padding:10px 14px;border-radius:12px;border:1.5px solid #e0d8f0;background:white;color:#aaa;font-size:0.8rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap">🔄 重置預設</button>
+      </div>
 
       <hr class="settings-divider">
 
@@ -7176,8 +7185,11 @@ function openSettings() {
     if (infoNum) infoNum.textContent = '-';
   }
   // image prompt settings
-  document.getElementById('imgPromptStill').value = localStorage.getItem('fumei_img_prompt_still') || '';
-  document.getElementById('imgPromptVideo').value = localStorage.getItem('fumei_img_prompt_video') || '';
+  // 若用戶沒有自訂，把預設 prompt 填入框內讓用戶可以直接修改
+  const _savedStill = localStorage.getItem('fumei_img_prompt_still') || '';
+  const _savedVideo = localStorage.getItem('fumei_img_prompt_video') || '';
+  document.getElementById('imgPromptStill').value = _savedStill || '換服裝換場景，表情要豐富\n依照上傳圖片的角色風格出圖，不要更換角色的材質與風格';
+  document.getElementById('imgPromptVideo').value = _savedVideo || '不要字幕\n中文版';
   document.getElementById('settingsModal').classList.add('show');
   // 初始化公告圖片上傳區（等 admin section 顯示後再初始化）
   setTimeout(() => {
