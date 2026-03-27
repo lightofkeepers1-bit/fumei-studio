@@ -2291,7 +2291,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.16.2</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.16.3</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2950,7 +2950,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.16.2';
+const APP_VERSION = '5.16.3';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -5390,7 +5390,7 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
     const formatLabelMap = {'一格':'一格梗圖','兩格':'兩格梗圖','影片15':'影片腳本 15秒','影片30':'影片腳本 30秒','純文案':'純文案'};
     const _pendingEntryRef = _pendingHistoryId ? scriptHistory.find(h => h.id === _pendingHistoryId) : null;
     const _scriptDuration = _pendingEntryRef && _pendingEntryRef.startTime ? Math.round((Date.now() - _pendingEntryRef.startTime) / 1000) : null;
-    const _scriptCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
+    const _scriptCost = (type === '時事反應' || type === '今天發什麼') ? CREDIT_COST.news : CREDIT_COST.script;
     const finalEntry = {
       id: _pendingHistoryId || Date.now(),
       topic: topic,
@@ -5439,7 +5439,7 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 
     // ✅ 退還點數
     if (window._currentUid && !window._guestMode) {
-      const refundCost = (type === '時事反應') ? CREDIT_COST.news : CREDIT_COST.script;
+      const refundCost = (type === '時事反應' || type === '今天發什麼') ? CREDIT_COST.news : CREDIT_COST.script;
       try {
         const current = window.getCredits();
         const refunded = (current < 0 ? 0 : current) + refundCost;
