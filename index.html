@@ -2291,7 +2291,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.16.3</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.16.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2950,7 +2950,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.16.3';
+const APP_VERSION = '5.16.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -2966,7 +2966,7 @@ window.updateCostBadges = () => {
   const type = document.getElementById('scriptType');
   const scriptBadge = document.querySelector('#scriptBtn .cost-badge');
   if (type && scriptBadge) {
-    scriptBadge.textContent = type.value === '時事反應' ? '⚡2' : '⚡1';
+    scriptBadge.textContent = (type.value === '時事反應' || type.value === '今天發什麼') ? '⚡2' : '⚡1';
   }
 };
 
