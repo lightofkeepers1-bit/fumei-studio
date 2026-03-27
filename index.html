@@ -1661,8 +1661,8 @@ onAuthStateChanged(auth, async (user) => {
 
       // 計算需要退點的佔位（腳本、掃描、生圖中無 taskId 超過 1 分鐘）
       const toRefund = scriptHistory.filter(h =>
-        (h.format === '生成中' && (_n - h.id) > _scriptStale) ||
-        (h.format === '掃描中' && (_n - h.id) > _scriptStale) ||
+        (h.format === '生成中' && !h.refunded && (_n - h.id) > _scriptStale) ||
+        (h.format === '掃描中' && !h.refunded && (_n - h.id) > _scriptStale) ||
         (h.format === '生圖中' && !h.taskId && !h.refunded && (_n - h.id) > _imgNoTaskStale)
       );
 
@@ -1671,11 +1671,11 @@ onAuthStateChanged(auth, async (user) => {
       scriptHistory = scriptHistory.map(h => {
         if (h.format === '生成中' && (_n - h.id) > _scriptStale) {
           scriptFixed = true;
-          return { ...h, format: '生成失敗', script: '❌ 生成中斷（頁面已重新整理，點數已退還）\n\n請重新產出腳本。' };
+          return { ...h, format: '生成失敗', refunded: true, script: '❌ 生成中斷（頁面已重新整理，點數已退還）\n\n請重新產出腳本。' };
         }
         if (h.format === '掃描中' && (_n - h.id) > _scriptStale) {
           scriptFixed = true;
-          return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（頁面已重新整理，點數已退還）\n\n請重新掃描。' };
+          return { ...h, format: '掃描失敗', refunded: true, script: '❌ 掃描中斷（頁面已重新整理，點數已退還）\n\n請重新掃描。' };
         }
         if (h.format === '生圖中' && !h.taskId && !h.refunded && (_n - h.id) > _imgNoTaskStale) {
           scriptFixed = true;
@@ -2291,7 +2291,7 @@ window.syncToCloud = async () => {
     <div class="logo-icon">🐾</div>
     <div class="logo-text">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.15.1</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.15.4</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -2938,7 +2938,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.15.1';
+const APP_VERSION = '5.15.4';
 
 // ══════════════════════════════════════════════
 // ⚡ CREDITS SYSTEM
@@ -4270,9 +4270,17 @@ ${pttHeadlines}
 ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : ''}
 重要：所有話題必須跟今天的時間點有共鳴，不要選已經過去的節慶或時節。
 
-嚴格按照以下格式，每行輸出：話題標題｜角色一句反應台詞
-範例：股市大跌上班族哀嚎｜帳面虧損跟薪水一樣，都很難看
-只輸出6行，不要編號、不要額外說明。`;
+【輸出格式規定】
+- 必須輸出剛好6行
+- 每行格式：話題標題｜角色一句反應台詞
+- 每行都必須包含全形｜符號
+- 不要編號、不要空行、不要任何額外說明
+- 搜尋完成後直接輸出6行，不要說「以下是」之類的前言
+
+範例格式（直接照這樣輸出）：
+股市大跌上班族哀嚎｜帳面虧損跟薪水一樣，都很難看
+政府宣布新政策引發討論｜終於有人想到我們了，雖然有點晚
+物價又漲了｜錢包說它需要心理諮商`;
       useWebSearch = true;
     } else {
       window._rssItems = []; // 非時事類清空
@@ -4398,12 +4406,12 @@ ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : '
       return;
     }
   } catch(e) {
-    // 掃描失敗：把佔位改為「掃描失敗」保留紀錄
+    // 掃描失敗：把佔位改為「掃描失敗」保留紀錄，並標記已退點
     if (_scanPendingId && window._currentUid && !window._guestMode) {
       const fi = scriptHistory.findIndex(h => h.id === _scanPendingId);
       if (fi !== -1) {
         scriptHistory[fi] = { ...scriptHistory[fi], format: '掃描失敗',
-          script: '❌ 掃描失敗\n\n請稍後再試。' };
+          script: '❌ 掃描失敗\n\n請稍後再試。', refunded: true };
         localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
         if (window.syncToCloud) window.syncToCloud();
         renderHistory();
@@ -5598,7 +5606,7 @@ async function refreshHistory() {
   try {
     // 若已登入，先從雲端拉最新
     if (window._currentUid && window.loadFromCloud) {
-      await window.loadFromCloud();
+      await window.loadFromCloud(window._currentUid);
     }
     // 重新跑逾時判定（同登入後的邏輯）
     const _now = Date.now();
@@ -5608,15 +5616,15 @@ async function refreshHistory() {
     let changed = false;
     let totalRefund = 0;
     scriptHistory = scriptHistory.map(h => {
-      if (h.format === '生成中' && (_now - h.id) > _scriptStaleMs) {
+      if (h.format === '生成中' && !h.refunded && (_now - h.id) > _scriptStaleMs) {
         changed = true;
         totalRefund += window.CREDIT_COST?.script || 1;
-        return { ...h, format: '生成失敗', script: '❌ 生成中斷（點數已退還）\n\n請重新產出腳本。' };
+        return { ...h, format: '生成失敗', refunded: true, script: '❌ 生成中斷（點數已退還）\n\n請重新產出腳本。' };
       }
-      if (h.format === '掃描中' && (_now - h.id) > _scriptStaleMs) {
+      if (h.format === '掃描中' && !h.refunded && (_now - h.id) > _scriptStaleMs) {
         changed = true;
         totalRefund += window.CREDIT_COST?.news || 2;
-        return { ...h, format: '掃描失敗', script: '❌ 掃描中斷（點數已退還）\n\n請重新掃描。' };
+        return { ...h, format: '掃描失敗', refunded: true, script: '❌ 掃描中斷（點數已退還）\n\n請重新掃描。' };
       }
       if (h.format === '生圖中' && !h.taskId && !h.refunded && (_now - h.id) > _imgNoTaskStaleMs) {
         changed = true;
