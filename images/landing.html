@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fumei Studio ✨ | AI 梗圖創作助手 × 台灣社群內容</title>
+<meta name="description" content="Fumei Studio 是台灣第一個 AI 梗圖創作工具，結合 Claude、GPT、Gemini 自動掃描時事話題、生成腳本、一鍵生圖，幫你輕鬆經營 IG、FB、Threads 粉絲專頁。">
+<link rel="canonical" href="https://fumei-studio.com/">
+<meta property="og:title" content="Fumei Studio ✨ | AI 梗圖創作助手 × 台灣社群內容">
+<meta property="og:description" content="台灣第一個 AI 梗圖創作工具，自動掃描時事、生成腳本、一鍵生圖。">
+<meta property="og:image" content="https://fumei-studio.com/images/hero.png">
+<meta property="og:type" content="website">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pink: #F4A7B9;
+  --pink-deep: #E07A95;
+  --pink-vivid: #FF5C8A;
+  --lavender: #C9B8E8;
+  --purple: #764ba2;
+  --cream: #FFF8F0;
+  --brown: #5C3D2E;
+  --gold: #FFB830;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: #fff;
+  color: var(--brown);
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 40px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(244,167,185,0.25);
+  transition: box-shadow 0.3s;
+}
+nav.scrolled { box-shadow: 0 4px 24px rgba(224,122,149,0.15); }
+.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.nav-logo-icon { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--pink), var(--lavender)); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.nav-logo-text { font-family: 'Nunito', sans-serif; font-size: 1.1rem; font-weight: 900; color: var(--pink-deep); }
+.nav-links { display: flex; align-items: center; gap: 28px; }
+.nav-links a { font-size: 0.88rem; font-weight: 700; color: #888; text-decoration: none; transition: color 0.2s; font-family: 'Nunito', sans-serif; }
+.nav-links a:hover { color: var(--pink-deep); }
+.nav-cta { background: linear-gradient(135deg, var(--pink), var(--pink-deep)); color: white; border: none; padding: 9px 22px; border-radius: 24px; font-weight: 800; font-size: 0.88rem; cursor: pointer; font-family: 'Nunito', sans-serif; text-decoration: none; transition: all 0.2s; box-shadow: 0 4px 14px rgba(224,122,149,0.35); }
+.nav-cta:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(224,122,149,0.5); }
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  padding-top: 80px;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, #ffeef6 0%, #f5eeff 40%, #fff0e8 100%);
+}
+.hero-bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 20% 60%, rgba(244,167,185,0.25) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 30%, rgba(201,184,232,0.2) 0%, transparent 60%);
+}
+.hero-inner {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: 1fr 1fr;
+  align-items: center; gap: 0;
+  max-width: 1200px; width: 100%;
+  padding: 0 40px;
+}
+.hero-text { padding-right: 40px; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, #fff0f5, #f0e8ff);
+  border: 1.5px solid #f0d8e0;
+  border-radius: 24px; padding: 6px 16px;
+  font-size: 0.8rem; font-weight: 800; color: var(--purple);
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 20px;
+  animation: fadeUp 0.6s ease both;
+}
+.hero-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--brown);
+  margin-bottom: 20px;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+.hero-title .accent { color: var(--pink-deep); }
+.hero-title .accent2 { color: var(--purple); }
+.hero-desc {
+  font-size: 1rem; color: #777; line-height: 1.8;
+  margin-bottom: 32px;
+  animation: fadeUp 0.6s 0.2s ease both;
+  max-width: 480px;
+}
+.hero-btns {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+  color: white; border: none; padding: 14px 32px;
+  border-radius: 50px; font-weight: 900; font-size: 1rem;
+  cursor: pointer; font-family: 'Nunito', sans-serif;
+  text-decoration: none;
+  box-shadow: 0 6px 24px rgba(224,122,149,0.4);
+  transition: all 0.25s;
+}
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(224,122,149,0.5); }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: white; color: var(--purple);
+  border: 2px solid var(--lavender);
+  padding: 14px 32px; border-radius: 50px;
+  font-weight: 800; font-size: 1rem;
+  cursor: pointer; font-family: 'Nunito', sans-serif;
+  text-decoration: none; transition: all 0.25s;
+}
+.btn-secondary:hover { background: #f5eeff; transform: translateY(-3px); }
+.hero-stats {
+  display: flex; gap: 28px; margin-top: 36px;
+  animation: fadeUp 0.6s 0.4s ease both;
+}
+.hero-stat { text-align: left; }
+.hero-stat .n { font-family: 'Nunito', sans-serif; font-size: 1.6rem; font-weight: 900; color: var(--pink-deep); }
+.hero-stat .l { font-size: 0.75rem; color: #aaa; font-weight: 600; margin-top: 2px; }
+
+.hero-img {
+  position: relative;
+  animation: fadeUp 0.8s 0.15s ease both;
+}
+.hero-img img {
+  width: 100%; border-radius: 28px;
+  box-shadow: 0 24px 80px rgba(224,122,149,0.3);
+}
+.hero-badge {
+  position: absolute; top: 20px; right: -16px;
+  background: white; border-radius: 16px; padding: 10px 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  font-size: 0.82rem; font-weight: 800; color: var(--brown);
+  font-family: 'Nunito', sans-serif;
+  animation: float 3s ease-in-out infinite;
+}
+.hero-badge2 {
+  position: absolute; bottom: 30px; left: -20px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white; border-radius: 16px; padding: 10px 16px;
+  box-shadow: 0 8px 24px rgba(118,75,162,0.3);
+  font-size: 0.82rem; font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  animation: float 3s 1.5s ease-in-out infinite;
+}
+
+/* ── SECTION COMMON ── */
+section { padding: 100px 40px; }
+.section-inner { max-width: 1100px; margin: 0 auto; }
+.section-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, #fff0f5, #f0e8ff);
+  border: 1.5px solid #e8d5f5;
+  border-radius: 24px; padding: 5px 14px;
+  font-size: 0.78rem; font-weight: 800; color: var(--purple);
+  font-family: 'Nunito', sans-serif; margin-bottom: 14px;
+}
+.section-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 900; color: var(--brown);
+  line-height: 1.25; margin-bottom: 14px;
+}
+.section-title .pink { color: var(--pink-deep); }
+.section-desc { font-size: 0.95rem; color: #888; line-height: 1.8; max-width: 480px; }
+
+/* ── FEATURES ── */
+.feature-block {
+  display: grid; grid-template-columns: 1fr 1fr;
+  align-items: center; gap: 60px;
+  margin-bottom: 100px;
+}
+.feature-block.reverse { direction: rtl; }
+.feature-block.reverse > * { direction: ltr; }
+.feature-img { position: relative; }
+.feature-img img { width: 100%; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.12); }
+.feature-img .img-deco {
+  position: absolute; bottom: -16px; right: -16px;
+  width: 80px; height: 80px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--pink), var(--lavender));
+  opacity: 0.3; z-index: -1;
+}
+.feature-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.feature-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #fff0f5, #f5eeff);
+  border: 1.5px solid #f0d8e0;
+  border-radius: 24px; padding: 6px 14px;
+  font-size: 0.8rem; font-weight: 700; color: var(--brown);
+  font-family: 'Nunito', sans-serif;
+}
+
+/* ── PRICING ── */
+.pricing-section { background: linear-gradient(160deg, #fff8f5 0%, #f5eeff 100%); }
+.pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 48px; }
+.plan-card {
+  background: white; border-radius: 24px;
+  padding: 28px 24px; border: 2px solid #f0d8e0;
+  transition: all 0.25s; position: relative; overflow: hidden;
+}
+.plan-card:hover { transform: translateY(-6px); box-shadow: 0 20px 50px rgba(224,122,149,0.2); border-color: var(--pink); }
+.plan-card.featured {
+  border-color: var(--pink-deep);
+  box-shadow: 0 16px 48px rgba(224,122,149,0.25);
+}
+.plan-card.featured::before {
+  content: '🔥 最划算';
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: white; font-size: 0.72rem; font-weight: 900;
+  padding: 4px 16px; border-radius: 0 0 12px 12px;
+  font-family: 'Nunito', sans-serif;
+}
+.plan-name { font-family: 'Nunito', sans-serif; font-size: 0.88rem; font-weight: 800; color: #aaa; margin-bottom: 10px; margin-top: 8px; }
+.plan-price { font-family: 'Nunito', sans-serif; font-size: 2rem; font-weight: 900; color: var(--brown); }
+.plan-price span { font-size: 0.85rem; font-weight: 700; color: #aaa; }
+.plan-points { font-size: 0.88rem; color: var(--pink-deep); font-weight: 800; margin-top: 4px; font-family: 'Nunito', sans-serif; }
+.plan-per { font-size: 0.72rem; color: #bbb; margin-top: 2px; margin-bottom: 16px; }
+.plan-divider { border: none; border-top: 1.5px solid #f5e6ea; margin: 14px 0; }
+.plan-features { list-style: none; }
+.plan-features li { font-size: 0.82rem; color: #666; padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+.plan-btn {
+  display: block; width: 100%; margin-top: 20px;
+  padding: 11px; border-radius: 14px; border: none;
+  font-weight: 800; font-size: 0.88rem; cursor: pointer;
+  font-family: 'Nunito', sans-serif; text-align: center;
+  text-decoration: none; transition: all 0.2s;
+}
+.plan-btn-main { background: linear-gradient(135deg, var(--pink), var(--pink-deep)); color: white; box-shadow: 0 4px 14px rgba(224,122,149,0.35); }
+.plan-btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(224,122,149,0.45); }
+.plan-btn-outline { background: white; color: var(--pink-deep); border: 2px solid #f0d8e0; }
+.plan-btn-outline:hover { background: #fff5f8; border-color: var(--pink); }
+
+/* ── CTA SECTION ── */
+.cta-section {
+  position: relative; overflow: hidden; padding: 0;
+}
+.cta-img-wrap { position: relative; }
+.cta-img-wrap img { width: 100%; display: block; max-height: 600px; object-fit: cover; object-position: center top; }
+.cta-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top,
+    rgba(15, 8, 35, 0.92) 0%,
+    rgba(15, 8, 35, 0.6) 35%,
+    rgba(15, 8, 35, 0.1) 65%,
+    transparent 100%);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.cta-content {
+  padding: 0 40px 52px;
+  text-align: center;
+  width: 100%;
+  max-width: 700px;
+}
+.cta-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 900; color: white; line-height: 1.25;
+  margin-bottom: 20px;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+}
+.cta-title .cta-accent { color: var(--pink); }
+.cta-desc { font-size: 0.95rem; color: rgba(255,255,255,0.75); line-height: 1.7; margin-bottom: 28px; }
+.cta-btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.btn-white {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: white; color: var(--purple);
+  padding: 14px 32px; border-radius: 50px;
+  font-weight: 900; font-size: 1rem;
+  text-decoration: none; font-family: 'Nunito', sans-serif;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  transition: all 0.25s;
+}
+.btn-white:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.15); color: white;
+  border: 2px solid rgba(255,255,255,0.5);
+  padding: 14px 32px; border-radius: 50px;
+  font-weight: 800; font-size: 1rem;
+  text-decoration: none; font-family: 'Nunito', sans-serif;
+  transition: all 0.25s;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.25); transform: translateY(-3px); }
+
+/* ── FOOTER ── */
+footer {
+  background: linear-gradient(135deg, #fdf0f4, #f5eeff);
+  border-top: 1.5px solid #f0d8e0;
+  padding: 32px 40px; text-align: center;
+}
+footer .footer-inner { max-width: 1100px; margin: 0 auto; }
+footer .footer-logo { font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 900; color: var(--pink-deep); margin-bottom: 12px; }
+footer .footer-links { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+footer .footer-links a { font-size: 0.78rem; color: #aaa; text-decoration: none; font-weight: 700; font-family: 'Nunito', sans-serif; }
+footer .footer-links a:hover { color: var(--pink-deep); }
+footer .footer-copy { font-size: 0.72rem; color: #ccc; font-family: 'Nunito', sans-serif; }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+.reveal {
+  opacity: 0; transform: translateY(32px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  nav { padding: 12px 20px; }
+  .nav-links { display: none; }
+  section { padding: 64px 20px; }
+  .hero-inner { grid-template-columns: 1fr; padding: 0 20px; gap: 40px; }
+  .hero-text { padding-right: 0; text-align: center; }
+  .hero-btns { justify-content: center; }
+  .hero-stats { justify-content: center; }
+  .hero-badge { display: none; }
+  .hero-badge2 { display: none; }
+  .feature-block { grid-template-columns: 1fr; gap: 32px; margin-bottom: 60px; }
+  .feature-block.reverse { direction: ltr; }
+  .pricing-grid { grid-template-columns: 1fr 1fr; }
+  .cta-content { padding: 0 32px; }
+  .cta-title { font-size: 1.5rem; }
+  footer { padding: 24px 20px; }
+}
+@media (max-width: 540px) {
+  .pricing-grid { grid-template-columns: 1fr; }
+  .cta-overlay { background: linear-gradient(to top, rgba(15,8,35,0.95) 0%, rgba(15,8,35,0.7) 40%, transparent 70%); }
+  .cta-content { padding: 0 24px 40px; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">✨</div>
+    <span class="nav-logo-text">Fumei Studio</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">功能介紹</a>
+    <a href="#pricing">定價方案</a>
+    <a href="/privacy">隱私政策</a>
+    <a href="https://fumei-studio.com/" class="nav-cta">免費開始 →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-eyebrow">✨ 台灣 AI 梗圖創作助手</div>
+      <h1 class="hero-title">
+        讓 AI 幫你<br>
+        <span class="accent">掃話題、產腳本、</span><br>
+        <span class="accent2">一鍵生圖</span>
+      </h1>
+      <p class="hero-desc">
+        結合 Claude、GPT、Gemini 三大 AI，自動抓台灣時事與 PTT 熱門話題，幫你的 IG / FB 粉專每天產出有梗的內容。
+      </p>
+      <div class="hero-btns">
+        <a href="https://fumei-studio.com/" class="btn-primary">✦ 立即免費開始</a>
+        <a href="#features" class="btn-secondary">★ 了解更多</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="n">⚡20</div>
+          <div class="l">免費體驗點數</div>
+        </div>
+        <div class="hero-stat">
+          <div class="n">3 大 AI</div>
+          <div class="l">Claude / GPT / Gemini</div>
+        </div>
+        <div class="hero-stat">
+          <div class="n">台灣限定</div>
+          <div class="l">時事 + PTT 話題</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-img">
+      <img src="hero.png" alt="Fumei Studio 角色 Fumei 歡呼登場，背景有彩虹光束與彩帶">
+      <div class="hero-badge">🎉 訪客免費試用 20 點</div>
+      <div class="hero-badge2">🤖 三 AI 同時幫你想梗</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" style="background:#fff;">
+  <div class="section-inner">
+
+    <!-- Feature 1: 話題掃描 -->
+    <div class="feature-block reveal">
+      <div class="feature-img">
+        <img src="feature-scan.jpg" alt="Fumei 跳躍在賽博龐克城市中，周圍有 Twitter、YouTube、TikTok 等社群平台趨勢畫面">
+        <div class="img-deco"></div>
+      </div>
+      <div>
+        <div class="section-tag">🔍 話題掃描</div>
+        <h2 class="section-title">不用再想今天<br>要<span class="pink">發什麼</span></h2>
+        <p class="section-desc">
+          AI 自動掃描台灣時事、PTT 熱門話題，結合你的角色設定，找出最適合今天發文的方向。不用再對著空白螢幕發呆。
+        </p>
+        <div class="feature-chips">
+          <span class="feature-chip">🗞️ 今日時事 ⚡2</span>
+          <span class="feature-chip">💬 PTT 熱門 ⚡3</span>
+          <span class="feature-chip">💼 職場 / 日常 / 旅遊 ⚡1</span>
+          <span class="feature-chip">🤖 Claude Haiku 驅動</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature 2: 產腳本 -->
+    <div class="feature-block reverse reveal">
+      <div class="feature-img">
+        <img src="feature-script.jpg" alt="Fumei 指著螢幕上的腳本，背景有 Hook、Story、CTA 等腳本結構說明">
+        <div class="img-deco"></div>
+      </div>
+      <div>
+        <div class="section-tag">✍️ 產腳本</div>
+        <h2 class="section-title">角色設定吃進去，<br><span class="pink">腳本直接吐出來</span></h2>
+        <p class="section-desc">
+          輸入話題，AI 按你設定的角色個性、說話風格、行業背景，產出一格梗圖、兩格對比、影片腳本或純文案。還有六種改寫風格一鍵切換。
+        </p>
+        <div class="feature-chips">
+          <span class="feature-chip">🎭 一格 / 兩格 / 影片腳本</span>
+          <span class="feature-chip">🔄 六種改寫風格</span>
+          <span class="feature-chip">✨ Claude Sonnet 驅動</span>
+          <span class="feature-chip">🇹🇼 台味語氣</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature 3: AI生圖 -->
+    <div class="feature-block reveal">
+      <div class="feature-img">
+        <img src="feature-image.jpg" alt="Fumei 驚喜地看著周圍的 AI 生成圖片，包括狗、晶體城市、繪畫和賽博格角色">
+        <div class="img-deco"></div>
+      </div>
+      <div>
+        <div class="section-tag">🎨 AI 生圖</div>
+        <h2 class="section-title">腳本產完，<br><span class="pink">圖片一鍵生成</span></h2>
+        <p class="section-desc">
+          點「去生圖」直接帶入 Prompt，上傳角色參考圖，選好比例就生成。支援 4:6 直式、1:1 正方，兩種品質模式，適合中文文字的 Pro 版本更不怕字跑掉。
+        </p>
+        <div class="feature-chips">
+          <span class="feature-chip">⚡ 一般品質 3點</span>
+          <span class="feature-chip">💎 高品質 Pro 8點</span>
+          <span class="feature-chip">🈶 支援中文文字生成</span>
+          <span class="feature-chip">📐 多種比例</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="pricing-section">
+  <div class="section-inner">
+    <div style="text-align:center;margin-bottom:8px" class="reveal">
+      <div class="section-tag" style="margin:0 auto 14px">💎 定價方案</div>
+      <h2 class="section-title" style="text-align:center">透明定價，<span class="pink">用多少買多少</span></h2>
+      <p style="font-size:0.92rem;color:#aaa;text-align:center;margin-top:8px">點數不會過期，用完再買就好</p>
+    </div>
+    <div class="pricing-grid reveal">
+
+      <div class="plan-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">NT$49 <span>/ 次</span></div>
+        <div class="plan-points">⚡ 50 點</div>
+        <div class="plan-per">約 NT$0.98 / 點</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>✅ 話題掃描 50 次</li>
+          <li>✅ 腳本生成 50 次</li>
+          <li>✅ 生圖 16 張（一般）</li>
+          <li>✅ 歷史紀錄</li>
+        </ul>
+        <a href="https://fumei-studio.com/" class="plan-btn plan-btn-outline">立即購買</a>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">NT$99 <span>/ 次</span></div>
+        <div class="plan-points">⚡ 120 點</div>
+        <div class="plan-per">約 NT$0.83 / 點</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>✅ 話題掃描 120 次</li>
+          <li>✅ 腳本生成 120 次</li>
+          <li>✅ 生圖 40 張（一般）</li>
+          <li>✅ 三 AI 發想 60 次</li>
+        </ul>
+        <a href="https://fumei-studio.com/" class="plan-btn plan-btn-outline">立即購買</a>
+      </div>
+
+      <div class="plan-card featured">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">NT$199 <span>/ 次</span></div>
+        <div class="plan-points">⚡ 300 點</div>
+        <div class="plan-per">約 NT$0.66 / 點</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>✅ 話題掃描 300 次</li>
+          <li>✅ 腳本生成 300 次</li>
+          <li>✅ 高品質生圖 37 張</li>
+          <li>✅ 三 AI 發想 150 次</li>
+        </ul>
+        <a href="https://fumei-studio.com/" class="plan-btn plan-btn-main">立即購買</a>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-name">Mega</div>
+        <div class="plan-price">NT$399 <span>/ 次</span></div>
+        <div class="plan-points">⚡ 700 點</div>
+        <div class="plan-per">約 NT$0.57 / 點</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>✅ 話題掃描 700 次</li>
+          <li>✅ 腳本生成 700 次</li>
+          <li>✅ 高品質生圖 87 張</li>
+          <li>✅ 三 AI 發想 350 次</li>
+        </ul>
+        <a href="https://fumei-studio.com/" class="plan-btn plan-btn-outline">立即購買</a>
+      </div>
+
+    </div>
+    <p style="text-align:center;margin-top:24px;font-size:0.82rem;color:#bbb;font-family:'Nunito',sans-serif" class="reveal">
+      🎁 新帳號送 20 點免費體驗・點數永不過期・邀請朋友再得 50 點
+    </p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-img-wrap">
+    <img src="cta.png" alt="Fumei Studio 全能 AI 創作工具，Fumei 角色站在科技感平台上，周圍有浮空 UI 圖示">
+    <div class="cta-overlay">
+      <div class="cta-content reveal">
+        <h2 class="cta-title">今天就開始，<span class="cta-accent">免費體驗 20 點</span> ✨</h2>
+        <p class="cta-desc">不需要信用卡，Google 帳號登入即送。點數永不過期，用完再買。</p>
+        <div class="cta-btns">
+          <a href="https://fumei-studio.com/" class="btn-white">✦ 立即免費開始</a>
+          <a href="https://fumei-studio.com/" class="btn-ghost">👀 訪客試用</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">✨ Fumei Studio</div>
+    <div class="footer-links">
+      <a href="https://fumei-studio.com/">進入工具</a>
+      <a href="/privacy">隱私政策</a>
+      <a href="/terms">使用條款</a>
+      <a href="mailto:lightofkeepers1@gmail.com">聯絡我們</a>
+    </div>
+    <div class="footer-copy">© 2025 Fumei Studio｜AI 生成內容僅供參考，請自行確認準確度後再發布</div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav = document.getElementById('mainNav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 20);
+});
+
+// Scroll reveal
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), i * 80);
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.12 });
+reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
