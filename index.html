@@ -2988,7 +2988,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.18.0';
+const APP_VERSION = '5.18.2';
 
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
@@ -8857,8 +8857,8 @@ window.addEventListener('load', () => {
 <!-- ═══════════════════════════════════════════ -->
 <div id="landingOverlay" style="display:none;position:fixed;inset:0;z-index:8000;overflow-y:auto;background:#fff">
 
-  <!-- Skip / Close button -->
-  <button id="landingSkipBtn" onclick="closeLandingOverlay()" style="position:fixed;top:16px;right:16px;z-index:8100;background:rgba(255,255,255,0.9);border:1.5px solid #f0d8e0;color:#888;padding:8px 18px;border-radius:24px;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.1);transition:all 0.2s" onmouseover="this.style.background='#fff5f8';this.style.color='var(--pink-deep)'" onmouseout="this.style.background='rgba(255,255,255,0.9)';this.style.color='#888'">跳過 →</button>
+  <!-- 開始使用 / Close button -->
+  <button id="landingSkipBtn" onclick="closeLandingOverlay()" style="position:fixed;top:16px;right:16px;z-index:8100;background:rgba(255,255,255,0.9);border:1.5px solid #f0d8e0;color:#E07A95;padding:8px 20px;border-radius:24px;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.1);transition:all 0.2s" onmouseover="this.style.background='#fff5f8'" onmouseout="this.style.background='rgba(255,255,255,0.9)'">開始使用 →</button>
 
   <div style="font-family:'Noto Sans TC',sans-serif;color:#5C3D2E">
 
@@ -8868,7 +8868,7 @@ window.addEventListener('load', () => {
         <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#F4A7B9,#C9B8E8);display:flex;align-items:center;justify-content:center;font-size:1.1rem">✨</div>
         <span style="font-family:'Nunito',sans-serif;font-size:1.05rem;font-weight:900;color:#E07A95">Fumei Studio</span>
       </div>
-      <button onclick="closeLandingOverlay()" style="background:linear-gradient(135deg,#F4A7B9,#E07A95);color:white;border:none;padding:9px 22px;border-radius:24px;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 4px 14px rgba(224,122,149,0.35)">立即免費開始 →</button>
+      <div style="font-size:0.78rem;color:#aaa;font-family:'Nunito',sans-serif;font-weight:700">台灣 AI 梗圖創作助手</div>
     </div>
 
     <!-- HERO -->
