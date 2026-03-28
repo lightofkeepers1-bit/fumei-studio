@@ -1972,11 +1972,12 @@ async function fetchGuestCredits() {
       window._guestCreditsCache = credits;
       return credits;
     }
-    // 新訪客：初始化 20 點
-    const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await setDoc(doc(window.db, 'guest_credits', fp), { credits: 20 });
-    window._guestCreditsCache = 20;
-    return 20;
+    // 新訪客：透過後端 API 初始化（前端不能直接寫 guest_credits）
+    const r = await fetch('/api/guest-check?type=credits', { headers: { 'x-fingerprint': fp } });
+    const d = await r.json();
+    const initCredits = d.credits ?? 20;
+    window._guestCreditsCache = initCredits;
+    return initCredits;
   } catch(e) {
     // 失敗時用舊 API 備援
     try {
@@ -2988,7 +2989,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.18.2';
+const APP_VERSION = '5.18.3';
 
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
@@ -3238,14 +3239,14 @@ window.guestDailyCheckin = async () => {
   const newVal = current + DAILY_BONUS;
   window._guestCreditsCache = newVal;
   window.updateGuestRemaining(newVal);
-  // 同步到 Firestore guest_credits
+  // 同步到後端（透過 deduct API 處理，不直接寫 guest_credits）
   try {
     const fp = window._fingerprint || 'guest';
-    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await setDoc(doc(window.db, 'guest_credits', fp), {
-      credits: newVal,
-      checkin_date: today,
-    }, { merge: true });
+    await fetch('/api/guest-check?type=checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-fingerprint': fp },
+      body: JSON.stringify({ credits: newVal, checkin_date: today })
+    });
   } catch(e) { console.warn('guest checkin sync failed', e); }
   if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now(), remaining: newVal });
   const toast = document.getElementById('creditsToast');
