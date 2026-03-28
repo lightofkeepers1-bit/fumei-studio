@@ -2332,6 +2332,8 @@ window.syncToCloud = async () => {
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
     <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0">
+      <!-- 首頁介紹按鈕 -->
+      <button onclick="showLandingOverlay()" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.25);border:1.5px solid rgba(255,255,255,0.6);color:white;padding:6px 14px;border-radius:20px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;flex-shrink:0;transition:all 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.4)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'">🏠 首頁介紹</button>
       <span id="syncStatus" style="font-size:0.65rem;color:rgba(255,255,255,0.85);font-weight:700;white-space:nowrap"></span>
 
       <!-- 未登入 -->
@@ -2353,7 +2355,6 @@ window.syncToCloud = async () => {
 
       <button class="settings-btn" onclick="openHelp()" title="使用說明" style="flex-shrink:0">❓</button>
       <button class="settings-btn" onclick="openSettings()" title="設定" style="flex-shrink:0">⚙️</button>
-      <button class="settings-btn" onclick="showLandingOverlay()" title="首頁介紹" style="flex-shrink:0;font-size:0.85rem">🏠</button>
     </div>
   </div>
 </header>
