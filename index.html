@@ -2989,7 +2989,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.18.8';
+const APP_VERSION = '5.19.0';
 
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
@@ -4300,17 +4300,15 @@ ${pttHeadlines}
     let prompt;
     let useWebSearch = false;
     if (isNews) {
-      // 先用 web_search 搜尋今日台灣時事，RSS 當備援
+      // 純 RSS 方案：抓今日新聞標題，直接餵給 Haiku 選題，不啟用 web_search
       window._rssItems = [];
       let newsHeadlines = '';
       useWebSearch = false;
 
-      // 主力：web_search（Haiku，在 claudeScan 裡處理）
-      // 先抓 RSS 備用連結，供點話題時配對用
       try {
         const uid = window._currentUid;
-        const catParam = (_selectedNewsCat && _selectedNewsCat !== 'all') ? `&category=${_selectedNewsCat}` : '';
-        const newsRes = await fetch(`/api/news?${catParam}`, {
+        const catParam = (_selectedNewsCat && _selectedNewsCat !== 'all') ? `?category=${_selectedNewsCat}` : '';
+        const newsRes = await fetch(`/api/news${catParam}`, {
           headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid }
         });
         if (newsRes.ok) {
@@ -4333,41 +4331,42 @@ ${pttHeadlines}
               [balanced[i], balanced[j]] = [balanced[j], balanced[i]];
             }
             window._rssItems = balanced;
-            // RSS 標題當備援用，但主力改用 web_search
-            newsHeadlines = balanced.map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
+            newsHeadlines = balanced.slice(0, 20).map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
           }
         }
-      } catch(e) { /* RSS 失敗，純靠 web_search */ }
+      } catch(e) { /* RSS 失敗 */ }
 
-      // 分類過濾提示
       const catKw = NEWS_CAT_KEYWORDS[_selectedNewsCat] || '';
       const catNote = (_selectedNewsCat && _selectedNewsCat !== 'all')
         ? `\n重點篩選：請優先選擇與「${catKw}」相關的新聞。`
         : '';
 
-      // 用 web_search 搜尋今日時事，結果比 RSS 標題更豐富
-      prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣「今日」（24小時內）最新時事新聞，從搜尋結果中隨機挑選6個「不同事件」的話題做成梗圖，${rule}。${catNote}
-${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : ''}
+      if (!newsHeadlines) {
+        // RSS 完全失敗，fallback 到 web_search
+        useWebSearch = true;
+        prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新時事新聞，挑出6個不同事件的話題。${catNote}
+涵蓋不同領域，同一領域不能出現兩次。每行格式：話題標題｜角色一句吐槽台詞，只輸出6行，不要編號或說明。`;
+      } else {
+        // 主力：直接用 RSS 標題讓 Haiku 選題，不需要 web_search
+        prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。以下是台灣今日新聞標題：
+${newsHeadlines}
+
+從上面選出6個最適合做成梗圖的話題，必須是「不同事件」，涵蓋不同領域。${catNote}
 
 【嚴格規則】
-- 6個話題必須是6個「完全不同的獨立事件」，不能同一件事出現兩次
-- 每個話題必須是24小時內發生的新聞，不能用超過3天的舊事件
-- 話題標題要具體，直接說「發生了什麼事」，不要泛泛而論
-- 台詞要有台灣人的吐槽或共鳴感，不要說教
-- 涵蓋不同領域（政治、社會、娛樂、民生等），不要同一領域出現兩次
+- 每個話題必須來自上方列表中的單一獨立新聞，不能把兩則新聞湊成一個標題
+- 6個話題必須涵蓋不同領域（政治、社會、娛樂、民生等）
 
 【輸出格式規定】
 - 必須輸出剛好6行
-- 每行格式：話題標題｜角色一句反應台詞
+- 每行格式：話題標題｜角色一句吐槽或共鳴台詞
 - 每行都必須包含全形｜符號
 - 不要編號、不要空行、不要任何額外說明
-- 搜尋完成後直接輸出6行，不要說「以下是」之類的前言
 
-範例格式（直接照這樣輸出）：
+範例格式：
 股市大跌上班族哀嚎｜帳面虧損跟薪水一樣，都很難看
-政府宣布新政策引發討論｜終於有人想到我們了，雖然有點晚
-物價又漲了｜錢包說它需要心理諮商`;
-      useWebSearch = true;
+政府宣布新政策引發討論｜終於有人想到我們了，雖然有點晚`;
+      }
     } else {
       window._rssItems = []; // 非時事類清空
       prompt = `針對「${topic.name}」提供6個${rangeLabel}台灣${topic.timeRange ? `熱門討論或生活` : '生活'}話題。規則：${rule}，切角完全不同，讓台灣人有共鳴。
