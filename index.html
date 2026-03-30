@@ -2989,7 +2989,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.18.5';
+const APP_VERSION = '5.18.6';
 
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
@@ -4395,6 +4395,17 @@ ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : '
       err.classList.add('show');
       btn.disabled = false; load.classList.remove('show');
       _scanInProgress = false;
+      // 先把佔位標記 refunded:true，避免 stale 偵測重複退點
+      if (_scanPendingId && window._currentUid && !window._guestMode) {
+        const _fi = scriptHistory.findIndex(h => h.id === _scanPendingId);
+        if (_fi !== -1) {
+          scriptHistory[_fi] = { ...scriptHistory[_fi], format: '掃描失敗',
+            script: '❌ 話題解析失敗\n\n請稍後再試。', refunded: true };
+          localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+          if (window.syncToCloud) window.syncToCloud();
+          renderHistory();
+        }
+      }
       // 退點
       if (window._currentUid) {
         const catVal = document.getElementById('topicCat')?.value;
