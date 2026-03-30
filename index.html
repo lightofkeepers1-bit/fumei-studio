@@ -2989,7 +2989,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.18.3';
+const APP_VERSION = '5.18.4';
 
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
@@ -4487,7 +4487,7 @@ ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : '
       return;
     }
   } catch(e) {
-    // 掃描失敗：把佔位改為「掃描失敗」保留紀錄，並標記已退點
+    // 掃描失敗：先把佔位標記 refunded:true，再退點，避免 stale 偵測重複退點
     if (_scanPendingId && window._currentUid && !window._guestMode) {
       const fi = scriptHistory.findIndex(h => h.id === _scanPendingId);
       if (fi !== -1) {
@@ -4498,7 +4498,7 @@ ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : '
         renderHistory();
       }
     }
-    // ✅ 掃描失敗：退還點數（登入用戶）
+    // ✅ 掃描失敗：退還點數（登入用戶），refunded:true 已在上方寫入，不會被 stale 重複退
     if (window._currentUid && !window._guestMode) {
       const catVal = document.getElementById('topicCat')?.value;
       const refundCost = catVal === 'PTT' ? 3 : (catVal === '時事' ? CREDIT_COST.news : CREDIT_COST.scan);
@@ -9015,7 +9015,7 @@ window.addEventListener('load', () => {
         <span style="color:#e0d0e8">|</span>
         <a href="/terms" target="_blank" style="font-size:0.75rem;color:#aaa;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif">使用條款</a>
         <span style="color:#e0d0e8">|</span>
-        <a href="mailto:lightofkeepers1@gmail.com" style="font-size:0.75rem;color:#aaa;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif">聯絡我們</a>
+        <a href="/cdn-cgi/l/email-protection#4d21242a2539222b2628283d283f3e7c0d2a202c2421632e2220" style="font-size:0.75rem;color:#aaa;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif">聯絡我們</a>
       </div>
       <div style="font-size:0.7rem;color:#ccc;font-family:'Nunito',sans-serif">© 2025 Fumei Studio</div>
     </div>
@@ -9023,7 +9023,7 @@ window.addEventListener('load', () => {
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── Landing Overlay 控制 ────────────────────────
 function showLandingOverlay() {
   document.getElementById('landingOverlay').style.display = 'block';
@@ -9041,12 +9041,4 @@ function closeLandingOverlay() {
 // 新用戶自動顯示 Landing（沒有任何 localStorage 資料）
 (function() {
   const seen = localStorage.getItem('fumei_landing_seen');
-  const hasAccount = localStorage.getItem('fumei_credits') || localStorage.getItem('fumei_onboarded') || localStorage.getItem('fumei_chars');
-  if (!seen && !hasAccount) {
-    // 延遲 300ms 等頁面渲染完
-    setTimeout(showLandingOverlay, 300);
-  }
-})();
-</script>
-</body>
-</html>
+  const hasAccount = localStorage.getItem('fumei_credits') || localStorage.getItem('fumei_onboarded') || localStorage.getItem('fumei
