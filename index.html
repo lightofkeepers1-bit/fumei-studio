@@ -2989,7 +2989,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.18.6';
+const APP_VERSION = '5.18.7';
 
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
@@ -4346,9 +4346,14 @@ ${pttHeadlines}
         : '';
 
       // 用 web_search 搜尋今日時事，結果比 RSS 標題更豐富
-      prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新時事新聞，挑出6個最適合做成梗圖的話題，${rule}，切角各不同。${catNote}
+      prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣「今日」（24小時內）最新時事新聞，挑出6個最適合做成梗圖的話題，${rule}，切角各不同。${catNote}
 ${newsHeadlines ? `\n參考資料（RSS備援標題）：\n${newsHeadlines}` : ''}
-重要：所有話題必須跟今天的時間點有共鳴，不要選已經過去的節慶或時節。
+
+【嚴格規則】
+- 每個話題必須是「單一獨立事件」，不能把兩件不相關的事湊成一個標題
+- 每個話題必須是24小時內發生的新聞，不能用超過3天的舊事件
+- 話題標題要具體，直接說「發生了什麼事」，不要泛泛而論
+- 台詞要有台灣人的反應感，不要說教，要有共鳴或吐槽感
 
 【輸出格式規定】
 - 必須輸出剛好6行
