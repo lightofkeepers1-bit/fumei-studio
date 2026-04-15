@@ -1942,7 +1942,11 @@ onAuthStateChanged(auth, async (user) => {
           }
         }).catch(() => {});
       }
-      setTimeout(() => { showIntroModal(); }, 500);
+      // 首次未登入訪客會自動看到 Landing Overlay（說服頁），此時不要同時彈 IntroModal 重疊
+      // 看過 Landing（或已是訪客模式）才跳 IntroModal
+      if (localStorage.getItem('fumei_landing_seen') === '1') {
+        setTimeout(() => { showIntroModal(); }, 500);
+      }
     }
   }
 });
