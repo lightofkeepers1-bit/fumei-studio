@@ -41,6 +41,26 @@
 }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- 回訪者偵測：SEO 友善（預設顯示 landing），但已來過的使用者直接進 app，避免閃爍 -->
+<script>
+(function(){
+  try {
+    var returning =
+      localStorage.getItem('fumei_landing_seen') === '1' ||
+      localStorage.getItem('fumei_uid') ||
+      localStorage.getItem('fumei_onboarded') === '1' ||
+      localStorage.getItem('fumei_guest_onboarded') === '1' ||
+      localStorage.getItem('fumei_guest_mode') === '1';
+    if (returning) {
+      document.documentElement.classList.add('returning-user');
+    }
+  } catch(e) {}
+})();
+</script>
+<style>
+/* 回訪者：landing 從 DOM 第一幀就隱藏（避免閃爍） */
+html.returning-user #landingOverlay { display: none !important; }
+</style>
 <style>
   :root {
     --pink: #F4A7B9;
@@ -8924,7 +8944,7 @@ window.addEventListener('load', () => {
 <!-- ═══════════════════════════════════════════ -->
 <!-- LANDING PAGE OVERLAY                        -->
 <!-- ═══════════════════════════════════════════ -->
-<div id="landingOverlay" style="display:none;position:fixed;inset:0;z-index:8000;overflow-y:auto;background:#fff">
+<div id="landingOverlay" style="display:block;position:fixed;inset:0;z-index:8000;overflow-y:auto;background:#fff">
 
   <!-- 開始使用 / Close button -->
   <button id="landingSkipBtn" onclick="closeLandingOverlay()" style="position:fixed;top:16px;right:16px;z-index:8100;background:rgba(255,255,255,0.9);border:1.5px solid #f0d8e0;color:#E07A95;padding:8px 20px;border-radius:24px;font-size:0.82rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.1);transition:all 0.2s" onmouseover="this.style.background='#fff5f8'" onmouseout="this.style.background='rgba(255,255,255,0.9)'">開始使用 →</button>
@@ -9094,36 +9114,22 @@ window.addEventListener('load', () => {
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── Landing Overlay 控制 ────────────────────────
 function showLandingOverlay() {
-  document.getElementById('landingOverlay').style.display = 'block';
+  document.documentElement.classList.remove('returning-user');
+  const lo = document.getElementById('landingOverlay');
+  if (lo) { lo.style.display = 'block'; lo.scrollTop = 0; }
   document.body.style.overflow = 'hidden';
-  document.getElementById('landingOverlay').scrollTop = 0;
 }
 
 function closeLandingOverlay() {
-  document.getElementById('landingOverlay').style.display = 'none';
+  const lo = document.getElementById('landingOverlay');
+  if (lo) lo.style.display = 'none';
   document.body.style.overflow = '';
-  // 記住已看過 landing
-  localStorage.setItem('fumei_landing_seen', '1');
+  // 記住已看過 landing；下次進來直接看 app
+  try { localStorage.setItem('fumei_landing_seen', '1'); } catch(e) {}
+  document.documentElement.classList.add('returning-user');
 }
 
-// 新用戶自動顯示 Landing（沒登入 + 沒看過）
-(function() {
-  try {
-    const seen = localStorage.getItem('fumei_landing_seen');
-    const hasAccount =
-      localStorage.getItem('fumei_credits') ||
-      localStorage.getItem('fumei_onboarded') ||
-      localStorage.getItem('fumei_uid') ||
-      localStorage.getItem('fumei_guest_mode') === '1' ||
-      localStorage.getItem('fumei_guest_onboarded') === '1';
-    if (!seen && !hasAccount) {
-      // 等 DOM 準備好再展開，避免遮住尚未載入的元素
-      window.addEventListener('DOMContentLoaded', function(){
-        if (document.getElementById('landingOverlay')) showLandingOverlay();
-      });
-    }
-  } catch(e) { /* 靜默失敗，不影響主流程 */ }
-})();
+// Landing 在 DOM 中預設顯示（SEO 友善），回訪者已由 <head> 的 returning-user class 即時隱藏
 </script>
 </body>
 </html>
