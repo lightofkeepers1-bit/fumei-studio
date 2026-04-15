@@ -8932,7 +8932,7 @@ window.addEventListener('load', () => {
       <span style="color:#e0d0e8;font-size:0.7rem">|</span>
       <a href="/terms" style="font-size:0.78rem;color:#6B4A5E;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#6B4A5E'">使用條款</a>
       <span style="color:#e0d0e8;font-size:0.7rem">|</span>
-      <a href="mailto:lightofkeepers1@gmail.com" style="font-size:0.78rem;color:#6B4A5E;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#6B4A5E'">聯絡我們</a>
+      <a href="#" onclick="event.preventDefault(); copyContactEmail(this);" style="font-size:0.78rem;color:#6B4A5E;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#6B4A5E'">聯絡我們</a>
     </div>
     <div style="font-size:0.72rem;color:#8A6B7A;font-family:'Nunito',sans-serif;line-height:1.8">
       © 2025 Fumei Studio（個人開發者）｜聯絡信箱：lightofkeepers1@gmail.com<br>
@@ -9130,6 +9130,37 @@ function closeLandingOverlay() {
 }
 
 // Landing 在 DOM 中預設顯示（SEO 友善），回訪者已由 <head> 的 returning-user class 即時隱藏
+
+// 聯絡 Email：點一下複製到剪貼簿 + Toast 提示（不開 mailto）
+function copyContactEmail(anchorEl) {
+  const email = 'lightofkeepers1@gmail.com';
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:rgba(50,30,80,0.92);color:white;padding:12px 22px;border-radius:24px;font-size:0.9rem;font-weight:800;font-family:"Nunito",sans-serif;z-index:10000;box-shadow:0 6px 24px rgba(0,0,0,0.2);opacity:0;transition:opacity 0.2s';
+    document.body.appendChild(t);
+    requestAnimationFrame(() => { t.style.opacity = '1'; });
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 250); }, 1800);
+  }
+  const fallbackCopy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = email;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(email)
+      .then(() => showToast('✓ 已複製 Email：' + email))
+      .catch(() => { fallbackCopy(); showToast('✓ 已複製 Email：' + email); });
+  } else {
+    fallbackCopy();
+    showToast('✓ 已複製 Email：' + email);
+  }
+}
+window.copyContactEmail = copyContactEmail;
 </script>
 </body>
 </html>
