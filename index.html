@@ -53,6 +53,10 @@
     --radius: 20px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* a11y: clear focus outline for keyboard users */
+  :focus { outline: none; }
+  :focus-visible { outline: 3px solid #764ba2; outline-offset: 2px; border-radius: 6px; }
+  .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   body { font-family: 'Noto Sans TC', sans-serif; background: var(--cream); min-height: 100vh;
     background-image: radial-gradient(circle at 10% 20%, #fce4ec55 0%, transparent 50%), radial-gradient(circle at 90% 80%, #e8d5f555 0%, transparent 50%); }
   header, nav { width:100%; }
@@ -2367,13 +2371,14 @@ window.syncToCloud = async () => {
   <button onclick="openSettings()" style="background:rgba(118,75,162,0.1);border:1.5px dashed #C9B8E8;color:#764ba2;padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;vertical-align:middle;margin-left:4px">＋ 管理角色</button>
 </div>
 
-<nav>
-  <button class="tab active" onclick="switchTab('daily',this)">📅 每日任務</button>
-  <button class="tab" onclick="switchTab('topics',this)">💡 話題掃描</button>
-  <button class="tab" onclick="switchTab('script',this)">✍️ 產腳本</button>
-  <button class="tab" onclick="switchTab('image',this)">🎨 生圖</button>
-  <button class="tab" onclick="switchTab('history',this)">📖 歷史紀錄</button>
-  <button class="tab" id="feedbackTab" style="display:none" onclick="switchTab('feedback',this)">💬 回饋</button>
+<h1 class="sr-only">Fumei Studio — 台灣 AI 梗圖創作助手</h1>
+<nav role="tablist" aria-label="主要功能分頁">
+  <button class="tab active" role="tab" data-tab="daily"    aria-selected="true"  aria-controls="panel-daily"    onclick="switchTab('daily',this)"><span aria-hidden="true">📅</span> 每日任務</button>
+  <button class="tab"        role="tab" data-tab="topics"   aria-selected="false" aria-controls="panel-topics"   onclick="switchTab('topics',this)"><span aria-hidden="true">💡</span> 話題掃描</button>
+  <button class="tab"        role="tab" data-tab="script"   aria-selected="false" aria-controls="panel-script"   onclick="switchTab('script',this)"><span aria-hidden="true">✍️</span> 產腳本</button>
+  <button class="tab"        role="tab" data-tab="image"    aria-selected="false" aria-controls="panel-image"    onclick="switchTab('image',this)"><span aria-hidden="true">🎨</span> 生圖</button>
+  <button class="tab"        role="tab" data-tab="history"  aria-selected="false" aria-controls="panel-history"  onclick="switchTab('history',this)"><span aria-hidden="true">📖</span> 歷史紀錄</button>
+  <button class="tab" id="feedbackTab" role="tab" data-tab="feedback" aria-selected="false" aria-controls="panel-feedback" style="display:none" onclick="switchTab('feedback',this)"><span aria-hidden="true">💬</span> 回饋</button>
 </nav>
 
 <main>
@@ -3486,11 +3491,53 @@ function syncMobileCheckinBar() {
 
 // ── TABS ─────────────────────────────────────────
 function switchTab(name, el) {
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+    b.setAttribute('tabindex', '-1');
+  });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('panel-' + name).classList.add('active');
+  const btn = el || document.querySelector('.tab[data-tab="' + name + '"]');
+  if (btn) {
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    btn.setAttribute('tabindex', '0');
+  }
+  const panel = document.getElementById('panel-' + name);
+  if (panel) {
+    panel.classList.add('active');
+    panel.setAttribute('role', 'tabpanel');
+  }
+  // URL hash 同步（可分享深連結、可按返回鍵）
+  if (location.hash.slice(1) !== name) {
+    try { history.replaceState(null, '', '#' + name); } catch(e) {}
+  }
 }
+// 讀 URL hash 還原 Tab；鍵盤左右箭頭切換
+(function(){
+  const VALID = ['daily','topics','script','image','history','feedback'];
+  function restoreFromHash() {
+    const n = location.hash.slice(1);
+    if (VALID.includes(n)) {
+      const b = document.querySelector('.tab[data-tab="' + n + '"]');
+      if (b && b.offsetParent !== null) switchTab(n, b);
+    }
+  }
+  window.addEventListener('DOMContentLoaded', restoreFromHash);
+  window.addEventListener('hashchange', restoreFromHash);
+  document.addEventListener('keydown', function(e){
+    const t = document.activeElement;
+    if (!t || !t.classList || !t.classList.contains('tab')) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const tabs = Array.from(document.querySelectorAll('.tab')).filter(x => x.offsetParent !== null);
+    const i = tabs.indexOf(t);
+    if (i < 0) return;
+    const next = e.key === 'ArrowRight' ? tabs[(i+1) % tabs.length] : tabs[(i-1+tabs.length) % tabs.length];
+    next.focus();
+    next.click();
+    e.preventDefault();
+  });
+})();
 function showSub(name, el) {
   document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
@@ -8857,14 +8904,15 @@ window.addEventListener('load', () => {
       <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:0.95rem;color:var(--pink-deep)">Fumei Studio</span>
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
-      <a href="https://fumei-studio.com/privacy" target="_blank" style="font-size:0.78rem;color:#aaa;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#aaa'">隱私政策</a>
+      <a href="/privacy" style="font-size:0.78rem;color:#6B4A5E;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#6B4A5E'">隱私政策</a>
       <span style="color:#e0d0e8;font-size:0.7rem">|</span>
-      <a href="https://fumei-studio.com/terms" target="_blank" style="font-size:0.78rem;color:#aaa;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#aaa'">使用條款</a>
+      <a href="/terms" style="font-size:0.78rem;color:#6B4A5E;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#6B4A5E'">使用條款</a>
       <span style="color:#e0d0e8;font-size:0.7rem">|</span>
-      <a href="/cdn-cgi/l/email-protection#ed81848a8599828b8688889d889f9edcad8a808c8481c38e8280" style="font-size:0.78rem;color:#aaa;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#aaa'">聯絡我們</a>
+      <a href="mailto:lightofkeepers1@gmail.com" style="font-size:0.78rem;color:#6B4A5E;text-decoration:none;font-weight:700;font-family:'Nunito',sans-serif" onmouseover="this.style.color='var(--pink-deep)'" onmouseout="this.style.color='#6B4A5E'">聯絡我們</a>
     </div>
-    <div style="font-size:0.72rem;color:#ccc;font-family:'Nunito',sans-serif">
-      © 2025 Fumei Studio｜AI 生成內容僅供參考，請自行確認準確度後再發布
+    <div style="font-size:0.72rem;color:#8A6B7A;font-family:'Nunito',sans-serif;line-height:1.8">
+      © 2025 Fumei Studio（個人開發者）｜聯絡信箱：lightofkeepers1@gmail.com<br>
+      AI 生成內容僅供參考，請自行確認準確度後再發布
     </div>
   </div>
 </footer>
@@ -9054,7 +9102,24 @@ function closeLandingOverlay() {
   localStorage.setItem('fumei_landing_seen', '1');
 }
 
-// 新用戶自動顯示 Landing（沒有任何 localStorage 資料）
+// 新用戶自動顯示 Landing（沒登入 + 沒看過）
 (function() {
-  const seen = localStorage.getItem('fumei_landing_seen');
-  const hasAccount = localStorage.getItem('fumei_credits') || localStorage.getItem('fumei_onboarded') || localStorage.getItem('fumei
+  try {
+    const seen = localStorage.getItem('fumei_landing_seen');
+    const hasAccount =
+      localStorage.getItem('fumei_credits') ||
+      localStorage.getItem('fumei_onboarded') ||
+      localStorage.getItem('fumei_uid') ||
+      localStorage.getItem('fumei_guest_mode') === '1' ||
+      localStorage.getItem('fumei_guest_onboarded') === '1';
+    if (!seen && !hasAccount) {
+      // 等 DOM 準備好再展開，避免遮住尚未載入的元素
+      window.addEventListener('DOMContentLoaded', function(){
+        if (document.getElementById('landingOverlay')) showLandingOverlay();
+      });
+    }
+  } catch(e) { /* 靜默失敗，不影響主流程 */ }
+})();
+</script>
+</body>
+</html>
