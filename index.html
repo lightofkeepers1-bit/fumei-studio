@@ -4197,6 +4197,21 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   return texts;
 }
 
+// 話題掃描快取：同分類 + 同小時內不重複打 API
+function _getScanCacheKey(cat) {
+  const d = new Date();
+  return `fumei_scan_${cat}_${d.getFullYear()}${d.getMonth()}${d.getDate()}_${d.getHours()}`;
+}
+function _getScanCache(cat) {
+  try {
+    const raw = localStorage.getItem(_getScanCacheKey(cat));
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+function _setScanCache(cat, data) {
+  try { localStorage.setItem(_getScanCacheKey(cat), JSON.stringify(data)); } catch(e) {}
+}
+
 async function scanTopics() {
   const catKey = document.getElementById('topicCat').value;
   const isPtt = catKey === 'PTT';
@@ -4207,6 +4222,22 @@ async function scanTopics() {
   const grid = document.getElementById('topicsGrid');
   const err = document.getElementById('scanErr');
   err.classList.remove('show');
+
+  // 快取命中 → 免費直接顯示（同分類、同小時）
+  const _cached = _getScanCache(catKey);
+  if (_cached && _cached.html) {
+    grid.innerHTML = _cached.html;
+    if (_cached.rssItems) window._rssItems = _cached.rssItems;
+    document.getElementById('topicsCard').style.display = 'block';
+    // 重新綁定 click 事件
+    grid.querySelectorAll('.topic-chip').forEach((el, idx) => {
+      el.addEventListener('click', () => {
+        const title = _cached.topics?.[idx]?.title || el.querySelector('strong')?.textContent || '';
+        pickTopic(title, -1);
+      });
+    });
+    return;
+  }
 
   // 訪客：先扣點再執行
   if (window._guestMode && !window._currentUid) {
@@ -4324,6 +4355,9 @@ ${pttHeadlines}
         el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
       });
       document.getElementById('topicsCard').style.display = 'block';
+
+      // 快取此次結果（同分類、同小時內再掃直接用）
+      _setScanCache(catKey, { html: grid.innerHTML, topics: topicList, rssItems: window._rssItems || [] });
 
       // 存入歷史
       if (window._currentUid && !window._guestMode && topicList.length > 0) {
@@ -4930,7 +4964,7 @@ ${charCtx}
 原因：台灣上班族對無意義會議的共同痛苦，一看就懂`;
 
   const results = await Promise.allSettled([
-    claude(charCtx, claudePrompt('邏輯清晰、反差感強，找出意想不到的對比角度'), false, true),
+    claude(charCtx, claudePrompt('邏輯清晰、反差感強，找出意想不到的對比角度'), false, false, 'inspo'),
     callGemini(geminiPrompt('創意跳躍、視覺感強，找出畫面感十足的場景'), 'inspo', geminiSystem),
     callGPT(geminiGptPrompt('生活共鳴、情緒到位，說出大家心裡有口難言的話'))
   ]);
@@ -5185,7 +5219,6 @@ async function genScript(directionHint) {
       const _todayDate = new Date().toISOString().slice(0, 10);
       let _recentTopics = [];
       try {
-        // 跨日自動重置排除清單
         if (localStorage.getItem(_recentDateKey) !== _todayDate) {
           localStorage.removeItem(_recentKey);
           localStorage.setItem(_recentDateKey, _todayDate);
@@ -5195,17 +5228,30 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 隨機種子：讓 AI 每次選不同方向
       const _randSeed = ['政治','社會','財經','娛樂','科技','生活','國際','體育'][Math.floor(Math.random()*8)];
+
+      // 改用 RSS 取新聞標題（免費），不走 web_search（省 Claude 搜尋費）
+      let _todayHeadlines = '';
+      try {
+        const _catMap = { '政治':'politics','社會':'society','財經':'finance','娛樂':'entertainment','科技':'finance','生活':'lifestyle','國際':'world','體育':'sports' };
+        const _rssParam = _catMap[_randSeed] ? `?category=${_catMap[_randSeed]}` : '';
+        const _nRes = await fetch(`/api/news${_rssParam}`, { headers: { 'Content-Type':'application/json', 'x-firebase-uid': window._currentUid || '' } });
+        if (_nRes.ok) {
+          const _nData = await _nRes.json();
+          if (_nData.items?.length) _todayHeadlines = _nData.items.slice(0, 15).map(t => `・${t.title}（${t.source}）`).join('\n');
+        }
+      } catch(e) {}
+      const _headlinesNote = _todayHeadlines ? `\n\n以下是今日「${_randSeed}」類新聞標題供你選擇：\n${_todayHeadlines}` : '';
 
       const dirRes = await claudeScan(
         `今天是 ${todayStr}。你是台灣社群梗圖創作助手，幫「${charName}」這個角色規劃今日貼文。
 
 【角色資訊】
 ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
+${_headlinesNote}
 
-請搜尋台灣今日的時事新聞，特別關注「${_randSeed}」相關話題（但不限於此），選出一個有趣且適合做成梗圖的話題。
-不要總是選最大的頭條，而是找一個有「梗」的空間、能引起共鳴的話題。${_excludeNote}
+從上面的新聞中（或你知道的今日時事），選出一個有趣且適合做成梗圖的話題。
+不要選例行記者會或政策宣佈，要選台灣人真的在聊、有情緒反應的事件。${_excludeNote}
 
 提供3個不同的發文切角，切角要符合角色個性和說話風格。
 
@@ -5543,7 +5589,9 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         } else if (_scriptModel === 'gemini') {
           script = await callGeminiScript(_sys, scriptPrompt);
         } else {
-          script = await claude(_sys, scriptPrompt, false, true);
+          // 時事類用 Sonnet（需要深度 + 梗），日常類用 Haiku（省 10 倍）
+          const _needSonnet = type === '時事反應' || type === '今天發什麼';
+          script = await claude(_sys, scriptPrompt, false, _needSonnet);
         }
 
     // Show which style was used
