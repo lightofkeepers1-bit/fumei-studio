@@ -4414,23 +4414,33 @@ ${pttHeadlines}
         : '';
 
       try {
-        const _geminiScanPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新的時事新聞與熱門話題，挑出6個最適合做成梗圖的話題。${catNote}
+        const _geminiScanPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請用 Google Search 搜尋台灣今天的時事新聞，找出 6 個真實的新聞事件。${catNote}
 
-【選題原則】
-- 優先選「台灣人今天真的在討論、有情緒反應」的話題（社群有爭議、有共鳴、有反差）
-- 不要選例行記者會、政策宣佈、法規修正（除非引起強烈反彈）
-- 6個話題必須是完全不同的事件，禁止同一人名/事件出現兩次
-- 涵蓋不同領域（政治、社會、娛樂、民生、科技、國際、體育等）
+【必須輸出剛好 6 個，不能少】
 
-【輸出格式規定】
-- 必須輸出剛好6行，不要編號
-- 每行格式：話題標題｜角色一句吐槽或共鳴台詞
-- 每行必須包含全形｜符號
-- 不要任何額外說明、不要 markdown
+【選題原則 — 非常重要】
+✅ 必須是**真實的新聞事件**：有發生什麼事、誰做了什麼、結果是什麼
+✅ 你必須先搜尋、讀過新聞、清楚了解事件內容，才能寫出話題
+❌ 絕對不要只把 Google 熱搜關鍵字當話題（例如「陳信瑜」「gemini mac」這種只有人名或詞組的）
+❌ 如果搜尋後你不確定這個關鍵字背後是什麼事件，就跳過、找別的
+❌ 不要例行記者會、政策宣佈、法規修正（除非引爆民意）
+
+【話題標題規則】
+- 要是一個完整敘述的事件句（至少 10 字）
+- 壞範例：「陳信瑜」、「髭男演唱會」、「gemini mac」
+- 好範例：「陳信瑜接任NCC主委引藍委質疑」、「髭男來台演唱會黃牛票炒到萬元」、「蘋果傳推 Gemini 版 Mac 重擊 Google」
+
+【必須涵蓋不同領域】
+政治、社會、娛樂、民生、科技、國際、體育 — 6 題不能全擠在同一類
+
+【輸出格式】
+- 剛好 6 行，不要編號、不要 markdown
+- 每行：完整事件標題｜角色一句吐槽（全形｜分隔）
+- 不要任何額外說明
 
 範例：
 台積電法說會市場緊盯AI財測｜又到了看張忠謀接班人表演的日子
-金慧成驚傳醜聞韓圈震盪｜連韓星都不夠Google搜了`;
+韓星金慧成被爆勒索醜聞韓圈震盪｜連負評都要Google熱搜`;
 
         const _geminiHeaders = { 'Content-Type': 'application/json' };
         if (window._currentUid) _geminiHeaders['x-firebase-uid'] = window._currentUid;
@@ -4456,14 +4466,23 @@ ${pttHeadlines}
 
             function parseTopicLines(txt) { return txt.split('\n').filter(l => l.includes('｜') || l.includes('|')); }
             let lines = parseTopicLines(_gText.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, ''));
-            if (lines.length >= 3) {
+            // 先解析再做品質檢查
+            const _parsedTopics = lines.map(l => {
+              const sepIdx = l.indexOf('｜') >= 0 ? l.indexOf('｜') : l.indexOf('|');
+              const title = l.slice(0, sepIdx).replace(/^\d+[\.\)、]\s*/, '').trim();
+              const sub = l.slice(sepIdx + 1).trim();
+              return { title, sub, rssIndex: -1 };
+            }).filter(item => {
+              // 品質檢查：標題必須是完整句子（至少 8 字），不能只是關鍵字
+              if (!item.title || item.title.length < 8) return false;
+              // 標題必須包含動詞或敘述詞（含空格、標點、或 CJK 字數 >= 6）
+              const cjkCount = (item.title.match(/[\u4e00-\u9fff]/g) || []).length;
+              return cjkCount >= 6;
+            });
+            // 必須至少 5 題合格才視為成功
+            if (_parsedTopics.length >= 5) {
               geminiSuccess = true;
-              const topicList = lines.map(l => {
-                const sepIdx = l.indexOf('｜') >= 0 ? l.indexOf('｜') : l.indexOf('|');
-                const title = l.slice(0, sepIdx).replace(/^\d+[\.\)、]\s*/, '').trim();
-                const sub = l.slice(sepIdx + 1).trim();
-                return { title, sub, rssIndex: -1 };
-              }).filter(item => item.title.length > 0).slice(0, 6);
+              const topicList = _parsedTopics.slice(0, 6);
 
               grid.innerHTML = topicList.map((item, i) => {
                 return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
