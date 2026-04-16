@@ -4414,33 +4414,25 @@ ${pttHeadlines}
         : '';
 
       try {
-        const _geminiScanPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請用 Google Search 搜尋台灣今天的時事新聞，找出 6 個真實的新聞事件。${catNote}
+        const _geminiScanPrompt = `請搜尋並整理台灣今天（${today.toLocaleDateString('zh-TW')}）的 6 個時事重點。${catNote}
 
-【必須輸出剛好 6 個，不能少】
+我要的是像新聞簡報一樣的格式，每則必須：
+- 有一個完整敘述的事件標題（像報紙頭條，不是關鍵字）
+- 簡短說明這個事件的關鍵內容（誰、發生什麼事、為什麼重要）
+- 最後配一句「角色會說的吐槽或共鳴台詞」
 
-【選題原則 — 非常重要】
-✅ 必須是**真實的新聞事件**：有發生什麼事、誰做了什麼、結果是什麼
-✅ 你必須先搜尋、讀過新聞、清楚了解事件內容，才能寫出話題
-❌ 絕對不要只把 Google 熱搜關鍵字當話題（例如「陳信瑜」「gemini mac」這種只有人名或詞組的）
-❌ 如果搜尋後你不確定這個關鍵字背後是什麼事件，就跳過、找別的
-❌ 不要例行記者會、政策宣佈、法規修正（除非引爆民意）
+6 則必須是完全不同的事件，涵蓋不同領域（政治、社會、娛樂、民生、科技、國際等）。
+不要選例行記者會或政策宣佈，要選台灣人真的在討論、有情緒反應的事。
 
-【話題標題規則】
-- 要是一個完整敘述的事件句（至少 10 字）
-- 壞範例：「陳信瑜」、「髭男演唱會」、「gemini mac」
-- 好範例：「陳信瑜接任NCC主委引藍委質疑」、「髭男來台演唱會黃牛票炒到萬元」、「蘋果傳推 Gemini 版 Mac 重擊 Google」
+格式（每則用空行隔開，共 6 則）：
 
-【必須涵蓋不同領域】
-政治、社會、娛樂、民生、科技、國際、體育 — 6 題不能全擠在同一類
+**1. 台積電法說會登場，市場緊盯AI財測**
+全球矚目的台積電法說會今日下午舉行，市場關注AI需求是否持續強勁、2026營收成長率以及資本支出水平。
+吐槽：又到了看台積電決定全世界 AI 生死的日子
 
-【輸出格式】
-- 剛好 6 行，不要編號、不要 markdown
-- 每行：完整事件標題｜角色一句吐槽（全形｜分隔）
-- 不要任何額外說明
-
-範例：
-台積電法說會市場緊盯AI財測｜又到了看張忠謀接班人表演的日子
-韓星金慧成被爆勒索醜聞韓圈震盪｜連負評都要Google熱搜`;
+**2. 鄭麗文訪中經費遭質疑**
+國民黨主席鄭麗文率團訪中與習近平會晤，媒體爆料 480 萬經費由台灣民主基金會撥補，綠營批評「國庫買單」。
+吐槽：原來兩岸交流是全民贊助的，謝謝我的納稅錢`;
 
         const _geminiHeaders = { 'Content-Type': 'application/json' };
         if (window._currentUid) _geminiHeaders['x-firebase-uid'] = window._currentUid;
@@ -4450,8 +4442,9 @@ ${pttHeadlines}
           if (window._guestToken) _geminiHeaders['x-guest-token'] = window._guestToken;
         }
         const _geminiBody = {
-          model: 'gemini-2.5-flash',
-          generationConfig: { temperature: 0.9, maxOutputTokens: 1000, responseMimeType: 'text/plain' },
+          // 升級到 Pro — Flash 應付不了 Google Search grounding + 多重格式要求
+          model: 'gemini-2.5-pro',
+          generationConfig: { temperature: 0.9, maxOutputTokens: 3000, responseMimeType: 'text/plain' },
           contents: [{ parts: [{ text: _geminiScanPrompt }] }],
           tools: [{ google_search: {} }]
         };
@@ -4459,26 +4452,36 @@ ${pttHeadlines}
         if (_gr.ok) {
           const _gd = await _gr.json();
           const _gText = _gd.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
-          if (_gText && (_gText.includes('｜') || _gText.includes('|'))) {
-            // Gemini 回傳了有效的格式化話題 → 直接進入解析，跳過 Claude
+          if (_gText) {
             prompt = null;
             useWebSearch = false;
 
-            function parseTopicLines(txt) { return txt.split('\n').filter(l => l.includes('｜') || l.includes('|')); }
-            let lines = parseTopicLines(_gText.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, ''));
-            // 先解析再做品質檢查
-            const _parsedTopics = lines.map(l => {
-              const sepIdx = l.indexOf('｜') >= 0 ? l.indexOf('｜') : l.indexOf('|');
-              const title = l.slice(0, sepIdx).replace(/^\d+[\.\)、]\s*/, '').trim();
-              const sub = l.slice(sepIdx + 1).trim();
-              return { title, sub, rssIndex: -1 };
-            }).filter(item => {
-              // 品質檢查：標題必須是完整句子（至少 8 字），不能只是關鍵字
-              if (!item.title || item.title.length < 8) return false;
-              // 標題必須包含動詞或敘述詞（含空格、標點、或 CJK 字數 >= 6）
-              const cjkCount = (item.title.match(/[\u4e00-\u9fff]/g) || []).length;
-              return cjkCount >= 6;
-            });
+            // 新解析：拆成 6 個段落，每段抓「標題 + 說明 + 吐槽」
+            // 段落分隔：空行 或 「**N.」 開頭
+            const _parsedTopics = [];
+            // 先用 ** N. 標題 ** 分段
+            const _segments = _gText.split(/(?=\*\*\s*\d+[\.\)、])/g).map(s => s.trim()).filter(s => s);
+            for (const seg of _segments) {
+              // 提取標題：**N. XXX**
+              const _titleMatch = seg.match(/\*\*\s*\d+[\.\)、]\s*(.+?)\*\*/);
+              if (!_titleMatch) continue;
+              const title = _titleMatch[1].trim();
+              if (title.length < 8) continue;
+              // 提取吐槽：「吐槽：...」 或 最後一行
+              const _rest = seg.replace(_titleMatch[0], '').trim();
+              const _tsuMatch = _rest.match(/吐槽[：:]\s*(.+?)(?:\n|$)/);
+              let sub = _tsuMatch ? _tsuMatch[1].trim() : '';
+              // 如果沒有「吐槽：」標籤，取最後一個非空行當吐槽
+              if (!sub) {
+                const _lines = _rest.split('\n').map(l => l.trim()).filter(Boolean);
+                sub = _lines[_lines.length - 1] || '';
+              }
+              // 清除 markdown 殘留
+              sub = sub.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+              if (sub.length < 3) continue;
+              _parsedTopics.push({ title, sub, rssIndex: -1 });
+            }
+
             // 必須至少 5 題合格才視為成功
             if (_parsedTopics.length >= 5) {
               geminiSuccess = true;
