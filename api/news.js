@@ -99,8 +99,8 @@ export default async function handler(req, res) {
       if (items.length >= 30) break;
     }
 
-    // 只保留 2 天內的新聞（今天＋昨天）
-    const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
+    // 只保留 36 小時內的新聞（今日時事要新鮮）
+    const twoDaysAgo = Date.now() - 36 * 60 * 60 * 1000;
     const recentItems = items.filter(item => {
       if (!item.pubDate) return true;
       const pub = new Date(item.pubDate).getTime();

@@ -4385,15 +4385,26 @@ ${pttHeadlines}
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            // 只保留 36 小時內的新聞（「今日時事」不該出現上週的）
+            const cutoff = Date.now() - 36 * 60 * 60 * 1000;
             const recentItems = newsData.items.filter(item => {
               if (!item.pubDate) return true;
               const pub = new Date(item.pubDate).getTime();
-              return !isNaN(pub) && pub >= sevenDaysAgo;
+              return !isNaN(pub) && pub >= cutoff;
             });
             const itemsToUse = recentItems.length >= 3 ? recentItems : newsData.items;
+            // 標題去重（同一事件被多家報導 → 只留第一則）
+            const _seen = new Set();
+            const deduped = itemsToUse.filter(item => {
+              // 取標題前 8 字作為 key（同事件不同媒體標題前幾字通常相同）
+              const k = item.title.replace(/[^\u4e00-\u9fff]/g, '').slice(0, 8);
+              if (!k || _seen.has(k)) return false;
+              _seen.add(k);
+              return true;
+            });
+            // 每家來源最多 2 則，避免單一媒體霸屏
             const capPerSource = {};
-            const balanced = itemsToUse.filter(item => {
+            const balanced = deduped.filter(item => {
               capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
               return capPerSource[item.source] <= 2;
             });
