@@ -4197,10 +4197,12 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   return texts;
 }
 
-// 話題掃描快取：同分類 + 同小時內不重複打 API
+// 話題掃描快取：同角色 + 同分類 + 同小時內不重複打 API
 function _getScanCacheKey(cat) {
   const d = new Date();
-  return `fumei_scan_${cat}_${d.getFullYear()}${d.getMonth()}${d.getDate()}_${d.getHours()}`;
+  // 加上目前角色 index，不同角色各自快取（吐槽會因角色而異）
+  const charIdx = (typeof getActiveIdx === 'function') ? getActiveIdx() : 0;
+  return `fumei_scan_c${charIdx}_${cat}_${d.getFullYear()}${d.getMonth()}${d.getDate()}_${d.getHours()}`;
 }
 function _getScanCache(cat) {
   try {
@@ -4414,12 +4416,22 @@ ${pttHeadlines}
         : '';
 
       try {
-        const _geminiScanPrompt = `請搜尋並整理台灣今天（${today.toLocaleDateString('zh-TW')}）的 6 個時事重點。${catNote}
+        // 注入角色設定，讓吐槽符合角色個性
+        const _charCtxForScan = buildCharPrompt();
+        const _charName = getCharName();
+
+        const _geminiScanPrompt = `【角色設定】
+${_charCtxForScan}
+
+---
+
+你是「${_charName}」的社群貼文企劃助理。
+請搜尋並整理台灣今天（${today.toLocaleDateString('zh-TW')}）的 6 個時事重點。${catNote}
 
 我要的是像新聞簡報一樣的格式，每則必須：
 - 有一個完整敘述的事件標題（像報紙頭條，不是關鍵字）
 - 簡短說明這個事件的關鍵內容（誰、發生什麼事、為什麼重要）
-- 最後配一句「角色會說的吐槽或共鳴台詞」
+- 最後配一句「吐槽」—— 必須**完全符合「${_charName}」上面的角色個性、說話風格、立場與語氣**，就像是這個角色本人看到新聞後的真實反應
 
 6 則必須是完全不同的事件，涵蓋不同領域（政治、社會、娛樂、民生、科技、國際等）。
 不要選例行記者會或政策宣佈，要選台灣人真的在討論、有情緒反應的事。
@@ -4428,11 +4440,11 @@ ${pttHeadlines}
 
 **1. 台積電法說會登場，市場緊盯AI財測**
 全球矚目的台積電法說會今日下午舉行，市場關注AI需求是否持續強勁、2026營收成長率以及資本支出水平。
-吐槽：又到了看台積電決定全世界 AI 生死的日子
+吐槽：（這裡寫${_charName}看到這則新聞會說的話，語氣符合角色設定）
 
 **2. 鄭麗文訪中經費遭質疑**
 國民黨主席鄭麗文率團訪中與習近平會晤，媒體爆料 480 萬經費由台灣民主基金會撥補，綠營批評「國庫買單」。
-吐槽：原來兩岸交流是全民贊助的，謝謝我的納稅錢`;
+吐槽：（${_charName}的真實反應，符合角色個性）`;
 
         const _geminiHeaders = { 'Content-Type': 'application/json' };
         if (window._currentUid) _geminiHeaders['x-firebase-uid'] = window._currentUid;
