@@ -4404,6 +4404,7 @@ ${pttHeadlines}
 
     let prompt;
     let useWebSearch = false;
+    let geminiSuccess = false;
     if (isNews) {
       // ── Gemini + Google Search 一步到位（取代 RSS + Claude 兩段式）──
       window._rssItems = [];
@@ -4411,7 +4412,6 @@ ${pttHeadlines}
       const catNote = (_selectedNewsCat && _selectedNewsCat !== 'all')
         ? `\n重點篩選：請優先選擇與「${catKw}」相關的新聞。`
         : '';
-      let geminiSuccess = false;
 
       try {
         const _geminiScanPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新的時事新聞與熱門話題，挑出6個最適合做成梗圖的話題。${catNote}
