@@ -5244,28 +5244,14 @@ async function genScript(directionHint) {
         : '';
       const _randSeed = ['政治','社會','財經','娛樂','科技','生活','國際','體育'][Math.floor(Math.random()*8)];
 
-      // 改用 RSS 取新聞標題（免費），不走 web_search（省 Claude 搜尋費）
-      let _todayHeadlines = '';
-      try {
-        const _catMap = { '政治':'politics','社會':'society','財經':'finance','娛樂':'entertainment','科技':'finance','生活':'lifestyle','國際':'world','體育':'sports' };
-        const _rssParam = _catMap[_randSeed] ? `?category=${_catMap[_randSeed]}` : '';
-        const _nRes = await fetch(`/api/news${_rssParam}`, { headers: { 'Content-Type':'application/json', 'x-firebase-uid': window._currentUid || '' } });
-        if (_nRes.ok) {
-          const _nData = await _nRes.json();
-          if (_nData.items?.length) _todayHeadlines = _nData.items.slice(0, 15).map(t => `・${t.title}（${t.source}）`).join('\n');
-        }
-      } catch(e) {}
-      const _headlinesNote = _todayHeadlines ? `\n\n以下是今日「${_randSeed}」類新聞標題供你選擇：\n${_todayHeadlines}` : '';
-
-      const dirRes = await claudeScan(
-        `今天是 ${todayStr}。你是台灣社群梗圖創作助手，幫「${charName}」這個角色規劃今日貼文。
+      // Gemini + Google Search 一步到位（取代 RSS + Claude）
+      const _geminiTodayPrompt = `今天是 ${todayStr}。你是台灣社群梗圖創作助手，幫「${charName}」這個角色規劃今日貼文。
 
 【角色資訊】
 ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
-${_headlinesNote}
 
-從上面的新聞中（或你知道的今日時事），選出一個有趣且適合做成梗圖的話題。
-不要選例行記者會或政策宣佈，要選台灣人真的在聊、有情緒反應的事件。${_excludeNote}
+請搜尋台灣今天在「${_randSeed}」領域的時事新聞，找出一個有趣、有梗、適合做成梗圖的話題。
+要選台灣人真的在聊、有情緒反應的事件，不要選例行記者會或政策宣佈。${_excludeNote}
 
 提供3個不同的發文切角，切角要符合角色個性和說話風格。
 
@@ -5274,7 +5260,28 @@ ${_headlinesNote}
 背景：[一句話說明這個話題，20字以內]
 方向①：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]
 方向②：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]
-方向③：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]`, true);
+方向③：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]`;
+
+      // 用 Gemini + Google Search（一步到位，不用 RSS + Claude）
+      let dirRes;
+      try {
+        const _gHeaders = { 'Content-Type': 'application/json' };
+        if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
+        else { _gHeaders['x-fingerprint'] = window._fingerprint || ''; _gHeaders['x-guest-feature'] = 'script'; }
+        const _gBody = {
+          model: 'gemini-2.5-flash',
+          generationConfig: { temperature: 0.9, maxOutputTokens: 800, responseMimeType: 'text/plain' },
+          contents: [{ parts: [{ text: _geminiTodayPrompt }] }],
+          tools: [{ google_search: {} }]
+        };
+        const _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) });
+        if (!_gRes.ok) throw new Error('Gemini failed');
+        const _gData = await _gRes.json();
+        dirRes = _gData.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+      } catch(_gErr) {
+        // Gemini 失敗 → fallback 到 Claude + web_search
+        dirRes = await claudeScan(_geminiTodayPrompt, true);
+      }
 
       const _dirLines = dirRes.split('\n').map(l => l.trim()).filter(Boolean);
       const _topicLine = _dirLines.find(l => /^話題[：:]/.test(l));
