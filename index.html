@@ -5289,12 +5289,19 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 
 提供3個不同的發文切角，切角要符合角色個性和說話風格。
 
-【輸出格式規定】嚴格按照以下格式，不要任何額外說明：
-話題：[話題名稱，10字以內]
-背景：[一句話說明這個話題，20字以內]
-方向①：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]
-方向②：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]
-方向③：[切角名稱，6字以內]｜[具體說明這個方向怎麼做，30字以內]`;
+【輸出格式規定】嚴格按照以下格式，絕對不要使用 markdown、粗體（**）、標題符號（#），也不要任何額外說明：
+話題：話題名稱（10字以內）
+背景：一句話說明這個話題（20字以內）
+方向①：切角名稱（6字以內）｜具體說明這個方向怎麼做（30字以內）
+方向②：切角名稱（6字以內）｜具體說明這個方向怎麼做（30字以內）
+方向③：切角名稱（6字以內）｜具體說明這個方向怎麼做（30字以內）
+
+範例：
+話題：大谷只投不打
+背景：大谷翔平因傷勢單刀出賽，道奇主帥無奈
+方向①：打者復仇｜用兩格反差呈現打不到的無奈
+方向②：醫院即景｜角色視角從傷兵房看世界大賽
+方向③：斜槓悲歌｜用角色的職場語氣吐槽「多工」的代價`;
 
       // 用 Gemini + Google Search（一步到位，不用 RSS + Claude）
       let dirRes;
@@ -5317,19 +5324,25 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         dirRes = await claudeScan(_geminiTodayPrompt, true);
       }
 
-      const _dirLines = dirRes.split('\n').map(l => l.trim()).filter(Boolean);
+      // 先清除 markdown（Gemini 可能回傳 **方向①** 這種格式）
+      const _cleanRes = dirRes.replace(/\*\*/g, '').replace(/^#+\s*/gm, '');
+      const _dirLines = _cleanRes.split('\n').map(l => l.trim()).filter(Boolean);
       const _topicLine = _dirLines.find(l => /^話題[：:]/.test(l));
       const _bgLine = _dirLines.find(l => /^背景[：:]/.test(l));
-      const _dirItems = _dirLines.filter(l => /^方向[①②③]/.test(l));
+      // 寬鬆匹配：允許「方向①」「方向1」「方向 ①」「方向(1)」等
+      const _dirItems = _dirLines.filter(l => /^方向\s*[①②③1-3]/.test(l));
 
       const _topicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '今日時事';
       const _bgText = _bgLine ? _bgLine.replace(/^背景[：:]/, '').trim() : '';
       const _directions = _dirItems.map(l => {
-        const c = l.replace(/^方向[①②③][：:]?\s*/, '');
+        const c = l.replace(/^方向\s*[①②③1-3][\.\)、]?\s*[：:]?\s*/, '');
         const si = c.indexOf('｜') >= 0 ? c.indexOf('｜') : c.indexOf('|');
-        if (si < 0) return { name: c, desc: '' };
+        if (si < 0) {
+          // 沒有分隔符：把整段當 name，desc 留空
+          return { name: c.trim(), desc: '' };
+        }
         return { name: c.slice(0, si).trim(), desc: c.slice(si + 1).trim() };
-      });
+      }).filter(d => d.name.length > 0);
 
       notice.style.display = 'none';
       // 記住這次的話題，下次排除（最多保留 8 筆，避免 localStorage 膨脹）
