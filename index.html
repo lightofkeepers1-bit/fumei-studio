@@ -5154,13 +5154,26 @@ async function genScript(directionHint) {
       notice.textContent = '🔍 正在搜尋今日台灣熱門話題...';
       const todayStr = new Date().toLocaleDateString('zh-TW');
 
+      // 排除最近已用過的話題，避免重複
+      const _recentKey = 'fumei_recent_today_topics';
+      let _recentTopics = [];
+      try { _recentTopics = JSON.parse(localStorage.getItem(_recentKey) || '[]'); } catch(e) {}
+      const _excludeNote = _recentTopics.length
+        ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
+        : '';
+      // 隨機種子：讓 AI 每次選不同方向
+      const _randSeed = ['政治','社會','財經','娛樂','科技','生活','國際','體育'][Math.floor(Math.random()*8)];
+
       const dirRes = await claudeScan(
         `今天是 ${todayStr}。你是台灣社群梗圖創作助手，幫「${charName}」這個角色規劃今日貼文。
 
 【角色資訊】
 ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 
-請搜尋台灣今日最熱門的時事新聞，選出最符合這個角色風格、最適合做成梗圖的話題，然後提供3個不同的發文切角。切角要符合角色個性和說話風格。
+請搜尋台灣今日的時事新聞，特別關注「${_randSeed}」相關話題（但不限於此），選出一個有趣且適合做成梗圖的話題。
+不要總是選最大的頭條，而是找一個有「梗」的空間、能引起共鳴的話題。${_excludeNote}
+
+提供3個不同的發文切角，切角要符合角色個性和說話風格。
 
 【輸出格式規定】嚴格按照以下格式，不要任何額外說明：
 話題：[話題名稱，10字以內]
@@ -5184,6 +5197,12 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
       });
 
       notice.style.display = 'none';
+      // 記住這次的話題，下次排除（最多保留 8 筆，避免 localStorage 膨脹）
+      try {
+        _recentTopics.push(_topicName);
+        if (_recentTopics.length > 8) _recentTopics = _recentTopics.slice(-8);
+        localStorage.setItem(_recentKey, JSON.stringify(_recentTopics));
+      } catch(e) {}
       document.getElementById('todayTopicTitle').textContent = _topicName;
       document.getElementById('todayTopicDesc').textContent = _bgText;
       const _cardsEl = document.getElementById('todayDirectionCards');
