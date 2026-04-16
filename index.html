@@ -4405,99 +4405,105 @@ ${pttHeadlines}
     let prompt;
     let useWebSearch = false;
     if (isNews) {
-      // 純 RSS 方案：抓今日新聞標題，直接餵給 Haiku 選題，不啟用 web_search
+      // ── Gemini + Google Search 一步到位（取代 RSS + Claude 兩段式）──
       window._rssItems = [];
-      let newsHeadlines = '';
-      useWebSearch = false;
-
-      try {
-        const uid = window._currentUid;
-        const catParam = (_selectedNewsCat && _selectedNewsCat !== 'all') ? `?category=${_selectedNewsCat}` : '';
-        const newsRes = await fetch(`/api/news${catParam}`, {
-          headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid }
-        });
-        if (newsRes.ok) {
-          const newsData = await newsRes.json();
-          if (newsData.items && newsData.items.length) {
-            // 嚴格：只保留 36 小時內且有日期的新聞
-            const cutoff = Date.now() - 36 * 60 * 60 * 1000;
-            const recentItems = newsData.items.filter(item => {
-              if (!item.pubDate) return false; // 沒日期 = 不信任，排除
-              const pub = new Date(item.pubDate).getTime();
-              return !isNaN(pub) && pub >= cutoff;
-            });
-            const itemsToUse = recentItems.length >= 3 ? recentItems : newsData.items;
-            // 標題去重（同一事件被多家報導 → 只留第一則）
-            // 用中文 2-gram 交集比率：兩個標題共用 40%+ 的 bigram 就視為同事件
-            function _titleGrams(t) {
-              const cjk = t.replace(/[^\u4e00-\u9fff]/g, '');
-              const s = new Set();
-              for (let i = 0; i < cjk.length - 1; i++) s.add(cjk.slice(i, i+2));
-              return s;
-            }
-            function _isSimilar(a, b) {
-              if (a.size === 0 || b.size === 0) return false;
-              let overlap = 0;
-              a.forEach(g => { if (b.has(g)) overlap++; });
-              return overlap / Math.min(a.size, b.size) >= 0.4;
-            }
-            const _keptGrams = [];
-            const deduped = itemsToUse.filter(item => {
-              const g = _titleGrams(item.title);
-              if (_keptGrams.some(kg => _isSimilar(g, kg))) return false;
-              _keptGrams.push(g);
-              return true;
-            });
-            // 每家來源最多 2 則，避免單一媒體霸屏
-            const capPerSource = {};
-            const balanced = deduped.filter(item => {
-              capPerSource[item.source] = (capPerSource[item.source] || 0) + 1;
-              return capPerSource[item.source] <= 2;
-            });
-            for (let i = balanced.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [balanced[i], balanced[j]] = [balanced[j], balanced[i]];
-            }
-            window._rssItems = balanced;
-            newsHeadlines = balanced.slice(0, 20).map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
-          }
-        }
-      } catch(e) { /* RSS 失敗 */ }
-
       const catKw = NEWS_CAT_KEYWORDS[_selectedNewsCat] || '';
       const catNote = (_selectedNewsCat && _selectedNewsCat !== 'all')
         ? `\n重點篩選：請優先選擇與「${catKw}」相關的新聞。`
         : '';
+      let geminiSuccess = false;
 
-      if (!newsHeadlines) {
-        // RSS 完全失敗，fallback 到 web_search
-        useWebSearch = true;
-        prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新時事新聞，挑出6個不同事件的話題。${catNote}
-涵蓋不同領域，同一領域不能出現兩次。每行格式：話題標題｜角色一句吐槽台詞，只輸出6行，不要編號或說明。`;
-      } else {
-        // 主力：直接用 RSS 標題讓 Haiku 選題，不需要 web_search
-        prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。以下是台灣今日新聞標題：
-${newsHeadlines}
-
-從上面選出6個最適合做成梗圖的話題，必須是「不同事件」，涵蓋不同領域。${catNote}
+      try {
+        const _geminiScanPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新的時事新聞與熱門話題，挑出6個最適合做成梗圖的話題。${catNote}
 
 【選題原則】
-- 優先選「台灣人今天真的在討論、有情緒反應」的話題（有爭議、有共鳴、有反差）
-- 不要選例行公事型新聞（政府記者會宣佈管制措施、法規修正、例行審查 → 除非引起民眾強烈反彈）
-- 不要選同一事件的不同報導角度（例如同一個案件的偵查進度 vs 法院宣判 → 算同一件事）
-- ⚠️ 6個話題必須是完全不同的事件，絕對禁止同一個人名/事件/關鍵字出現兩次以上
-- 6個話題必須涵蓋不同領域（政治、社會、娛樂、民生、科技、國際等）
-- 列表中標記「🔥 Google 熱搜」的項目是台灣人正在搜尋的關鍵字（通常較短），請把它展開成完整的話題標題（例如「金慧成」→「金慧成驚傳醜聞引爆韓圈」）
+- 優先選「台灣人今天真的在討論、有情緒反應」的話題（社群有爭議、有共鳴、有反差）
+- 不要選例行記者會、政策宣佈、法規修正（除非引起強烈反彈）
+- 6個話題必須是完全不同的事件，禁止同一人名/事件出現兩次
+- 涵蓋不同領域（政治、社會、娛樂、民生、科技、國際、體育等）
 
 【輸出格式規定】
-- 必須輸出剛好6行
+- 必須輸出剛好6行，不要編號
 - 每行格式：話題標題｜角色一句吐槽或共鳴台詞
-- 每行都必須包含全形｜符號
-- 不要編號、不要空行、不要任何額外說明
+- 每行必須包含全形｜符號
+- 不要任何額外說明、不要 markdown
 
-範例格式：
-股市大跌上班族哀嚎｜帳面虧損跟薪水一樣，都很難看
-政府宣布新政策引發討論｜終於有人想到我們了，雖然有點晚`;
+範例：
+台積電法說會市場緊盯AI財測｜又到了看張忠謀接班人表演的日子
+金慧成驚傳醜聞韓圈震盪｜連韓星都不夠Google搜了`;
+
+        const _geminiHeaders = { 'Content-Type': 'application/json' };
+        if (window._currentUid) _geminiHeaders['x-firebase-uid'] = window._currentUid;
+        else {
+          _geminiHeaders['x-fingerprint'] = window._fingerprint || '';
+          _geminiHeaders['x-guest-feature'] = 'scan';
+          if (window._guestToken) _geminiHeaders['x-guest-token'] = window._guestToken;
+        }
+        const _geminiBody = {
+          model: 'gemini-2.5-flash',
+          generationConfig: { temperature: 0.9, maxOutputTokens: 1000, responseMimeType: 'text/plain' },
+          contents: [{ parts: [{ text: _geminiScanPrompt }] }],
+          tools: [{ google_search: {} }]
+        };
+        const _gr = await fetch('/api/gemini', { method: 'POST', headers: _geminiHeaders, body: JSON.stringify(_geminiBody) });
+        if (_gr.ok) {
+          const _gd = await _gr.json();
+          const _gText = _gd.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+          if (_gText && (_gText.includes('｜') || _gText.includes('|'))) {
+            // Gemini 回傳了有效的格式化話題 → 直接進入解析，跳過 Claude
+            prompt = null;
+            useWebSearch = false;
+
+            function parseTopicLines(txt) { return txt.split('\n').filter(l => l.includes('｜') || l.includes('|')); }
+            let lines = parseTopicLines(_gText.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, ''));
+            if (lines.length >= 3) {
+              geminiSuccess = true;
+              const topicList = lines.map(l => {
+                const sepIdx = l.indexOf('｜') >= 0 ? l.indexOf('｜') : l.indexOf('|');
+                const title = l.slice(0, sepIdx).replace(/^\d+[\.\)、]\s*/, '').trim();
+                const sub = l.slice(sepIdx + 1).trim();
+                return { title, sub, rssIndex: -1 };
+              }).filter(item => item.title.length > 0).slice(0, 6);
+
+              grid.innerHTML = topicList.map((item, i) => {
+                return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
+                  <span class="topic-num">話題 ${i+1}</span>
+                  <strong>${item.title}</strong><br>
+                  <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+                  <span style="font-size:0.6rem;color:#ccc;margin-left:4px">🔗 🔥 Google 熱搜</span>
+                  <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
+                </div>`
+              }).join('');
+              grid.querySelectorAll('.topic-chip').forEach(el => {
+                const idx = parseInt(el.dataset.idx);
+                el.addEventListener('click', () => pickTopic(topicList[idx].title, -1));
+              });
+              document.getElementById('topicsCard').style.display = 'block';
+              _setScanCache(catKey, { html: grid.innerHTML, topics: topicList, rssItems: [] });
+            }
+          }
+        }
+      } catch(e) { /* Gemini 失敗，fallback 到 RSS+Claude */ }
+
+      // Gemini 失敗時 fallback：RSS + Claude Haiku（舊方法）
+      if (!geminiSuccess) {
+        try {
+          const uid = window._currentUid;
+          const catParam = (_selectedNewsCat && _selectedNewsCat !== 'all') ? `?category=${_selectedNewsCat}` : '';
+          const newsRes = await fetch(`/api/news${catParam}`, { headers: { 'Content-Type': 'application/json', 'x-firebase-uid': uid } });
+          if (newsRes.ok) {
+            const newsData = await newsRes.json();
+            if (newsData.items?.length) {
+              window._rssItems = newsData.items;
+              const newsHeadlines = newsData.items.slice(0, 20).map((t, i) => `${i},【${t.source}】${t.title}`).join('\n');
+              prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。以下是台灣今日新聞標題：\n${newsHeadlines}\n\n從上面選出6個最適合做成梗圖的話題。${catNote}\n6個必須是不同事件、不同領域、禁止同一關鍵字重複。\n每行格式：話題標題｜角色一句吐槽或共鳴台詞\n只輸出6行。`;
+            }
+          }
+        } catch(e) {}
+        if (!prompt) {
+          useWebSearch = true;
+          prompt = `今天是 ${today.toLocaleDateString('zh-TW')}。請搜尋台灣今日最新時事新聞，挑出6個不同事件的話題。${catNote}\n涵蓋不同領域。每行格式：話題標題｜角色一句吐槽台詞，只輸出6行。`;
+        }
       }
     } else {
       window._rssItems = []; // 非時事類清空
@@ -4508,8 +4514,14 @@ ${newsHeadlines}
 只輸出6行，不要編號、不要額外說明。`;
     }
 
-    // 時事：RSS 已提供新聞，Claude 不需要 web_search；其他類型也不需要
-    // 解析失敗自動 retry 一次（Claude 偶爾會用 | 或多輸出說明文字）
+    // Gemini 已成功 → 跳過 Claude 呼叫，直接到歷史存檔
+    if (isNews && geminiSuccess) {
+      btn.disabled = false; load.classList.remove('show'); _scanInProgress = false;
+      // 歷史存檔走下方的 if (window._currentUid && !window._guestMode) 區段
+      return;
+    }
+
+    // 時事 fallback / 非時事：用 Claude Haiku 選題
     function parseTopicLines(txt) {
       // 同時支援全形｜和半形|
       return txt.split('\n').filter(l => l.includes('｜') || l.includes('|'));
