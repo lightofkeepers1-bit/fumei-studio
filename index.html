@@ -5156,8 +5156,17 @@ async function genScript(directionHint) {
 
       // 排除最近已用過的話題，避免重複
       const _recentKey = 'fumei_recent_today_topics';
+      const _recentDateKey = 'fumei_recent_today_date';
+      const _todayDate = new Date().toISOString().slice(0, 10);
       let _recentTopics = [];
-      try { _recentTopics = JSON.parse(localStorage.getItem(_recentKey) || '[]'); } catch(e) {}
+      try {
+        // 跨日自動重置排除清單
+        if (localStorage.getItem(_recentDateKey) !== _todayDate) {
+          localStorage.removeItem(_recentKey);
+          localStorage.setItem(_recentDateKey, _todayDate);
+        }
+        _recentTopics = JSON.parse(localStorage.getItem(_recentKey) || '[]');
+      } catch(e) {}
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
