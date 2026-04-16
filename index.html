@@ -4419,10 +4419,10 @@ ${pttHeadlines}
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.items && newsData.items.length) {
-            // 只保留 36 小時內的新聞（「今日時事」不該出現上週的）
+            // 嚴格：只保留 36 小時內且有日期的新聞
             const cutoff = Date.now() - 36 * 60 * 60 * 1000;
             const recentItems = newsData.items.filter(item => {
-              if (!item.pubDate) return true;
+              if (!item.pubDate) return false; // 沒日期 = 不信任，排除
               const pub = new Date(item.pubDate).getTime();
               return !isNaN(pub) && pub >= cutoff;
             });

@@ -45,14 +45,9 @@ const CATEGORY_QUERY = {
 };
 
 function buildRssUrl(category) {
-  // 今天日期，格式 YYYY-MM-DD（Google News after: 參數）
+  // 全部改用 keyword search RSS + after: 日期過濾
+  // topic ID RSS 不支援日期過濾，會回傳幾天前的舊聞
   const today = new Date().toISOString().slice(0, 10);
-  const topicId = CATEGORY_TOPICS[category];
-  if (topicId) {
-    // 有 topic ID：用 Google News topic RSS
-    return `https://news.google.com/rss/topics/${topicId}?hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
-  }
-  // 沒有 topic ID：用關鍵字搜尋 RSS，加 after: 限制今天
   const baseQ = CATEGORY_QUERY[category] || 'tw';
   const q = encodeURIComponent(`${baseQ} after:${today}`);
   return `https://news.google.com/rss/search?q=${q}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
@@ -99,14 +94,14 @@ export default async function handler(req, res) {
       if (items.length >= 30) break;
     }
 
-    // 只保留 36 小時內的新聞（今日時事要新鮮）
-    const twoDaysAgo = Date.now() - 36 * 60 * 60 * 1000;
+    // 嚴格：只保留 36 小時內且有日期的新聞
+    const cutoffMs = Date.now() - 36 * 60 * 60 * 1000;
     const recentItems = items.filter(item => {
-      if (!item.pubDate) return true;
+      if (!item.pubDate) return false; // 沒日期 = 不信任，排除
       const pub = new Date(item.pubDate).getTime();
-      return isNaN(pub) || pub >= twoDaysAgo;
+      return !isNaN(pub) && pub >= cutoffMs;
     });
-    const finalItems = recentItems.length >= 3 ? recentItems : items; // 過濾後太少就用全部
+    const finalItems = recentItems.length >= 3 ? recentItems : items; // fallback
 
     if (uid) fsIncrement(`users/${uid}`, 'usage_news').catch(() => {});
 
