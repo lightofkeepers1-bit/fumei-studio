@@ -5326,8 +5326,9 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
         else { _gHeaders['x-fingerprint'] = window._fingerprint || ''; _gHeaders['x-guest-feature'] = 'script'; }
         const _gBody = {
-          model: 'gemini-2.5-flash',
-          generationConfig: { temperature: 0.9, maxOutputTokens: 800, responseMimeType: 'text/plain' },
+          // Pro 才能穩定處理 Google Search + 多行格式輸出
+          model: 'gemini-2.5-pro',
+          generationConfig: { temperature: 0.9, maxOutputTokens: 1500, responseMimeType: 'text/plain' },
           contents: [{ parts: [{ text: _geminiTodayPrompt }] }],
           tools: [{ google_search: {} }]
         };
@@ -5345,13 +5346,13 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
       const _dirLines = _cleanRes.split('\n').map(l => l.trim()).filter(Boolean);
       const _topicLine = _dirLines.find(l => /^話題[：:]/.test(l));
       const _bgLine = _dirLines.find(l => /^背景[：:]/.test(l));
-      // 寬鬆匹配：允許「方向①」「方向1」「方向 ①」「方向(1)」等
-      const _dirItems = _dirLines.filter(l => /^方向\s*[①②③1-3]/.test(l));
+      // 寬鬆匹配：允許「方向①」「方向1」「方向 ①」「方向(1)」「方向一」等
+      const _dirItems = _dirLines.filter(l => /^方向\s*[①②③1-3一二三]/.test(l));
 
       const _topicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '今日時事';
       const _bgText = _bgLine ? _bgLine.replace(/^背景[：:]/, '').trim() : '';
-      const _directions = _dirItems.map(l => {
-        const c = l.replace(/^方向\s*[①②③1-3][\.\)、]?\s*[：:]?\s*/, '');
+      let _directions = _dirItems.map(l => {
+        const c = l.replace(/^方向\s*[①②③1-3一二三][\.\)、]?\s*[：:]?\s*/, '');
         const si = c.indexOf('｜') >= 0 ? c.indexOf('｜') : c.indexOf('|');
         if (si < 0) {
           // 沒有分隔符：把整段當 name，desc 留空
@@ -5359,6 +5360,24 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         }
         return { name: c.slice(0, si).trim(), desc: c.slice(si + 1).trim() };
       }).filter(d => d.name.length > 0);
+
+      // 解析失敗：Gemini 可能用了自由格式、列表、或 markdown — 再用寬鬆 regex 掃整段
+      if (_directions.length < 2) {
+        const _fallbackRegex = /(?:^|\n)\s*(?:[①②③]|[1-3][\.\)、])\s*([^｜|\n]+)(?:[｜|]\s*([^\n]+))?/g;
+        const _matches = [];
+        let m;
+        while ((m = _fallbackRegex.exec(_cleanRes)) !== null) {
+          const name = m[1]?.trim().replace(/^方向\s*/, '').slice(0, 30) || '';
+          const desc = m[2]?.trim().slice(0, 60) || '';
+          if (name) _matches.push({ name, desc });
+          if (_matches.length >= 3) break;
+        }
+        if (_matches.length >= 2) _directions = _matches;
+      }
+      // 還是失敗 → log 幫 debug
+      if (_directions.length < 2) {
+        console.warn('[今天發什麼] 方向解析失敗，原始回應：\n', dirRes);
+      }
 
       notice.style.display = 'none';
       // 記住這次的話題，下次排除（最多保留 8 筆，避免 localStorage 膨脹）
