@@ -5064,7 +5064,7 @@ ${charCtx}
         const searchBody = {
           model: 'gemini-2.5-flash',
           generationConfig: { temperature: 0.9, maxOutputTokens: 300 },
-          contents: [{ parts: [{ text: `搜尋台灣今天最有梗、台灣人在討論的時事話題，給我一個話題名稱（完整事件描述，10-20字）。只回話題名稱，不要其他說明。` }] }],
+          contents: [{ parts: [{ text: `用 Google 搜尋「台灣 今日 熱門話題 OR 新聞」，找出一個今天正在被討論的真實事件。\n只需回覆事件名稱（10-30 字的完整描述），不要任何前言、不要「由於我」「很抱歉」「我無法」這類開場白，直接給話題名稱。` }] }],
           tools: [{ google_search: {} }]
         };
         const r1 = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(searchBody) });
@@ -5073,9 +5073,13 @@ ${charCtx}
         let topicRaw = d1.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join(' ').trim() || '';
         // 清掉 grounding 引用標記（[cite: N]、[1]、(來源: xxx) 等）
         topicRaw = topicRaw.replace(/\[cite[:：]\s*\d+\s*\]/g, '').replace(/\[\d+\]/g, '').replace(/\（來源[：:][^）]*\）/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+        // 偵測拒答：包含「無法」「抱歉」「不能」「由於我」開頭 → 視為失敗
+        if (/^(由於|抱歉|很抱歉|對不起|我無法|我不能|作為|身為)/.test(topicRaw) || /無法訪問|無法即時|無法提供|實時資訊|知識截止/.test(topicRaw)) {
+          throw new Error('Gemini refused: ' + topicRaw.slice(0, 30));
+        }
         // 取第一行當話題
         const topicOnly = topicRaw.split('\n')[0].trim().slice(0, 40);
-        if (!topicOnly) throw new Error('Gemini topic empty');
+        if (!topicOnly || topicOnly.length < 6) throw new Error('Gemini topic too short');
 
         // Step 2: 用 responseSchema 要求結構化 JSON（不用 search）
         const schemaBody = {
@@ -5103,10 +5107,13 @@ ${charCtx}
         const jsonText = d2.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('') || '';
         try {
           const parsed = JSON.parse(jsonText);
-          return `話題：${parsed.topic || topicOnly}\n方向：${parsed.direction || ''}\n原因：${parsed.reason || ''}`;
+          // 驗證：必須有 direction 和 reason，否則視為失敗
+          if (!parsed.direction || parsed.direction.length < 3 || !parsed.reason || parsed.reason.length < 3) {
+            throw new Error('Gemini schema returned empty fields');
+          }
+          return `話題：${parsed.topic || topicOnly}\n方向：${parsed.direction}\n原因：${parsed.reason}`;
         } catch(e) {
-          // JSON 解析失敗就至少回話題
-          return `話題：${topicOnly}\n方向：\n原因：`;
+          throw new Error('Gemini schema parse failed: ' + (e.message || e));
         }
       })(),
       // GPT
