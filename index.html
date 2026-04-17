@@ -5062,11 +5062,15 @@ async function genInspo() {
     const results = await Promise.allSettled([
       // Claude: web_search
       claude(charCtx, _todayPromptFor('Claude'), true, false, 'inspo'),
-      // Gemini: Pro 自然對話，不加 search（prompt 不要求搜尋）
+      // Gemini: Pro 自然對話（thinking mode 會吃掉 token，所以用 Flash + 高 token）
       (async () => {
         const body = {
-          model: 'gemini-2.5-pro',
-          generationConfig: { temperature: 0.9, maxOutputTokens: 1500 },
+          model: 'gemini-2.5-flash',  // Flash 沒有 thinking mode，回覆更直接
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 2000,
+            thinkingConfig: { thinkingBudget: 0 }  // 明確關閉 thinking，全部 token 給實際輸出
+          },
           systemInstruction: { parts: [{ text: `你是台灣社群梗圖創意顧問。角色「${charName}」：${charCtx.slice(0, 200)}` }] },
           contents: [{ parts: [{ text: `幫這個角色想一個今天適合發的社群貼文靈感。
 
