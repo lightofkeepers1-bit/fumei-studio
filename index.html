@@ -4499,7 +4499,7 @@ ${_charCtxForScan}
         }
         const _geminiBody = {
           // 升級到 Pro — Flash 應付不了 Google Search grounding + 多重格式要求
-          model: 'gemini-2.5-pro',
+          model: 'gemini-2.5-flash',
           generationConfig: { temperature: 0.9, maxOutputTokens: 3000, responseMimeType: 'text/plain' },
           contents: [{ parts: [{ text: _geminiScanPrompt }] }],
           tools: [{ google_search: {} }]
@@ -5060,7 +5060,7 @@ ${charCtx}
       // Gemini: Google Search grounding（升 Pro）
       (async () => {
         const body = {
-          model: 'gemini-2.5-pro',
+          model: 'gemini-2.5-flash',
           generationConfig: { temperature: 0.9, maxOutputTokens: 800, responseMimeType: 'text/plain' },
           contents: [{ parts: [{ text: _todayPromptFor('Gemini') }] }],
           tools: [{ google_search: {} }]
@@ -5452,7 +5452,7 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
           if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
           else { _gHeaders['x-fingerprint'] = window._fingerprint || ''; _gHeaders['x-guest-feature'] = 'script'; }
           const _gBody = {
-            model: 'gemini-2.5-pro',
+            model: 'gemini-2.5-flash',
             generationConfig: { temperature: 0.9, maxOutputTokens: 1500, responseMimeType: 'text/plain' },
             contents: [{ parts: [{ text: _todayPrompt }] }],
             tools: [{ google_search: {} }]
