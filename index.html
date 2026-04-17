@@ -5474,6 +5474,10 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
       }
 
       // ── 智慧解析器：適應 AI 任何回傳格式 ──
+      console.log('[今天發什麼] 原始 AI 回應：', dirRes);
+      if (!dirRes || !dirRes.trim()) {
+        console.error('[今天發什麼] AI 回傳空白！');
+      }
       const _cleanRes = dirRes.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^#+\s*/gm, '').trim();
       const _dirLines = _cleanRes.split('\n').map(l => l.trim()).filter(Boolean);
 
@@ -5518,8 +5522,18 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         )?.slice(0, 25) || '今日時事';
       }
 
+      // 解析失敗最後手段：把 AI 回覆的前 3 段非空行當方向
+      if (_directions.length < 2 && _dirLines.length >= 2) {
+        console.warn('[今天發什麼] 結構化解析失敗，改用逐行 fallback');
+        const _usable = _dirLines.filter(l => l.length >= 4 && !/^(話題|背景|核心|今天|角色|請搜尋)/.test(l));
+        _directions = _usable.slice(0, 3).map(l => {
+          const colonIdx = l.indexOf('：');
+          if (colonIdx > 0 && colonIdx < 15) return { name: l.slice(0, colonIdx).replace(/^\d+[\.\)、]\s*/, '').trim(), desc: l.slice(colonIdx + 1).trim() };
+          return { name: l.slice(0, 15).replace(/^\d+[\.\)、]\s*/, '').trim(), desc: l.slice(15).trim() };
+        });
+      }
       if (_directions.length < 2) {
-        console.warn('[今天發什麼] 方向解析失敗，原始回應：\n', dirRes);
+        console.error('[今天發什麼] 方向解析完全失敗，原始回應：\n', dirRes);
       }
 
       notice.style.display = 'none';
