@@ -5443,99 +5443,80 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 幫這個角色想一個今天適合發的社群貼文主題，不限於新聞時事，也可以是生活觀察、流行趨勢、職場日常、季節話題、網路迷因等等，只要有梗、有共鳴就好。
 給 3 個不同的發文方向，每個有標題和簡短說明。${_excludeNote}`;
 
-      // 用使用者選的模型（Claude/GPT/Gemini）
-      const _selectedModel = document.getElementById('scriptModel')?.value || 'claude';
-      let dirRes = '';
-      try {
-        if (_selectedModel === 'gemini') {
-          const _gHeaders = { 'Content-Type': 'application/json' };
-          if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
-          else { _gHeaders['x-fingerprint'] = window._fingerprint || ''; _gHeaders['x-guest-feature'] = 'script'; }
-          const _gBody = {
-            model: 'gemini-2.5-flash',
-            generationConfig: { temperature: 0.9, maxOutputTokens: 1500, responseMimeType: 'text/plain' },
-            contents: [{ parts: [{ text: _todayPrompt }] }],
-            tools: [{ google_search: {} }]
-          };
-          let _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) });
-          if (!_gRes.ok) { _gBody.model = 'gemini-2.5-flash'; _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) }); }
-          if (!_gRes.ok) throw new Error('Gemini failed');
-          const _gData = await _gRes.json();
-          dirRes = _gData.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
-        } else if (_selectedModel === 'gpt') {
-          dirRes = await callGPT(_todayPrompt, 'script');
-        } else {
-          // Claude（預設）— 用 web_search 找即時資訊
-          // system prompt 不重複角色設定（_todayPrompt 裡已有）
-          dirRes = await claude('你是台灣社群梗圖創作助手。', _todayPrompt, true, false);
-        }
-      } catch(_err) {
-        console.error('[今天發什麼] 模型呼叫失敗：', _err.message || _err);
-        // fallback：不用 search，純靠模型知識
-        try { dirRes = await claude('你是台灣社群梗圖創作助手。', _todayPrompt, false, false); } catch(e) { dirRes = ''; }
-      }
-
-      // ── 智慧解析器：適應 AI 任何回傳格式 ──
-      console.log('[今天發什麼] 原始 AI 回應：', dirRes);
-      if (!dirRes || !dirRes.trim()) {
-        console.error('[今天發什麼] AI 回傳空白！');
-      }
-      const _cleanRes = dirRes.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^#+\s*/gm, '').trim();
-      const _dirLines = _cleanRes.split('\n').map(l => l.trim()).filter(Boolean);
-
-      // 抓話題：「話題：...」或第一行像標題的文字
-      const _topicLine = _dirLines.find(l => /^話題[：:]/.test(l));
-      let _finalTopicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '';
-
-      // 抓背景：「背景：...」或「核心：...」
-      const _bgLine = _dirLines.find(l => /^(背景|核心)[：:]/.test(l));
-      const _bgText = _bgLine ? _bgLine.replace(/^(背景|核心)[：:]/, '').trim() : '';
-
-      // 抓方向：用段落分割法（### / 數字 / 方向 開頭）
+      // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
+      let _finalTopicName = '今日時事';
+      let _bgText = '';
       let _directions = [];
 
-      // 段落分割：用 ### 或 ** N. 或 方向 或 數字. 開頭作為分段點
-      const _segments = _cleanRes.split(/\n(?=(?:\d+[\.\)、]\s|[①②③]\s*|方向\s*[①②③1-3一二三]))/g);
-      for (const seg of _segments) {
-        const lines = seg.split('\n').map(l => l.trim()).filter(Boolean);
-        if (!lines.length) continue;
-        // 第一行是標題（去掉編號前綴）
-        let name = lines[0].replace(/^\d+[\.\)、]\s*/, '').replace(/^[①②③]\s*/, '').replace(/^方向\s*[①②③1-3一二三][\.\)、]?\s*[：:]?\s*/, '').trim();
-        // 如果有 ｜ 分隔，分開
-        const pipeIdx = name.indexOf('｜') >= 0 ? name.indexOf('｜') : name.indexOf('|');
-        let desc = '';
-        if (pipeIdx >= 0) {
-          desc = name.slice(pipeIdx + 1).trim();
-          name = name.slice(0, pipeIdx).trim();
-        } else if (lines.length > 1) {
-          // 其餘行當說明（取前 80 字）
-          desc = lines.slice(1).join(' ').replace(/^[：:]\s*/, '').slice(0, 80).trim();
+      try {
+        const _headers = { 'Content-Type': 'application/json' };
+        if (window._currentUid) _headers['x-firebase-uid'] = window._currentUid;
+        else {
+          _headers['x-fingerprint'] = window._fingerprint || '';
+          _headers['x-guest-feature'] = 'script';
         }
-        if (name.length >= 2 && !/^(話題|背景|核心|今天|角色|請搜尋)/.test(name)) {
-          _directions.push({ name: name.slice(0, 20), desc });
+        const _toolBody = {
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1500,
+          temperature: 0.9,
+          system: '你是台灣社群梗圖創作助手。',
+          messages: [{ role: 'user', content: _todayPrompt }],
+          tools: [{
+            name: 'suggest_meme_topic',
+            description: '建議一個今天適合發的梗圖主題和3個發文方向',
+            input_schema: {
+              type: 'object',
+              properties: {
+                topic: { type: 'string', description: '話題名稱（10-20字的完整事件描述）' },
+                background: { type: 'string', description: '話題背景一句話說明（20字以內）' },
+                directions: {
+                  type: 'array',
+                  description: '3個不同的發文方向',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: '方向名稱（6字以內）' },
+                      desc: { type: 'string', description: '具體怎麼做（30字以內）' }
+                    },
+                    required: ['name', 'desc']
+                  }
+                }
+              },
+              required: ['topic', 'background', 'directions']
+            }
+          }],
+          tool_choice: { type: 'tool', name: 'suggest_meme_topic' }
+        };
+
+        const _r = await fetch('/api/claude', { method: 'POST', headers: _headers, body: JSON.stringify(_toolBody) });
+        if (!_r.ok) throw new Error(`Claude ${_r.status}`);
+        const _d = await _r.json();
+        // tool_use 回傳在 content[].type === 'tool_use' 的 input 裡
+        const _toolResult = _d.content?.find(c => c.type === 'tool_use')?.input;
+        if (_toolResult) {
+          _finalTopicName = _toolResult.topic || '今日時事';
+          _bgText = _toolResult.background || '';
+          _directions = (_toolResult.directions || []).slice(0, 3);
+          console.log('[今天發什麼] tool_use 成功：', _toolResult);
+        } else {
+          throw new Error('No tool_use in response');
         }
-        if (_directions.length >= 3) break;
-      }
-
-      // 話題名如果沒抓到：用方向之前的第一段有意義文字
-      if (!_finalTopicName) {
-        _finalTopicName = _dirLines.find(l =>
-          l.length >= 6 && !/^(\d+[\.\)、]|[①②③]|方向|背景|核心|今天|角色|請搜尋|文案方向)/.test(l)
-        )?.slice(0, 25) || '今日時事';
-      }
-
-      // 解析失敗最後手段：把 AI 回覆的前 3 段非空行當方向
-      if (_directions.length < 2 && _dirLines.length >= 2) {
-        console.warn('[今天發什麼] 結構化解析失敗，改用逐行 fallback');
-        const _usable = _dirLines.filter(l => l.length >= 4 && !/^(話題|背景|核心|今天|角色|請搜尋)/.test(l));
-        _directions = _usable.slice(0, 3).map(l => {
-          const colonIdx = l.indexOf('：');
-          if (colonIdx > 0 && colonIdx < 15) return { name: l.slice(0, colonIdx).replace(/^\d+[\.\)、]\s*/, '').trim(), desc: l.slice(colonIdx + 1).trim() };
-          return { name: l.slice(0, 15).replace(/^\d+[\.\)、]\s*/, '').trim(), desc: l.slice(15).trim() };
-        });
-      }
-      if (_directions.length < 2) {
-        console.error('[今天發什麼] 方向解析完全失敗，原始回應：\n', dirRes);
+      } catch(_err) {
+        console.error('[今天發什麼] tool_use 失敗：', _err.message);
+        // fallback：用舊的文字解析（簡化版）
+        try {
+          const _fallbackRes = await claude('你是台灣社群梗圖創作助手。', _todayPrompt + '\n\n回覆格式（嚴格遵守）：\n話題：（名稱）\n背景：（說明）\n1.（方向名）：（說明）\n2.（方向名）：（說明）\n3.（方向名）：（說明）', false, false);
+          const _lines = _fallbackRes.split('\n').map(l => l.replace(/\*\*/g,'').trim()).filter(Boolean);
+          const _tl = _lines.find(l => /^話題[：:]/.test(l));
+          if (_tl) _finalTopicName = _tl.replace(/^話題[：:]/, '').trim();
+          const _bl = _lines.find(l => /^背景[：:]/.test(l));
+          if (_bl) _bgText = _bl.replace(/^背景[：:]/, '').trim();
+          _directions = _lines.filter(l => /^\d+[\.\)、]/.test(l)).slice(0, 3).map(l => {
+            const clean = l.replace(/^\d+[\.\)、]\s*/, '');
+            const ci = clean.indexOf('：');
+            return ci > 0 ? { name: clean.slice(0, ci).trim(), desc: clean.slice(ci+1).trim() } : { name: clean.slice(0, 15), desc: '' };
+          });
+        } catch(e) {}
       }
 
       notice.style.display = 'none';
