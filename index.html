@@ -5434,39 +5434,43 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 完全放手 —— 讓 AI 自由回答，前端智慧解析
-      const _geminiTodayPrompt = `「${charName}」今天的社群可以發什麼梗圖？
+      // 完全放手 —— 用使用者選的模型，prompt 就一句話
+      const _todayPrompt = `「${charName}」今天可以發什麼？
 
 角色設定：
 ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 
-請搜尋台灣今天的時事，幫這個角色找一個最有梗、最適合做成梗圖的話題，並給 3 個不同的發文方向。每個方向要有標題和簡短說明。${_excludeNote}`;
+幫這個角色想一個今天適合發的社群貼文主題，不限於新聞時事，也可以是生活觀察、流行趨勢、職場日常、季節話題、網路迷因等等，只要有梗、有共鳴就好。
+給 3 個不同的發文方向，每個有標題和簡短說明。${_excludeNote}`;
 
-      // 用 Gemini + Google Search（一步到位，不用 RSS + Claude）
-      let dirRes;
+      // 用使用者選的模型（Claude/GPT/Gemini）
+      const _selectedModel = document.getElementById('scriptModel')?.value || 'claude';
+      let dirRes = '';
       try {
-        const _gHeaders = { 'Content-Type': 'application/json' };
-        if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
-        else { _gHeaders['x-fingerprint'] = window._fingerprint || ''; _gHeaders['x-guest-feature'] = 'script'; }
-        const _gBody = {
-          // Pro 才能穩定處理 Google Search + 多行格式輸出
-          model: 'gemini-2.5-pro',
-          generationConfig: { temperature: 0.9, maxOutputTokens: 1500, responseMimeType: 'text/plain' },
-          contents: [{ parts: [{ text: _geminiTodayPrompt }] }],
-          tools: [{ google_search: {} }]
-        };
-        let _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) });
-        // Pro 失敗（rate limit / timeout）→ 降級到 Flash 再試一次
-        if (!_gRes.ok) {
-          _gBody.model = 'gemini-2.5-flash';
-          _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) });
+        if (_selectedModel === 'gemini') {
+          const _gHeaders = { 'Content-Type': 'application/json' };
+          if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
+          else { _gHeaders['x-fingerprint'] = window._fingerprint || ''; _gHeaders['x-guest-feature'] = 'script'; }
+          const _gBody = {
+            model: 'gemini-2.5-pro',
+            generationConfig: { temperature: 0.9, maxOutputTokens: 1500, responseMimeType: 'text/plain' },
+            contents: [{ parts: [{ text: _todayPrompt }] }],
+            tools: [{ google_search: {} }]
+          };
+          let _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) });
+          if (!_gRes.ok) { _gBody.model = 'gemini-2.5-flash'; _gRes = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(_gBody) }); }
+          if (!_gRes.ok) throw new Error('Gemini failed');
+          const _gData = await _gRes.json();
+          dirRes = _gData.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+        } else if (_selectedModel === 'gpt') {
+          dirRes = await callGPT(_todayPrompt, 'script');
+        } else {
+          // Claude（預設）— 用 web_search 找即時資訊
+          dirRes = await claude(buildCharPrompt(), _todayPrompt, true, true);
         }
-        if (!_gRes.ok) throw new Error('Gemini failed');
-        const _gData = await _gRes.json();
-        dirRes = _gData.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
-      } catch(_gErr) {
-        // Gemini 完全失敗 → fallback 到 Claude + web_search
-        try { dirRes = await claudeScan(_geminiTodayPrompt, true); } catch(e) { dirRes = ''; }
+      } catch(_err) {
+        // 選的模型失敗 → fallback 到 Claude
+        try { dirRes = await claude(buildCharPrompt(), _todayPrompt, true, false); } catch(e) { dirRes = ''; }
       }
 
       // ── 智慧解析器：適應 AI 任何回傳格式 ──
