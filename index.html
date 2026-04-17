@@ -4225,24 +4225,7 @@ async function scanTopics() {
   const err = document.getElementById('scanErr');
   err.classList.remove('show');
 
-  // 快取命中 → 顯示快取結果 + 提示 + 提供重掃選項
-  const _cached = _getScanCache(catKey);
-  if (_cached && _cached.html) {
-    grid.innerHTML = _cached.html;
-    if (_cached.rssItems) window._rssItems = _cached.rssItems;
-    document.getElementById('topicsCard').style.display = 'block';
-    grid.querySelectorAll('.topic-chip').forEach((el, idx) => {
-      el.addEventListener('click', () => {
-        const title = _cached.topics?.[idx]?.title || el.querySelector('strong')?.textContent || '';
-        pickTopic(title, -1);
-      });
-    });
-    // 顯示快取提示 + 重掃按鈕
-    err.innerHTML = `📋 顯示快取結果（1 小時內不重複扣點）<button onclick="localStorage.removeItem('${_getScanCacheKey(catKey)}'); scanTopics();" style="margin-left:8px;background:var(--pink);color:white;border:none;padding:4px 12px;border-radius:12px;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif">🔄 重新掃描</button>`;
-    err.style.color = '#888';
-    err.classList.add('show');
-    return;
-  }
+  // 快取已移除 — 歷史紀錄本來就存了掃描結果，不需要擋在前面
 
   // 訪客：先扣點再執行
   if (window._guestMode && !window._currentUid) {
@@ -4362,7 +4345,7 @@ ${pttHeadlines}
       document.getElementById('topicsCard').style.display = 'block';
 
       // 快取此次結果（同分類、同小時內再掃直接用）
-      _setScanCache(catKey, { html: grid.innerHTML, topics: topicList, rssItems: window._rssItems || [] });
+      // 不快取 — 歷史紀錄已保存掃描結果
 
       // 存入歷史
       if (window._currentUid && !window._guestMode && topicList.length > 0) {
