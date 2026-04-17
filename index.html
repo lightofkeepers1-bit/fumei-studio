@@ -5057,97 +5057,35 @@ ${charCtx}
     const results = await Promise.allSettled([
       // Claude: web_search
       claude(charCtx, _todayPromptFor('Claude'), true, false, 'inspo'),
-      // Gemini: 兩步驟 — 1) 用 search 找話題  2) 用 responseSchema 結構化輸出
-      // 原因：search + schema 不能同時用，分兩步各自穩定
+      // Gemini: 單次自然對話（Pro + search，不強制格式）
       (async () => {
-        // Step 1: search 找今天的話題（用 Pro 確保真的會搜尋）
-        const _todayISO = new Date().toISOString().slice(0, 10);
-        const searchBody = {
+        const body = {
           model: 'gemini-2.5-pro',
-          generationConfig: { temperature: 0.9, maxOutputTokens: 300 },
-          contents: [{ parts: [{ text: `必須使用 Google Search 查詢（你有搜尋工具可以用）。
+          generationConfig: { temperature: 0.9, maxOutputTokens: 1000 },
+          contents: [{ parts: [{ text: `「${charName}」今天可以發什麼梗圖？
 
-查詢：「台灣 ${_todayISO} 熱門新聞」
+角色：${charName}（${charCtx.slice(0, 200)}）
 
-從搜尋結果裡挑一個今天台灣人正在討論的真實事件，只回覆事件標題（15-30 字），例如：
-- 台積電法說會市場緊盯AI財測
-- 鄭麗文訪中經費遭質疑
-- 動保團體闖餐廳搶救龍蝦致死
+請幫這個角色想一個今天適合發的社群貼文靈感。可以從時事新聞、生活觀察、季節話題、網路迷因等任何角度切入，不用局限在新聞。
 
-只回標題一行，不要寫「根據搜尋結果」、「由於」、「抱歉」等前綴，也不要解釋。直接給事件標題。` }] }],
+請用這個格式回覆（簡潔，每項一行）：
+話題：（話題名稱或主題，10-20 字）
+方向：（具體怎麼做這個梗圖，20-30 字）
+原因：（為什麼這個角色做會有共鳴，20-30 字）` }] }],
           tools: [{ google_search: {} }]
         };
-        const r1 = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(searchBody) });
-        if (!r1.ok) throw new Error('Gemini search failed');
-        const d1 = await r1.json();
-        let topicRaw = d1.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join(' ').trim() || '';
-        // 清掉 grounding 引用標記（[cite: N]、[1]、(來源: xxx) 等）
-        topicRaw = topicRaw.replace(/\[cite[:：]\s*\d+\s*\]/g, '').replace(/\[\d+\]/g, '').replace(/\（來源[：:][^）]*\）/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
-        // 偵測拒答：包含「無法」「抱歉」「不能」「由於我」開頭 → 視為失敗
-        if (/^(由於|抱歉|很抱歉|對不起|我無法|我不能|作為|身為)/.test(topicRaw) || /無法訪問|無法即時|無法提供|實時資訊|知識截止/.test(topicRaw)) {
-          throw new Error('Gemini refused: ' + topicRaw.slice(0, 30));
+        const r = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(body) });
+        if (!r.ok) throw new Error('Gemini failed');
+        const d = await r.json();
+        const txt = d.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+        // 清掉 grounding 標記
+        const clean = txt.replace(/\[cite[:：]\s*\d+\s*\]/g, '').replace(/\[\d+\]/g, '').replace(/\（來源[：:][^）]*\）/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+        if (!clean || clean.length < 10) throw new Error('Gemini 回應太短');
+        // 拒答偵測
+        if (/^(由於|抱歉|很抱歉|對不起|我無法|我不能|作為一個|身為)/.test(clean)) {
+          throw new Error('Gemini 拒絕回答');
         }
-        // 取第一行當話題
-        const topicOnly = topicRaw.split('\n')[0].trim().slice(0, 40);
-        if (!topicOnly || topicOnly.length < 3) throw new Error('Gemini topic empty');
-
-        // Step 2: 用 responseSchema 要求結構化 JSON（不用 search）
-        // charCtx 可能很長（~500 字），simple system prompt + token 給充足
-        const schemaBody = {
-          model: 'gemini-2.5-flash',
-          generationConfig: {
-            temperature: 0.9,
-            maxOutputTokens: 1500,  // 提升 token 避免截斷
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'object',
-              properties: {
-                direction: { type: 'string' },
-                reason: { type: 'string' }
-              },
-              required: ['direction', 'reason']
-            }
-          },
-          systemInstruction: { parts: [{ text: '你是台灣社群梗圖創意顧問。' }] },
-          contents: [{ parts: [{ text: `話題：${topicOnly}\n角色：${charName}（${charCtx.slice(0, 200)}）\n\n針對這個話題，幫這個角色發想一個梗圖切入點。\n- direction: 梗圖切入點，20字以內\n- reason: 為什麼台灣人會有共鳴，25字以內` }] }]
-        };
-        const r2 = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(schemaBody) });
-        if (!r2.ok) throw new Error('Gemini schema failed');
-        const d2 = await r2.json();
-        let jsonText = d2.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('') || '';
-        // 嘗試修復截斷的 JSON（補上缺的引號和括號）
-        function _tryRepairJson(s) {
-          s = s.trim();
-          // 如果字串沒結尾，嘗試補齊
-          if (!s.endsWith('}')) {
-            // 如果有未閉合的引號，補上
-            const quoteCount = (s.match(/"/g) || []).length;
-            if (quoteCount % 2 !== 0) s += '"';
-            s += '}';
-          }
-          return s;
-        }
-        let parsed;
-        try {
-          parsed = JSON.parse(jsonText);
-        } catch(e1) {
-          try { parsed = JSON.parse(_tryRepairJson(jsonText)); }
-          catch(e2) {
-            // 真的無法 parse → 用 regex 抓 direction 和 reason
-            const dMatch = jsonText.match(/"direction"\s*:\s*"([^"]+)/);
-            const rMatch = jsonText.match(/"reason"\s*:\s*"([^"]+)/);
-            if (dMatch || rMatch) {
-              parsed = { direction: dMatch?.[1] || '', reason: rMatch?.[1] || '' };
-            } else {
-              throw new Error('JSON 完全無法解析');
-            }
-          }
-        }
-        // 驗證
-        if (!parsed.direction || parsed.direction.length < 3) {
-          throw new Error('Gemini 未提供方向');
-        }
-        return `話題：${topicOnly}\n方向：${parsed.direction}\n原因：${parsed.reason || '（無）'}`;
+        return clean;
       })(),
       // GPT
       callGPT(_todayPromptFor('ChatGPT'))
