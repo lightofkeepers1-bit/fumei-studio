@@ -3209,6 +3209,12 @@ window.addCredits = async (amount, source) => {
   const newVal = current + amount;
   localStorage.setItem('fumei_credits', String(newVal));
   window.updateCreditsUI(newVal);
+  // 記錄到消費明細（兌換/購買也要有記錄）
+  const sourceLabel = source?.startsWith('invite:') ? `兌換邀請碼 ${source.replace('invite:','')}` :
+                      source?.startsWith('purchase') ? '購買點數' : (source || '補充點數');
+  if (window.addCreditLogEntry) {
+    window.addCreditLogEntry({ action: sourceLabel, delta: +amount, ts: Date.now(), remaining: newVal });
+  }
   try {
     const { doc, updateDoc } =
       await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
