@@ -4197,6 +4197,34 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
   return texts;
 }
 
+// ── 通用話題去重（前端防線，不管 AI 回什麼都濾）──
+function _deduplicateTopics(topics) {
+  function _bigrams(t) {
+    const cjk = t.replace(/[^\u4e00-\u9fff]/g, '');
+    const s = new Set();
+    for (let i = 0; i < cjk.length - 1; i++) s.add(cjk.slice(i, i + 2));
+    return s;
+  }
+  function _similar(a, b) {
+    if (a.size === 0 || b.size === 0) return a.size === 0 && b.size === 0;
+    let overlap = 0;
+    a.forEach(g => { if (b.has(g)) overlap++; });
+    return overlap / Math.min(a.size, b.size) >= 0.35;
+  }
+  const kept = [];
+  const keptGrams = [];
+  for (const t of topics) {
+    // 標題太短（純數字、代號）也排除
+    const cjkCount = (t.title.match(/[\u4e00-\u9fff]/g) || []).length;
+    if (cjkCount < 4) continue;
+    const g = _bigrams(t.title);
+    if (keptGrams.some(kg => _similar(g, kg))) continue;
+    kept.push(t);
+    keptGrams.push(g);
+  }
+  return kept;
+}
+
 // 話題掃描快取：同角色 + 同分類 + 同小時內不重複打 API
 function _getScanCacheKey(cat) {
   const d = new Date();
@@ -4340,7 +4368,7 @@ ${pttHeadlines}
       ).join('');
       grid.querySelectorAll('.topic-chip').forEach(el => {
         const idx = parseInt(el.dataset.idx);
-        el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
+        el.addEventListener('click', () => pickTopic(topicListFinal[idx].title, topicListFinal[idx].rssIndex));
       });
       document.getElementById('topicsCard').style.display = 'block';
 
@@ -4501,10 +4529,13 @@ ${_charCtxForScan}
               _parsedTopics.push({ title, sub, rssIndex: -1 });
             }
 
-            // 必須至少 5 題合格才視為成功
-            if (_parsedTopics.length >= 5) {
+            // 前端去重（同話題不同吐槽也算重複）
+            const _dedupedTopics = _deduplicateTopics(_parsedTopics);
+
+            // 必須至少 4 題合格才視為成功（去重後可能少於 5）
+            if (_dedupedTopics.length >= 4) {
               geminiSuccess = true;
-              const topicList = _parsedTopics.slice(0, 6);
+              const topicList = _dedupedTopics.slice(0, 6);
 
               grid.innerHTML = topicList.map((item, i) => {
                 return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
@@ -4625,7 +4656,10 @@ ${_charCtxForScan}
       const sub = rest.slice(sepIdx + 1).trim();
       return { title, sub, rssIndex };
     }).filter(item => item.title.length > 0);
-    grid.innerHTML = topicList.map((item, i) => {
+    // 去重（Claude/RSS 路徑也可能有重複）
+    const _dedupedList = _deduplicateTopics(topicList);
+    const topicListFinal = _dedupedList.length >= 3 ? _dedupedList : topicList;
+    grid.innerHTML = topicListFinal.map((item, i) => {
       let rssItem = item.rssIndex >= 0 ? window._rssItems?.[item.rssIndex] : null;
       // rssIndex 對不上時，用標題關鍵字模糊比對找來源
       if (!rssItem && window._rssItems?.length) {
@@ -4649,13 +4683,13 @@ ${_charCtxForScan}
     }).join('');
     grid.querySelectorAll('.topic-chip').forEach(el => {
       const idx = parseInt(el.dataset.idx);
-      el.addEventListener('click', () => pickTopic(topicList[idx].title, topicList[idx].rssIndex));
+      el.addEventListener('click', () => pickTopic(topicListFinal[idx].title, topicListFinal[idx].rssIndex));
     });
     document.getElementById('topicsCard').style.display = 'block';
 
     // 登入用戶：把掃描結果存入歷史紀錄，取代佔位
-    if (window._currentUid && !window._guestMode && topicList.length > 0) {
-      var scanLines = topicList.map(function(item, i) {
+    if (window._currentUid && !window._guestMode && topicListFinal.length > 0) {
+      var scanLines = topicListFinal.map(function(item, i) {
         return '話題' + (i+1) + '：' + item.title + '\n「' + item.sub + '」';
       });
       var scanEntry = {
