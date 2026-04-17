@@ -4426,7 +4426,7 @@ ${pttHeadlines}
       window._rssItems = [];
       const catKw = NEWS_CAT_KEYWORDS[_selectedNewsCat] || '';
       const catNote = (_selectedNewsCat && _selectedNewsCat !== 'all')
-        ? `\n重點篩選：請優先選擇與「${catKw}」相關的新聞。`
+        ? `\n\n⚠️ 使用者指定分類：「${catKw}」—— 6 個話題全部都必須屬於這個分類，不能跑到其他領域。`
         : '';
 
       try {
