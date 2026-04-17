@@ -5476,52 +5476,73 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         try { dirRes = await claudeScan(_geminiTodayPrompt, true); } catch(e) { dirRes = ''; }
       }
 
-      // 先清除 markdown（Gemini 可能回傳 **方向①** 這種格式）
-      const _cleanRes = dirRes.replace(/\*\*/g, '').replace(/^#+\s*/gm, '');
+      // 萬用解析器：不管 AI 用什麼格式，都盡力抓出話題 + 3 方向
+      const _cleanRes = dirRes.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^#+\s*/gm, '').trim();
       const _dirLines = _cleanRes.split('\n').map(l => l.trim()).filter(Boolean);
+
+      // 抓話題名稱
       const _topicLine = _dirLines.find(l => /^話題[：:]/.test(l));
+      const _topicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '';
+
+      // 抓背景
       const _bgLine = _dirLines.find(l => /^背景[：:]/.test(l));
-      // 寬鬆匹配：允許「方向①」「方向1」「方向 ①」「方向(1)」「方向一」等
-      const _dirItems = _dirLines.filter(l => /^方向\s*[①②③1-3一二三]/.test(l));
-
-      const _topicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '今日時事';
       const _bgText = _bgLine ? _bgLine.replace(/^背景[：:]/, '').trim() : '';
-      let _directions = _dirItems.map(l => {
-        const c = l.replace(/^方向\s*[①②③1-3一二三][\.\)、]?\s*[：:]?\s*/, '');
-        const si = c.indexOf('｜') >= 0 ? c.indexOf('｜') : c.indexOf('|');
-        if (si < 0) {
-          // 沒有分隔符：把整段當 name，desc 留空
-          return { name: c.trim(), desc: '' };
-        }
-        return { name: c.slice(0, si).trim(), desc: c.slice(si + 1).trim() };
-      }).filter(d => d.name.length > 0);
 
-      // 解析失敗：Gemini 可能用了自由格式、列表、或 markdown — 再用寬鬆 regex 掃整段
-      if (_directions.length < 2) {
-        const _fallbackRegex = /(?:^|\n)\s*(?:[①②③]|[1-3][\.\)、])\s*([^｜|\n]+)(?:[｜|]\s*([^\n]+))?/g;
-        const _matches = [];
-        let m;
-        while ((m = _fallbackRegex.exec(_cleanRes)) !== null) {
-          const name = m[1]?.trim().replace(/^方向\s*/, '').slice(0, 30) || '';
-          const desc = m[2]?.trim().slice(0, 60) || '';
-          if (name) _matches.push({ name, desc });
-          if (_matches.length >= 3) break;
-        }
-        if (_matches.length >= 2) _directions = _matches;
+      // 抓方向：支援所有可能格式
+      let _directions = [];
+
+      // 嘗試 1：方向① / 方向1 / 方向一 格式
+      const _dirItems = _dirLines.filter(l => /^方向\s*[①②③1-3一二三]/.test(l));
+      if (_dirItems.length >= 2) {
+        _directions = _dirItems.map(l => {
+          const c = l.replace(/^方向\s*[①②③1-3一二三][\.\)、]?\s*[：:]?\s*/, '');
+          const si = c.indexOf('｜') >= 0 ? c.indexOf('｜') : c.indexOf('|');
+          if (si < 0) return { name: c.trim(), desc: '' };
+          return { name: c.slice(0, si).trim(), desc: c.slice(si + 1).trim() };
+        }).filter(d => d.name.length > 0);
       }
-      // 還是失敗 → log 幫 debug
+
+      // 嘗試 2：①②③ 或 1. 2. 3. 開頭
+      if (_directions.length < 2) {
+        const _numRegex = /(?:^|\n)\s*(?:[①②③]|[1-3][\.\)、])\s*(.+)/g;
+        const _m = []; let _match;
+        while ((_match = _numRegex.exec(_cleanRes)) !== null) {
+          const raw = _match[1].replace(/^方向\s*/, '').trim();
+          const si = raw.indexOf('｜') >= 0 ? raw.indexOf('｜') : raw.indexOf('|');
+          if (si >= 0) _m.push({ name: raw.slice(0, si).trim(), desc: raw.slice(si+1).trim() });
+          else _m.push({ name: raw.slice(0, 20).trim(), desc: '' });
+          if (_m.length >= 3) break;
+        }
+        if (_m.length >= 2) _directions = _m;
+      }
+
+      // 嘗試 3：用｜分隔的任何行
+      if (_directions.length < 2) {
+        const _pipeLines = _dirLines.filter(l => l.includes('｜') || l.includes('|'));
+        if (_pipeLines.length >= 2) {
+          _directions = _pipeLines.slice(0, 3).map(l => {
+            const si = l.indexOf('｜') >= 0 ? l.indexOf('｜') : l.indexOf('|');
+            return { name: l.slice(0, si).replace(/^\d+[\.\)、]\s*/, '').trim(), desc: l.slice(si+1).trim() };
+          }).filter(d => d.name.length > 0);
+        }
+      }
+
+      // 還是失敗 → log
       if (_directions.length < 2) {
         console.warn('[今天發什麼] 方向解析失敗，原始回應：\n', dirRes);
       }
 
+      // 話題名如果也沒抓到，從整段找第一行有意義的文字
+      const _finalTopicName = _topicName || _dirLines.find(l => l.length >= 6 && !/^(方向|背景|話題)/.test(l))?.slice(0, 20) || '今日時事';
+
       notice.style.display = 'none';
       // 記住這次的話題，下次排除（最多保留 8 筆，避免 localStorage 膨脹）
       try {
-        _recentTopics.push(_topicName);
+        _recentTopics.push(_finalTopicName);
         if (_recentTopics.length > 8) _recentTopics = _recentTopics.slice(-8);
         localStorage.setItem(_recentKey, JSON.stringify(_recentTopics));
       } catch(e) {}
-      document.getElementById('todayTopicTitle').textContent = _topicName;
+      document.getElementById('todayTopicTitle').textContent = _finalTopicName;
       document.getElementById('todayTopicDesc').textContent = _bgText;
       const _cardsEl = document.getElementById('todayDirectionCards');
       const _icons = ['①', '②', '③'];
@@ -5534,7 +5555,7 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
       _cardsEl.innerHTML = _dirs.map((d, i) => {
         const sn = d.name.replace(/'/g, "\\'");
         const sd = d.desc.replace(/'/g, "\\'");
-        const st = _topicName.replace(/'/g, "\\'");
+        const st = _finalTopicName.replace(/'/g, "\\'");
         return `<div onclick="pickTodayDirection('${st}', '${sn}', '${sd}')"
           style="padding:12px 16px;border:1.5px solid #f0d8e0;border-radius:14px;background:white;cursor:pointer;transition:all 0.2s"
           onmouseover="this.style.background='#fff0f5';this.style.borderColor='var(--pink-deep)'"
