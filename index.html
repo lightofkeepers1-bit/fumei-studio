@@ -5057,18 +5057,57 @@ ${charCtx}
     const results = await Promise.allSettled([
       // Claude: web_search
       claude(charCtx, _todayPromptFor('Claude'), true, false, 'inspo'),
-      // Gemini: Google Search grounding（升 Pro）
+      // Gemini: 兩步驟 — 1) 用 search 找話題  2) 用 responseSchema 結構化輸出
+      // 原因：search + schema 不能同時用，分兩步各自穩定
       (async () => {
-        const body = {
+        // Step 1: search 找今天的話題
+        const searchBody = {
           model: 'gemini-2.5-flash',
-          generationConfig: { temperature: 0.9, maxOutputTokens: 800, responseMimeType: 'text/plain' },
-          contents: [{ parts: [{ text: _todayPromptFor('Gemini') }] }],
+          generationConfig: { temperature: 0.9, maxOutputTokens: 300 },
+          contents: [{ parts: [{ text: `搜尋台灣今天最有梗、台灣人在討論的時事話題，給我一個話題名稱（完整事件描述，10-20字）。只回話題名稱，不要其他說明。` }] }],
           tools: [{ google_search: {} }]
         };
-        const r = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(body) });
-        if (!r.ok) throw new Error('Gemini failed');
-        const d = await r.json();
-        return d.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+        const r1 = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(searchBody) });
+        if (!r1.ok) throw new Error('Gemini search failed');
+        const d1 = await r1.json();
+        let topicRaw = d1.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join(' ').trim() || '';
+        // 清掉 grounding 引用標記（[cite: N]、[1]、(來源: xxx) 等）
+        topicRaw = topicRaw.replace(/\[cite[:：]\s*\d+\s*\]/g, '').replace(/\[\d+\]/g, '').replace(/\（來源[：:][^）]*\）/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+        // 取第一行當話題
+        const topicOnly = topicRaw.split('\n')[0].trim().slice(0, 40);
+        if (!topicOnly) throw new Error('Gemini topic empty');
+
+        // Step 2: 用 responseSchema 要求結構化 JSON（不用 search）
+        const schemaBody = {
+          model: 'gemini-2.5-flash',
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 600,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                topic: { type: 'string' },
+                direction: { type: 'string' },
+                reason: { type: 'string' }
+              },
+              required: ['topic', 'direction', 'reason']
+            }
+          },
+          systemInstruction: { parts: [{ text: charCtx + '\n\n你是台灣社群梗圖創意顧問。' }] },
+          contents: [{ parts: [{ text: `話題：${topicOnly}\n\n針對這個話題，幫「${charName}」這個角色發想一個梗圖切入點。\n- topic: 話題名稱（直接用「${topicOnly}」）\n- direction: 梗圖切入點，20字以內\n- reason: 為什麼台灣人會有共鳴，25字以內` }] }]
+        };
+        const r2 = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(schemaBody) });
+        if (!r2.ok) throw new Error('Gemini schema failed');
+        const d2 = await r2.json();
+        const jsonText = d2.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('') || '';
+        try {
+          const parsed = JSON.parse(jsonText);
+          return `話題：${parsed.topic || topicOnly}\n方向：${parsed.direction || ''}\n原因：${parsed.reason || ''}`;
+        } catch(e) {
+          // JSON 解析失敗就至少回話題
+          return `話題：${topicOnly}\n方向：\n原因：`;
+        }
       })(),
       // GPT
       callGPT(_todayPromptFor('ChatGPT'))
@@ -5088,7 +5127,11 @@ ${charCtx}
           <div class="inspo-reason">⚠️ ${res.reason?.message || '呼叫失敗'}</div>
         </div>`;
       }
-      const clean = (res.value || '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, '').trim();
+      const clean = (res.value || '')
+        .replace(/\[cite[:：]\s*\d+\s*\]/g, '')  // [cite: 3]
+        .replace(/\[\d+\]/g, '')                  // [1] [2]
+        .replace(/\（來源[：:][^）]*\）/g, '')    // （來源：xxx）
+        .replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, '').trim();
       const topicMatch = clean.match(/話題[：:]\s*(.+?)(?:\n|$)/);
       const dirMatch = clean.match(/方向[：:]\s*(.+?)(?:\n|$)/);
       const whyMatch = clean.match(/原因[：:]\s*(.+?)(?:\n|$)/);
