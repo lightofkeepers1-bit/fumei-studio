@@ -5297,45 +5297,20 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 隨機領域 + 排除最近用過的領域（避免一直出政治）
-      const _allSeeds = ['政治','社會','財經','娛樂','科技','生活','國際','體育'];
-      const _recentSeedKey = 'fumei_recent_seeds';
-      let _usedSeeds = [];
-      try { _usedSeeds = JSON.parse(localStorage.getItem(_recentSeedKey) || '[]'); } catch(e) {}
-      const _available = _allSeeds.filter(s => !_usedSeeds.includes(s));
-      const _pool = _available.length >= 2 ? _available : _allSeeds; // 全用完就重置
-      const _randSeed = _pool[Math.floor(Math.random() * _pool.length)];
-      try {
-        _usedSeeds.push(_randSeed);
-        if (_usedSeeds.length >= 7) _usedSeeds = [_randSeed]; // 保留最後 1 個，其餘重置
-        localStorage.setItem(_recentSeedKey, JSON.stringify(_usedSeeds));
-      } catch(e) {}
+      // 簡單就好 —— 讓 AI 自己判斷今天最有梗的話題
+      const _geminiTodayPrompt = `「${charName}」今天的社群可以發什麼？
 
-      // Gemini + Google Search 一步到位（取代 RSS + Claude）
-      const _geminiTodayPrompt = `今天是 ${todayStr}。你是台灣社群梗圖創作助手，幫「${charName}」這個角色規劃今日貼文。
-
-【角色資訊】
+角色設定：
 ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 
-⚠️ 這次的指定領域是「${_randSeed}」—— 你找到的話題**必須屬於這個領域**，絕對不能跑去選其他領域（例如指定「娛樂」就不能選政治新聞）。
-請搜尋台灣今天在「${_randSeed}」領域的時事新聞，找出一個有趣、有梗、適合做成梗圖的話題。
-要選台灣人真的在聊、有情緒反應的事件，不要選例行記者會或政策宣佈。${_excludeNote}
+請搜尋台灣今天的時事，幫這個角色找一個最有梗、最適合做成梗圖的話題，並給 3 個不同的發文切角。${_excludeNote}
 
-提供3個不同的發文切角，切角要符合角色個性和說話風格。
-
-【輸出格式規定】嚴格按照以下格式，絕對不要使用 markdown、粗體（**）、標題符號（#），也不要任何額外說明：
-話題：話題名稱（10字以內）
-背景：一句話說明這個話題（20字以內）
-方向①：切角名稱（6字以內）｜具體說明這個方向怎麼做（30字以內）
-方向②：切角名稱（6字以內）｜具體說明這個方向怎麼做（30字以內）
-方向③：切角名稱（6字以內）｜具體說明這個方向怎麼做（30字以內）
-
-範例：
-話題：大谷只投不打
-背景：大谷翔平因傷勢單刀出賽，道奇主帥無奈
-方向①：打者復仇｜用兩格反差呈現打不到的無奈
-方向②：醫院即景｜角色視角從傷兵房看世界大賽
-方向③：斜槓悲歌｜用角色的職場語氣吐槽「多工」的代價`;
+不要用 markdown，直接用以下格式回覆：
+話題：（話題名稱）
+背景：（一句話說明）
+方向①：（切角名稱）｜（怎麼做）
+方向②：（切角名稱）｜（怎麼做）
+方向③：（切角名稱）｜（怎麼做）`;
 
       // 用 Gemini + Google Search（一步到位，不用 RSS + Claude）
       let dirRes;
