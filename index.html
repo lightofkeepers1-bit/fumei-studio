@@ -5089,7 +5089,7 @@ ${charCtx}
         }
         // 取第一行當話題
         const topicOnly = topicRaw.split('\n')[0].trim().slice(0, 40);
-        if (!topicOnly || topicOnly.length < 6) throw new Error('Gemini topic too short');
+        if (!topicOnly || topicOnly.length < 3) throw new Error('Gemini topic empty');
 
         // Step 2: 用 responseSchema 要求結構化 JSON（不用 search）
         // charCtx 可能很長（~500 字），simple system prompt + token 給充足
