@@ -6,11 +6,17 @@ const PTT_BASE = 'https://www.ptt.cc';
 
 // 正確的 PTT 看板名稱對照表
 const BOARD_MAP = {
-  gossiping:   'Gossiping',
-  womenhating: 'WomenTalk',
-  marriage:    'marriage',
-  lifeismoney: 'Lifeismoney',  // 修正：原本錯寫成 LifeIsLife
-  joke:        'joke',
+  gossiping:    'Gossiping',
+  joke:         'joke',
+  c_chat:       'C_Chat',
+  'boy-girl':   'Boy-Girl',
+  hatepolitics: 'HatePolitics',
+  stupidclown:  'StupidClown',
+  tech_job:     'Tech_Job',
+  // 舊板保留相容（防止舊快取或連結）
+  womenhating:  'WomenTalk',
+  marriage:     'marriage',
+  lifeismoney:  'Lifeismoney',
 };
 
 async function fsIncrement(docPath, field) {
@@ -71,8 +77,8 @@ export default async function handler(req, res) {
   const boardKey = (req.query.board || 'gossiping').toLowerCase();
   const board    = BOARD_MAP[boardKey] || 'Gossiping';
   // 較冷門的板門檻降低，避免抓不到文章
-  const smallBoards = ['womenhating', 'marriage', 'joke'];
-  const tinyBoards = ['womenhating']; // WomenTalk 推文數普遍少，門檻設最低
+  const smallBoards = ['joke', 'stupidclown', 'tech_job', 'boy-girl', 'womenhating', 'marriage'];
+  const tinyBoards = ['stupidclown', 'womenhating']; // 這兩板發文量少，門檻設最低
   const defaultMinPush = tinyBoards.includes(boardKey) ? 1 : smallBoards.includes(boardKey) ? 5 : 10;
   const minPush  = parseInt(req.query.minPush || String(defaultMinPush));
   const defaultPages = tinyBoards.includes(boardKey) ? 5 : 3;
