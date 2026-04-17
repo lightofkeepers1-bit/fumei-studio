@@ -5038,18 +5038,23 @@ async function genInspo() {
       </div>`).join('');
     area.style.display = 'block';
 
-    const _todayPromptFor = (ai) => `「${charName}」今天社群要發什麼梗圖？
+    const _todayPromptFor = (ai) => `「${charName}」今天社群可以發什麼？
 
-角色設定：
-${charCtx}
+角色：${charName}（${charCtx.slice(0, 200)}）
 
-請搜尋台灣今天真實的時事新聞，找一個有梗、台灣人會有共鳴的話題來做梗圖。
-必須是今天的真實事件（不是假新聞、不是只有關鍵字）。
+幫這個角色想一個今天適合發的社群貼文靈感。請從以下任一角度切入，不要只侷限在時事新聞：
+- 生活觀察（通勤、外送、辦公室小事）
+- 季節話題（天氣、節氣、週末感）
+- 情緒共鳴（疲累、懶散、小確幸）
+- 流行迷因（網路梗、台灣在地哏）
+- 時事吐槽（如果有真正有趣的事件）
 
-不要 markdown，嚴格用以下格式回覆（3 行）：
-話題：（完整事件標題，至少 8 字）
-方向：（梗圖切入點，20字以內）
-原因：（為什麼台灣人有共鳴，25字以內）`;
+請從這幾個角度**隨機選一個**，不要每次都選時事。
+
+用這個格式回覆（每項一行）：
+話題：（主題或事件名稱，10-20 字）
+方向：（梗圖切入點，20-30 字）
+原因：（為什麼這個角色做會有共鳴，20-30 字）`;
 
     const _gHeaders = { 'Content-Type': 'application/json' };
     if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
@@ -5080,7 +5085,8 @@ ${charCtx}
         const txt = d.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
         // 清掉 grounding 標記
         const clean = txt.replace(/\[cite[:：]\s*\d+\s*\]/g, '').replace(/\[\d+\]/g, '').replace(/\（來源[：:][^）]*\）/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
-        if (!clean || clean.length < 10) throw new Error('Gemini 回應太短');
+        if (!clean || clean.length < 5) throw new Error('Gemini 回應太短');
+        console.log('[三AI發想 Gemini] 原始回應：', clean);
         // 拒答偵測
         if (/^(由於|抱歉|很抱歉|對不起|我無法|我不能|作為一個|身為)/.test(clean)) {
           throw new Error('Gemini 拒絕回答');
