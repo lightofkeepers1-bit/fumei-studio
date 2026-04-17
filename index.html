@@ -5434,20 +5434,13 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 簡單就好 —— 讓 AI 自己判斷今天最有梗的話題
-      const _geminiTodayPrompt = `「${charName}」今天的社群可以發什麼？
+      // 完全放手 —— 讓 AI 自由回答，前端智慧解析
+      const _geminiTodayPrompt = `「${charName}」今天的社群可以發什麼梗圖？
 
 角色設定：
 ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
 
-請搜尋台灣今天的時事，幫這個角色找一個最有梗、最適合做成梗圖的話題，並給 3 個不同的發文切角。${_excludeNote}
-
-不要用 markdown，直接用以下格式回覆：
-話題：（話題名稱）
-背景：（一句話說明）
-方向①：（切角名稱）｜（怎麼做）
-方向②：（切角名稱）｜（怎麼做）
-方向③：（切角名稱）｜（怎麼做）`;
+請搜尋台灣今天的時事，幫這個角色找一個最有梗、最適合做成梗圖的話題，並給 3 個不同的發文方向。每個方向要有標題和簡短說明。${_excludeNote}`;
 
       // 用 Gemini + Google Search（一步到位，不用 RSS + Claude）
       let dirRes;
@@ -5476,64 +5469,54 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
         try { dirRes = await claudeScan(_geminiTodayPrompt, true); } catch(e) { dirRes = ''; }
       }
 
-      // 萬用解析器：不管 AI 用什麼格式，都盡力抓出話題 + 3 方向
+      // ── 智慧解析器：適應 AI 任何回傳格式 ──
       const _cleanRes = dirRes.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^#+\s*/gm, '').trim();
       const _dirLines = _cleanRes.split('\n').map(l => l.trim()).filter(Boolean);
 
-      // 抓話題名稱
+      // 抓話題：「話題：...」或第一行像標題的文字
       const _topicLine = _dirLines.find(l => /^話題[：:]/.test(l));
-      const _topicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '';
+      let _finalTopicName = _topicLine ? _topicLine.replace(/^話題[：:]/, '').trim() : '';
 
-      // 抓背景
-      const _bgLine = _dirLines.find(l => /^背景[：:]/.test(l));
-      const _bgText = _bgLine ? _bgLine.replace(/^背景[：:]/, '').trim() : '';
+      // 抓背景：「背景：...」或「核心：...」
+      const _bgLine = _dirLines.find(l => /^(背景|核心)[：:]/.test(l));
+      const _bgText = _bgLine ? _bgLine.replace(/^(背景|核心)[：:]/, '').trim() : '';
 
-      // 抓方向：支援所有可能格式
+      // 抓方向：用段落分割法（### / 數字 / 方向 開頭）
       let _directions = [];
 
-      // 嘗試 1：方向① / 方向1 / 方向一 格式
-      const _dirItems = _dirLines.filter(l => /^方向\s*[①②③1-3一二三]/.test(l));
-      if (_dirItems.length >= 2) {
-        _directions = _dirItems.map(l => {
-          const c = l.replace(/^方向\s*[①②③1-3一二三][\.\)、]?\s*[：:]?\s*/, '');
-          const si = c.indexOf('｜') >= 0 ? c.indexOf('｜') : c.indexOf('|');
-          if (si < 0) return { name: c.trim(), desc: '' };
-          return { name: c.slice(0, si).trim(), desc: c.slice(si + 1).trim() };
-        }).filter(d => d.name.length > 0);
-      }
-
-      // 嘗試 2：①②③ 或 1. 2. 3. 開頭
-      if (_directions.length < 2) {
-        const _numRegex = /(?:^|\n)\s*(?:[①②③]|[1-3][\.\)、])\s*(.+)/g;
-        const _m = []; let _match;
-        while ((_match = _numRegex.exec(_cleanRes)) !== null) {
-          const raw = _match[1].replace(/^方向\s*/, '').trim();
-          const si = raw.indexOf('｜') >= 0 ? raw.indexOf('｜') : raw.indexOf('|');
-          if (si >= 0) _m.push({ name: raw.slice(0, si).trim(), desc: raw.slice(si+1).trim() });
-          else _m.push({ name: raw.slice(0, 20).trim(), desc: '' });
-          if (_m.length >= 3) break;
+      // 段落分割：用 ### 或 ** N. 或 方向 或 數字. 開頭作為分段點
+      const _segments = _cleanRes.split(/\n(?=(?:\d+[\.\)、]\s|[①②③]\s*|方向\s*[①②③1-3一二三]))/g);
+      for (const seg of _segments) {
+        const lines = seg.split('\n').map(l => l.trim()).filter(Boolean);
+        if (!lines.length) continue;
+        // 第一行是標題（去掉編號前綴）
+        let name = lines[0].replace(/^\d+[\.\)、]\s*/, '').replace(/^[①②③]\s*/, '').replace(/^方向\s*[①②③1-3一二三][\.\)、]?\s*[：:]?\s*/, '').trim();
+        // 如果有 ｜ 分隔，分開
+        const pipeIdx = name.indexOf('｜') >= 0 ? name.indexOf('｜') : name.indexOf('|');
+        let desc = '';
+        if (pipeIdx >= 0) {
+          desc = name.slice(pipeIdx + 1).trim();
+          name = name.slice(0, pipeIdx).trim();
+        } else if (lines.length > 1) {
+          // 其餘行當說明（取前 80 字）
+          desc = lines.slice(1).join(' ').replace(/^[：:]\s*/, '').slice(0, 80).trim();
         }
-        if (_m.length >= 2) _directions = _m;
-      }
-
-      // 嘗試 3：用｜分隔的任何行
-      if (_directions.length < 2) {
-        const _pipeLines = _dirLines.filter(l => l.includes('｜') || l.includes('|'));
-        if (_pipeLines.length >= 2) {
-          _directions = _pipeLines.slice(0, 3).map(l => {
-            const si = l.indexOf('｜') >= 0 ? l.indexOf('｜') : l.indexOf('|');
-            return { name: l.slice(0, si).replace(/^\d+[\.\)、]\s*/, '').trim(), desc: l.slice(si+1).trim() };
-          }).filter(d => d.name.length > 0);
+        if (name.length >= 2 && !/^(話題|背景|核心|今天|角色|請搜尋)/.test(name)) {
+          _directions.push({ name: name.slice(0, 20), desc });
         }
+        if (_directions.length >= 3) break;
       }
 
-      // 還是失敗 → log
+      // 話題名如果沒抓到：用方向之前的第一段有意義文字
+      if (!_finalTopicName) {
+        _finalTopicName = _dirLines.find(l =>
+          l.length >= 6 && !/^(\d+[\.\)、]|[①②③]|方向|背景|核心|今天|角色|請搜尋|文案方向)/.test(l)
+        )?.slice(0, 25) || '今日時事';
+      }
+
       if (_directions.length < 2) {
         console.warn('[今天發什麼] 方向解析失敗，原始回應：\n', dirRes);
       }
-
-      // 話題名如果也沒抓到，從整段找第一行有意義的文字
-      const _finalTopicName = _topicName || _dirLines.find(l => l.length >= 6 && !/^(方向|背景|話題)/.test(l))?.slice(0, 20) || '今日時事';
 
       notice.style.display = 'none';
       // 記住這次的話題，下次排除（最多保留 8 筆，避免 localStorage 膨脹）
