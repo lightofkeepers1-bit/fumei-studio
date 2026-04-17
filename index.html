@@ -3140,6 +3140,18 @@ window.syncCreditsFromCloud = async (uid) => {
         await setDoc(ref, { fumei_credits: credits }, { merge: true });
       }
     }
+
+    // 🔒 防止雲端舊值覆蓋本地新值（兌換/購買後 async write 可能還沒完成）
+    const _localCredits = window.getCredits();
+    if (_localCredits >= 0 && _localCredits > credits) {
+      // 本地比雲端高 → 本地有尚未同步的兌換/購買，保留本地值並推到雲端
+      console.warn(`[Credits] 本地(${_localCredits}) > 雲端(${credits})，保留本地值`);
+      credits = _localCredits;
+      try {
+        await setDoc(ref, { fumei_credits: credits }, { merge: true });
+      } catch(e) {}
+    }
+
     localStorage.setItem('fumei_credits', String(credits));
     window.updateCreditsUI(credits);
     return credits;
