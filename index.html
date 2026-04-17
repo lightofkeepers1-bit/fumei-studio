@@ -5466,11 +5466,13 @@ ${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
           dirRes = await callGPT(_todayPrompt, 'script');
         } else {
           // Claude（預設）— 用 web_search 找即時資訊
-          dirRes = await claude(buildCharPrompt(), _todayPrompt, true, true);
+          // system prompt 不重複角色設定（_todayPrompt 裡已有）
+          dirRes = await claude('你是台灣社群梗圖創作助手。', _todayPrompt, true, false);
         }
       } catch(_err) {
-        // 選的模型失敗 → fallback 到 Claude
-        try { dirRes = await claude(buildCharPrompt(), _todayPrompt, true, false); } catch(e) { dirRes = ''; }
+        console.error('[今天發什麼] 模型呼叫失敗：', _err.message || _err);
+        // fallback：不用 search，純靠模型知識
+        try { dirRes = await claude('你是台灣社群梗圖創作助手。', _todayPrompt, false, false); } catch(e) { dirRes = ''; }
       }
 
       // ── 智慧解析器：適應 AI 任何回傳格式 ──
