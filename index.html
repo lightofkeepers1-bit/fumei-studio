@@ -5061,10 +5061,20 @@ ${charCtx}
       // 原因：search + schema 不能同時用，分兩步各自穩定
       (async () => {
         // Step 1: search 找今天的話題
+        const _todayISO = new Date().toISOString().slice(0, 10);
         const searchBody = {
           model: 'gemini-2.5-flash',
           generationConfig: { temperature: 0.9, maxOutputTokens: 300 },
-          contents: [{ parts: [{ text: `用 Google 搜尋「台灣 今日 熱門話題 OR 新聞」，找出一個今天正在被討論的真實事件。\n只需回覆事件名稱（10-30 字的完整描述），不要任何前言、不要「由於我」「很抱歉」「我無法」這類開場白，直接給話題名稱。` }] }],
+          contents: [{ parts: [{ text: `必須使用 Google Search 查詢（你有搜尋工具可以用）。
+
+查詢：「台灣 ${_todayISO} 熱門新聞」
+
+從搜尋結果裡挑一個今天台灣人正在討論的真實事件，只回覆事件標題（15-30 字），例如：
+- 台積電法說會市場緊盯AI財測
+- 鄭麗文訪中經費遭質疑
+- 動保團體闖餐廳搶救龍蝦致死
+
+只回標題一行，不要寫「根據搜尋結果」、「由於」、「抱歉」等前綴，也不要解釋。直接給事件標題。` }] }],
           tools: [{ google_search: {} }]
         };
         const r1 = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify(searchBody) });
