@@ -5042,29 +5042,29 @@ async function genInspo() {
       </div>`).join('');
     area.style.display = 'block';
 
-    // 動態帶入當下時空資訊，避免 AI 靠訓練資料亂腦補季節
+    // 動態帶入當下日期（不強調季節，避免 AI 一直黏在季節話題）
     const _now = new Date();
     const _weekdayMap = ['週日','週一','週二','週三','週四','週五','週六'];
-    const _mon = _now.getMonth() + 1;
-    const _seasonMap = {1:'冬季',2:'冬季',3:'春季',4:'春季',5:'春末夏初',6:'初夏',7:'盛夏',8:'盛夏',9:'初秋',10:'秋季',11:'秋末冬初',12:'冬季'};
-    const _dateCtx = `今天是 ${_now.getFullYear()} 年 ${_mon} 月 ${_now.getDate()} 日（${_weekdayMap[_now.getDay()]}），台灣目前是「${_seasonMap[_mon]}」。`;
+    const _dateCtx = `今天是 ${_now.getFullYear()} 年 ${_now.getMonth()+1} 月 ${_now.getDate()} 日（${_weekdayMap[_now.getDay()]}）。`;
 
     const _todayPromptFor = (ai) => `${_dateCtx}
 
-請**撇除你訓練資料裡對「今天」「最近」的既有印象**，純粹根據上面的當下時空環境（日期、星期、季節）思考。
+請**撇除你訓練資料裡對「今天」「最近」的既有印象**，純粹根據上面的當下日期思考。
 
 「${charName}」今天社群可以發什麼？
 
 角色：${charName}（${charCtx.slice(0, 200)}）
 
-幫這個角色想一個**今天**（${_mon}月，${_seasonMap[_mon]}）適合發的社群貼文靈感。請從以下任一角度切入，不要只侷限在時事新聞：
+幫這個角色想一個今天適合發的社群貼文靈感。請從以下任一角度切入，每次**隨機**挑不同的角度（不要每次都選同一類）：
 - 生活觀察（通勤、外送、辦公室小事）
-- 季節話題（必須配合當下是「${_seasonMap[_mon]}」，不要寫成其他季節）
 - 情緒共鳴（疲累、懶散、小確幸）
 - 流行迷因（網路梗、台灣在地哏）
+- 職場日常（會議、主管、同事）
+- 感情互動（朋友、家人、曖昧）
+- 飲食小事（外食、手搖、點心）
 - 時事吐槽（如果有真正有趣的事件）
 
-請從這幾個角度**隨機選一個**。⚠️ 季節話題絕對要符合當下「${_seasonMap[_mon]}」，不要寫成春天時說秋天、夏天時說冬天等錯誤季節。
+⚠️ 不要每次都選季節話題，要平均分散到不同角度。
 
 用這個格式回覆（每項一行）：
 話題：（主題或事件名稱，10-20 字）
@@ -5086,15 +5086,19 @@ async function genInspo() {
             maxOutputTokens: 2000,
             thinkingConfig: { thinkingBudget: 0 }  // 明確關閉 thinking，全部 token 給實際輸出
           },
-          systemInstruction: { parts: [{ text: `${_dateCtx}\n\n請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據當下時空環境思考。\n\n你是台灣社群梗圖創意顧問。角色「${charName}」：${charCtx.slice(0, 200)}` }] },
-          contents: [{ parts: [{ text: `幫這個角色想一個今天（${_mon}月，${_seasonMap[_mon]}）適合發的社群貼文靈感。
+          systemInstruction: { parts: [{ text: `${_dateCtx}\n\n請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據當下日期思考。\n\n你是台灣社群梗圖創意顧問。角色「${charName}」：${charCtx.slice(0, 200)}` }] },
+          contents: [{ parts: [{ text: `幫這個角色想一個今天適合發的社群貼文靈感。
 
-從以下任一角度切入（隨機選一個，不要總選時事）：
+從以下任一角度切入（隨機選一個，不要總選同一類）：
 - 生活觀察（通勤、外送、辦公室）
-- 季節話題（⚠️ 必須配合當下「${_seasonMap[_mon]}」，不要寫成其他季節）
 - 情緒共鳴（疲累、懶散、小確幸）
 - 流行迷因（網路梗、台灣在地哏）
+- 職場日常（會議、主管、同事）
+- 感情互動（朋友、家人、曖昧）
+- 飲食小事（外食、手搖、點心）
 - 時事吐槽（如果有真正有趣的事件）
+
+⚠️ 請平均分散到不同角度，不要每次都選季節。
 
 格式（每項一行）：
 話題：（主題名稱，10-20 字）
@@ -5486,11 +5490,9 @@ async function genScript(directionHint) {
       // 完全放手 —— 用使用者選的模型，prompt 就一句話
       const _nowTd = new Date();
       const _wdTd = ['週日','週一','週二','週三','週四','週五','週六'][_nowTd.getDay()];
-      const _monTd = _nowTd.getMonth() + 1;
-      const _seasonMapTd = {1:'冬季',2:'冬季',3:'春季',4:'春季',5:'春末夏初',6:'初夏',7:'盛夏',8:'盛夏',9:'初秋',10:'秋季',11:'秋末冬初',12:'冬季'};
-      const _todayPrompt = `今天是 ${_nowTd.getFullYear()} 年 ${_monTd} 月 ${_nowTd.getDate()} 日（${_wdTd}），台灣目前是「${_seasonMapTd[_monTd]}」。
+      const _todayPrompt = `今天是 ${_nowTd.getFullYear()} 年 ${_nowTd.getMonth()+1} 月 ${_nowTd.getDate()} 日（${_wdTd}）。
 
-⚠️ 請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據上面的當下時空環境思考。季節話題必須符合當下「${_seasonMapTd[_monTd]}」，不要寫成其他季節。
+⚠️ 請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據上面的當下日期思考。若要提季節，請自行依照日期判斷，不要腦補。
 
 「${charName}」今天可以發什麼？
 
