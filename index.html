@@ -1711,7 +1711,7 @@ onAuthStateChanged(auth, async (user) => {
     // ✅ 登入後自動繼續輪詢未完成的生圖任務（_currentUid 此時已確認存在）
     setTimeout(async () => {
       const _stale = 30 * 60 * 1000;
-      const _scriptStale = 1 * 60 * 1000;
+      const _scriptStale = 3 * 60 * 1000;  // 3 分鐘（Sonnet + search 常 1-2 分鐘）
       const _imgNoTaskStale = 3 * 60 * 1000;
       const _n = Date.now();
 
@@ -5412,8 +5412,10 @@ async function genScript(directionHint) {
   }
 
     // ✅ 扣點後立刻存「生成中」佔位，背景靜默儲存（不跳頁）
+    // ⚠️ 例外：「今天發什麼」第一階段只是找話題，不會真的產腳本 → 不要建佔位
     var _pendingHistoryId = null;
-    if (window._currentUid && !window._guestMode) {
+    const _isTodayFirstStage = (type === '今天發什麼' && !directionHint);
+    if (window._currentUid && !window._guestMode && !_isTodayFirstStage) {
       _pendingHistoryId = Date.now();
       var _pendingEntry = {
         id: _pendingHistoryId,
@@ -5459,11 +5461,22 @@ async function genScript(directionHint) {
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
       // 超簡單自然 prompt — AI 自由發揮
+      // 加隨機提示，避免每次都選職場（因為角色本業是上班族）
+      const _anglePool = ['', '', '',  // 3/10 機率完全不提示
+        '可以想想生活中的小事、朋友聚會、手搖店、外送、通勤等',
+        '可以想想感情、家人、寵物、或週末日常',
+        '可以想想最近網路上的迷因或流行',
+        '可以想想季節、天氣、時間點的小感觸',
+        '可以想想吃、喝、買東西、小確幸等生活切角',
+        '試著跳脫角色的本業，從完全不同的生活面向發想',
+        '找一個冷門但戳中共鳴的日常觀察'
+      ];
+      const _angleHint = _anglePool[Math.floor(Math.random() * _anglePool.length)];
       const _todayPrompt = `「${charName}」今天可以發什麼？
 
 角色：${buildCharPrompt().replace(/^你現在是.*?。\n/, '').slice(0, 200)}
 
-${_excludeNote || ''}`;
+${_angleHint ? '（參考方向：' + _angleHint + '）' : ''}${_excludeNote || ''}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
