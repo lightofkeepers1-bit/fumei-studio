@@ -5618,6 +5618,28 @@ async function genScript(directionHint) {
       area.style.display = 'none';
       load.classList.remove('show');
       btn.disabled = false;
+
+      // ✅ 存「今天發什麼（已找話題，未選方向）」到歷史
+      // 即使使用者沒點方向，也要讓他們事後能找回這次搜到的話題
+      if (window._currentUid && !window._guestMode) {
+        const _dirText = _dirs.map((d, i) => `${_icons[i]} ${d.name}：${d.desc || ''}`).join('\n');
+        const _todaySearchEntry = {
+          id: Date.now(),
+          topic: _finalTopicName,
+          type: '今天發什麼（搜尋）',
+          format: '話題發想',
+          script: `📅 今天發什麼：「${_finalTopicName}」\n\n${_bgText ? '背景：' + _bgText + '\n\n' : ''}3 個發文方向：\n${_dirText}\n\n（此為搜尋結果，未產出完整腳本。想產腳本請重新操作並點選方向卡）`,
+          prompt: _todayPrompt,
+          credits: CREDIT_COST.news,
+          date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+        };
+        scriptHistory.unshift(_todaySearchEntry);
+        if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
+
       return;
     } else if (isAuto) {
       notice.style.display='block';
