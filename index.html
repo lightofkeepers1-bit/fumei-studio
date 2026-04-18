@@ -5460,23 +5460,12 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 超簡單自然 prompt — AI 自由發揮
-      // 加隨機提示，避免每次都選職場（因為角色本業是上班族）
-      const _anglePool = ['', '', '',  // 3/10 機率完全不提示
-        '可以想想生活中的小事、朋友聚會、手搖店、外送、通勤等',
-        '可以想想感情、家人、寵物、或週末日常',
-        '可以想想最近網路上的迷因或流行',
-        '可以想想季節、天氣、時間點的小感觸',
-        '可以想想吃、喝、買東西、小確幸等生活切角',
-        '試著跳脫角色的本業，從完全不同的生活面向發想',
-        '找一個冷門但戳中共鳴的日常觀察'
-      ];
-      const _angleHint = _anglePool[Math.floor(Math.random() * _anglePool.length)];
-      const _todayPrompt = `「${charName}」今天可以發什麼？
+      // Step 1：純中性發想（不告訴 AI 角色，避免它黏著本業）
+      const _todayPrompt = `今天台灣的社群可以發什麼有梗、有共鳴的話題？
 
-角色：${buildCharPrompt().replace(/^你現在是.*?。\n/, '').slice(0, 200)}
+隨便給我一個想法。不拘類型（生活、情緒、迷因、人際、食物、季節、時事、觀察都行）。
 
-${_angleHint ? '（參考方向：' + _angleHint + '）' : ''}${_excludeNote || ''}`;
+簡短說明話題是什麼、可以怎麼寫就好。${_excludeNote || ''}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
@@ -5519,10 +5508,15 @@ ${_angleHint ? '（參考方向：' + _angleHint + '）' : ''}${_excludeNote || 
         }
         const _toolBody = {
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1000,
-          temperature: 0.3,
-          system: '你是資料整理員。使用者給你一段 AI 的梗圖發想建議（可能是自由格式的文字），你要把內容整理成結構化的話題 + 3 個發文方向。直接引用或概括原文，不要自己創造新內容。',
-          messages: [{ role: 'user', content: `請整理以下梗圖發想，萃取出話題和 3 個發文方向：\n\n${_freeAnswer}` }],
+          max_tokens: 1200,
+          temperature: 0.7,
+          system: `你是梗圖創作助手。你會拿到一個中性的話題想法，你要把它轉化成「${charName}」這個角色會發的社群貼文。
+
+角色設定：
+${charCtx}
+
+你的任務：根據這個角色的個性、說話風格、立場，把話題改造成符合角色口吻的 3 個發文方向。話題本身不變，但切角、用字、語氣都要是「${charName}」會講的。`,
+          messages: [{ role: 'user', content: `中性話題發想：\n${_freeAnswer}\n\n請用「${charName}」的語氣重新詮釋這個話題，整理成話題標題 + 3 個方向。` }],
           tools: [{
             name: 'organize_meme_ideas',
             description: '將 AI 的梗圖發想整理成結構化格式',
