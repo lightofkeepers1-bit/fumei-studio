@@ -5516,8 +5516,8 @@ async function genScript(directionHint) {
             input_schema: {
               type: 'object',
               properties: {
-                topic: { type: 'string', description: '從原文萃取的話題名稱（10-25字）' },
-                background: { type: 'string', description: '一句話說明（20字以內）' },
+                topic: { type: 'string', description: `角色本人要發的貼文標題，像自己在說話（不是客觀觀察），10-25 字` },
+                background: { type: 'string', description: '角色視角的一句話說明（20字以內）' },
                 directions: {
                   type: 'array',
                   description: '3 個不同的發文方向，從原文找出或歸納',
