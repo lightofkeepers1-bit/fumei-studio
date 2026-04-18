@@ -5460,8 +5460,12 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // Step 1：AI 自由發想，今天可以發什麼
-      const _todayPrompt = `今天可以發什麼？${_excludeNote || ''}`;
+      // Step 1：角色本人自由發想今天可以發什麼（帶完整角色設定）
+      const _todayPrompt = `${buildCharPrompt()}
+
+現在是你的社群小編時間。今天你會想發什麼內容？
+
+請用你（角色本人）的語氣、個性、立場來發想，想一個有共鳴、有你的風格的貼文主題。寫成一段自由文字就好（話題名稱 + 為什麼想發 + 3 個不同的切入角度）。${_excludeNote || ''}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
@@ -5489,7 +5493,8 @@ async function genScript(directionHint) {
         } else if (_selectedModel === 'gpt') {
           _freeAnswer = await callGPT(_todayPrompt, 'script');
         } else {
-          _freeAnswer = await claude('你是台灣社群梗圖創作助手。', _todayPrompt, false, false);
+          // Claude 預設走 Sonnet（creative=true）以確保角色聲音夠強
+          _freeAnswer = await claude('你是台灣社群梗圖創作者。', _todayPrompt, false, true);
         }
 
         console.log('[今天發什麼] Step 1 自由回答：', _freeAnswer);
@@ -5505,19 +5510,20 @@ async function genScript(directionHint) {
         const _toolBody = {
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1200,
-          temperature: 0.7,
-          system: `${charCtx}
+          temperature: 0.2,
+          system: `你是純粹的資料格式化工具。你會收到一段已經寫好的梗圖發想文字，你唯一的工作是**不改動內容、不重寫、不改風格**，只把它拆解成結構化欄位填入。
 
-你就是上面這個角色。根據使用者給你的話題內容，用你自己的個性、語氣、立場，發想一個話題標題 + 3 個發文方向。`,
-          messages: [{ role: 'user', content: `有人幫我想了這些發文靈感：\n\n${_freeAnswer}\n\n請用你（「${charName}」）的角度發想一個話題 + 3 個發文方向。` }],
+⚠️ 絕對不要改寫原文的用字、語氣、措辭。如果原文寫「我今天又被老闆氣死」，你就照抄「我今天又被老闆氣死」，不要改成「台灣上班族的憤怒」。
+⚠️ 如果原文沒有某個欄位所需的資訊，就直接用原文最接近的句子填入。`,
+          messages: [{ role: 'user', content: `以下是一段已經寫好的發想文字，請直接萃取出話題標題 + 3 個方向，**保留原文的用字和風格**，不要改寫：\n\n${_freeAnswer}` }],
           tools: [{
             name: 'organize_meme_ideas',
-            description: '將 AI 的梗圖發想整理成結構化格式',
+            description: '把一段發想文字拆成結構化欄位（純格式化，不改內容）',
             input_schema: {
               type: 'object',
               properties: {
-                topic: { type: 'string', description: `角色本人要發的貼文標題，像自己在說話（不是客觀觀察），10-25 字` },
-                background: { type: 'string', description: '角色視角的一句話說明（20字以內）' },
+                topic: { type: 'string', description: '直接從原文找出話題標題（不要自己改寫，原文怎麼寫就怎麼放）' },
+                background: { type: 'string', description: '從原文找一句話當背景說明（原文原話）' },
                 directions: {
                   type: 'array',
                   description: '3 個不同的發文方向，從原文找出或歸納',
