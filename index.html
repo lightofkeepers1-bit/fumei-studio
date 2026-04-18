@@ -1715,19 +1715,6 @@ onAuthStateChanged(auth, async (user) => {
       const _imgNoTaskStale = 3 * 60 * 1000;
       const _n = Date.now();
 
-      // ✅ 自動清除已退點且超過 10 分鐘的殭屍佔位紀錄（避免歷史被塞滿）
-      const _deadStale = 10 * 60 * 1000;
-      const _beforeLen = scriptHistory.length;
-      scriptHistory = scriptHistory.filter(h => {
-        const isDeadPending = h.refunded && (h.format === '生成失敗' || h.format === '掃描失敗' || h.format === '生圖失敗') &&
-                              (h.topic === '（生成中）' || h.topic === '今日時事' || !h.topic) &&
-                              (_n - h.id) > _deadStale;
-        return !isDeadPending;
-      });
-      if (scriptHistory.length < _beforeLen) {
-        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
-      }
-
       // 生圖：繼續輪詢（有 taskId 且未逾時）
       const pending = scriptHistory.filter(h => h.format === '生圖中' && h.taskId && (_n - h.id) < _stale);
       pending.forEach(h => { if (window.resumeImgPolling) window.resumeImgPolling(h); });
