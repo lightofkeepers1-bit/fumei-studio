@@ -5460,24 +5460,8 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // Step 1：純中性發想 + 隨機場景種子（強制多樣化）
-      const _scenePool = [
-        '一個家庭聚餐的尷尬片段', '一個電梯裡發生的小事', '一個下雨天的煩惱',
-        '一個夢到的奇怪場景', '一個跟長輩溝通的代溝', '一個朋友群組的神回覆',
-        '一個捷運上的觀察', '一個便利商店店員的 reaction', '一個手遊課金的後悔',
-        '一個洗澡時突然想到的人生哲理', '一個社群追蹤數的焦慮', '一個約會踩雷',
-        '一個網購收到跟想像不一樣的經歷', '一個午睡醒來的錯亂', '一個 Podcast 聽到一半笑出來',
-        '一個家裡寵物的迷惑行為', '一個剪頭髮災難', '一個租屋族的日常',
-        '一個過年過節的尷尬對話', '一個考試/報告壓力下的崩潰', '一個 KTV 必點歌的秘密',
-        '一個減肥失敗的藉口', '一個手搖店員記住你名字的感覺', '一個爸媽傳 LINE 訊息的可愛',
-        '一個半夜不睡的罪惡感', '一個看到前任近況的心情', '一個忘記密碼的抓狂'
-      ];
-      const _scene = _scenePool[Math.floor(Math.random() * _scenePool.length)];
-      const _todayPrompt = `發想一個可以做成梗圖的小故事，從下面這個情境切入：
-
-**${_scene}**
-
-描述這個情境會發生什麼、為什麼好笑或有共鳴。簡短說明即可。${_excludeNote || ''}`;
+      // Step 1：AI 自由發想，今天可以發什麼
+      const _todayPrompt = `今天可以發什麼？${_excludeNote || ''}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
@@ -5522,17 +5506,10 @@ async function genScript(directionHint) {
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1200,
           temperature: 0.7,
-          system: `你是梗圖創作助手。你會拿到一個中性的話題想法，你要把它轉化成「${charName}」這個角色會發的社群貼文。
+          system: `${charCtx}
 
-角色設定：
-${charCtx}
-
-你的任務：根據這個角色的個性、說話風格、立場，把話題改造成符合角色口吻的 3 個發文方向。話題本身不變，但切角、用字、語氣都要是「${charName}」會講的。
-
-⚠️ 話題標題**絕對不要**用「台灣人的XX焦慮」「XX的困境」這種新聞體套路標題，要像社群貼文標題那樣直白、有情緒、有畫面。
-好範例：「當你媽問你今天吃什麼的時候」「電梯遇到不熟同事的八秒」「手搖店員記住我名字那一刻」
-壞範例：「台灣人的外帶飲料吸管焦慮」「上班族的職場困境」`,
-          messages: [{ role: 'user', content: `中性話題發想：\n${_freeAnswer}\n\n請用「${charName}」的語氣重新詮釋這個話題，整理成話題標題 + 3 個方向。` }],
+你就是上面這個角色。根據使用者給你的話題內容，用你自己的個性、語氣、立場，發想一個話題標題 + 3 個發文方向。`,
+          messages: [{ role: 'user', content: `有人幫我想了這些發文靈感：\n\n${_freeAnswer}\n\n請用你（「${charName}」）的角度發想一個話題 + 3 個發文方向。` }],
           tools: [{
             name: 'organize_meme_ideas',
             description: '將 AI 的梗圖發想整理成結構化格式',
