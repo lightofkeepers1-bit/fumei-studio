@@ -5573,7 +5573,7 @@ async function genScript(directionHint) {
         const _d = await _r.json();
         const _toolResult = _d.content?.find(c => c.type === 'tool_use')?.input;
         if (_toolResult) {
-          // 後處理：強制移除 Claude Haiku 愛加的「台灣人的」「台灣XX的」「XX族的」前綴
+          // 後處理：清理觀察者前綴 + 補齊不成對的引號
           function _stripObserverPrefix(s) {
             if (!s) return s;
             let r = s.trim();
@@ -5581,7 +5581,20 @@ async function genScript(directionHint) {
             r = r.replace(/^(台灣人?|台灣?[\u4e00-\u9fff]{1,4}族|現代人?|我們這些[\u4e00-\u9fff]{0,4}|我們[\u4e00-\u9fff]{0,4})的\s*[「『]?/, '');
             // 移除結尾對應的引號
             r = r.replace(/[」』]$/, '');
-            return r.trim() || s; // 萬一全清光了，還原
+
+            // 補齊不成對的引號（Claude 有時只開不關）
+            const pairs = [['「','」'], ['『','』'], ['"','"'], ['(','(', ')'], ['（','）']];
+            for (const [open, close] of [['「','」'], ['『','』'], ['（','）'], ['(',')']]) {
+              const opens = (r.match(new RegExp('\\' + open, 'g')) || []).length;
+              const closes = (r.match(new RegExp('\\' + close, 'g')) || []).length;
+              if (opens > closes) r += close.repeat(opens - closes);
+              else if (closes > opens) r = open.repeat(closes - opens) + r;
+            }
+            // 一般雙引號
+            const dq = (r.match(/"/g) || []).length;
+            if (dq % 2 !== 0) r += '"';
+
+            return r.trim() || s;
           }
           _finalTopicName = _stripObserverPrefix(_toolResult.topic) || '今日靈感';
           _bgText = _toolResult.background || '';
