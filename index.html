@@ -5629,7 +5629,7 @@ async function genScript(directionHint) {
           type: '今天發什麼（搜尋）',
           format: '話題發想',
           script: `📅 今天發什麼：「${_finalTopicName}」\n\n${_bgText ? '背景：' + _bgText + '\n\n' : ''}3 個發文方向：\n${_dirText}\n\n（此為搜尋結果，未產出完整腳本。想產腳本請重新操作並點選方向卡）`,
-          prompt: _todayPrompt,
+          prompt: '',  // 搜尋階段沒有生圖 prompt，留空
           credits: CREDIT_COST.news,
           date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
         };
@@ -6192,7 +6192,9 @@ function renderHistory() {
         : '';
 
     // Body content
-    const promptSection = h.prompt ? `
+    // 搜尋階段的歷史紀錄 不顯示 Gemini Prompt 區塊（prompt 欄位是內部 prompt，不該公開）
+    const _isSearchEntry = h.type === '今天發什麼（搜尋）' || h.format === '話題發想' || h.format === '掃描';
+    const promptSection = (h.prompt && !_isSearchEntry) ? `
       <div class="history-prompt-block">
         <div class="history-prompt-label">
           <span>🎨 ${(h.format||'').includes('影片') ? '影片 Prompt' : 'Gemini Prompt'}</span>
