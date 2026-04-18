@@ -5485,10 +5485,15 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
+      // 讀使用者在分類按鈕選的類別（全部 = 不限制）
+      const _catKeyMap = { all:'全部', politics:'政治', society:'社會', finance:'財經', lifestyle:'生活消費', world:'國際', entertainment:'娛樂', sports:'體育', education:'文教' };
+      const _catLabel = (_selectedNewsCat && _selectedNewsCat !== 'all') ? (_catKeyMap[_selectedNewsCat] || '') : '';
+      const _catNote = _catLabel ? `\n\n【指定領域】這次請從「${_catLabel}」類話題發想，不要跑到其他領域。` : '';
+
       // Step 1：角色本人自由發想今天可以發什麼（帶完整角色設定）
       const _todayPrompt = `${buildCharPrompt()}
 
-現在是你的社群小編時間。今天你會想發什麼內容？
+現在是你的社群小編時間。今天你會想發什麼內容？${_catNote}
 
 請用你（角色本人）的語氣、個性、立場來發想，想一個有共鳴、有你的風格的貼文主題。寫成一段自由文字就好（話題名稱 + 為什麼想發 + 3 個不同的切入角度）。${_excludeNote || ''}`;
 
