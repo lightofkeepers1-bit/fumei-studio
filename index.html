@@ -5458,12 +5458,29 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 完全放手 —— 日期只當隱性 context，prompt 一句話
+      // 隨機創意種子 —— 避免 AI 每次都選角色本業（例如上班族→永遠職場梗）
+      const _seedPool = [
+        '最近一件讓台灣人情緒爆炸的小事',
+        '生活中一個大家都遇過但沒人提的瞬間',
+        '一個冷門但戳中共鳴的觀察',
+        '台灣人才懂的某個荒謬日常',
+        '一個讓人會心一笑的社會現象',
+        '某個「你覺得只有自己這樣」結果大家都是的時刻',
+        '近期網路上有點熱度但還沒被做爛的梗',
+        '一個跟角色本業無關、但角色也會有感的生活細節',
+        '一個季節性會發生的小煩惱（自己判斷當下是什麼季節）',
+        '吃/喝/外送/手搖 相關的台灣限定觀察'
+      ];
+      const _seed = _seedPool[Math.floor(Math.random() * _seedPool.length)];
       const _todayPrompt = `「${charName}」今天社群可以發什麼？
 
 角色：${charName}（${buildCharPrompt().replace(/^你現在是.*?。\n/, '').slice(0, 200)}）
 
-幫這個角色想一個有梗、有共鳴的社群貼文主題，再給 3 個不同的發文方向（每個有標題和簡短說明）。${_excludeNote}`;
+這次的靈感方向：**${_seed}**
+
+幫這個角色想一個有梗、有共鳴的主題（符合上面的方向），給 3 個不同的切入角度。
+
+⚠️ 標題不要用「台灣XX族面對...」「2026年X月台灣人...」這種公式化開頭，直接講事件本身。${_excludeNote}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
