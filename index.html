@@ -5458,29 +5458,12 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 隨機創意種子 —— 避免 AI 每次都選角色本業（例如上班族→永遠職場梗）
-      const _seedPool = [
-        '最近一件讓台灣人情緒爆炸的小事',
-        '生活中一個大家都遇過但沒人提的瞬間',
-        '一個冷門但戳中共鳴的觀察',
-        '台灣人才懂的某個荒謬日常',
-        '一個讓人會心一笑的社會現象',
-        '某個「你覺得只有自己這樣」結果大家都是的時刻',
-        '近期網路上有點熱度但還沒被做爛的梗',
-        '一個跟角色本業無關、但角色也會有感的生活細節',
-        '一個季節性會發生的小煩惱（自己判斷當下是什麼季節）',
-        '吃/喝/外送/手搖 相關的台灣限定觀察'
-      ];
-      const _seed = _seedPool[Math.floor(Math.random() * _seedPool.length)];
-      const _todayPrompt = `「${charName}」今天社群可以發什麼？
+      // 超簡單自然 prompt — AI 自由發揮
+      const _todayPrompt = `「${charName}」今天可以發什麼？
 
-角色：${charName}（${buildCharPrompt().replace(/^你現在是.*?。\n/, '').slice(0, 200)}）
+角色：${buildCharPrompt().replace(/^你現在是.*?。\n/, '').slice(0, 200)}
 
-這次的靈感方向：**${_seed}**
-
-幫這個角色想一個有梗、有共鳴的主題（符合上面的方向），給 3 個不同的切入角度。
-
-⚠️ 標題不要用「台灣XX族面對...」「2026年X月台灣人...」這種公式化開頭，直接講事件本身。${_excludeNote}`;
+${_excludeNote || ''}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
@@ -5488,29 +5471,56 @@ async function genScript(directionHint) {
       let _directions = [];
 
       try {
-        const _headers = { 'Content-Type': 'application/json' };
-        if (window._currentUid) _headers['x-firebase-uid'] = window._currentUid;
+        const _selectedModel = document.getElementById('scriptModel')?.value || 'claude';
+        console.log('[今天發什麼] 使用模型：', _selectedModel);
+
+        // === Step 1: 使用者選的模型自由發想（無格式限制）===
+        let _freeAnswer = '';
+        if (_selectedModel === 'gemini') {
+          const _gHeaders = { 'Content-Type': 'application/json' };
+          if (window._currentUid) _gHeaders['x-firebase-uid'] = window._currentUid;
+          const _gr = await fetch('/api/gemini', { method: 'POST', headers: _gHeaders, body: JSON.stringify({
+            model: 'gemini-2.5-flash',
+            generationConfig: { temperature: 0.9, maxOutputTokens: 2000, thinkingConfig: { thinkingBudget: 0 } },
+            contents: [{ parts: [{ text: _todayPrompt }] }]
+          }) });
+          if (_gr.ok) {
+            const _gd = await _gr.json();
+            _freeAnswer = _gd.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+          }
+        } else if (_selectedModel === 'gpt') {
+          _freeAnswer = await callGPT(_todayPrompt, 'script');
+        } else {
+          _freeAnswer = await claude('你是台灣社群梗圖創作助手。', _todayPrompt, false, false);
+        }
+
+        console.log('[今天發什麼] Step 1 自由回答：', _freeAnswer);
+        if (!_freeAnswer || _freeAnswer.length < 20) throw new Error('Step 1 回應太短');
+
+        // === Step 2: Claude Haiku 當整理員，把自由回答塞進 JSON ===
+        const _orgHeaders = { 'Content-Type': 'application/json' };
+        if (window._currentUid) _orgHeaders['x-firebase-uid'] = window._currentUid;
         else {
-          _headers['x-fingerprint'] = window._fingerprint || '';
-          _headers['x-guest-feature'] = 'script';
+          _orgHeaders['x-fingerprint'] = window._fingerprint || '';
+          _orgHeaders['x-guest-feature'] = 'script';
         }
         const _toolBody = {
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1500,
-          temperature: 0.9,
-          system: '你是台灣社群梗圖創作助手。',
-          messages: [{ role: 'user', content: _todayPrompt }],
+          max_tokens: 1000,
+          temperature: 0.3,
+          system: '你是資料整理員。使用者給你一段 AI 的梗圖發想建議（可能是自由格式的文字），你要把內容整理成結構化的話題 + 3 個發文方向。直接引用或概括原文，不要自己創造新內容。',
+          messages: [{ role: 'user', content: `請整理以下梗圖發想，萃取出話題和 3 個發文方向：\n\n${_freeAnswer}` }],
           tools: [{
-            name: 'suggest_meme_topic',
-            description: '建議一個今天適合發的梗圖主題和3個發文方向',
+            name: 'organize_meme_ideas',
+            description: '將 AI 的梗圖發想整理成結構化格式',
             input_schema: {
               type: 'object',
               properties: {
-                topic: { type: 'string', description: '話題名稱（10-20字的完整事件描述）' },
-                background: { type: 'string', description: '話題背景一句話說明（20字以內）' },
+                topic: { type: 'string', description: '從原文萃取的話題名稱（10-25字）' },
+                background: { type: 'string', description: '一句話說明（20字以內）' },
                 directions: {
                   type: 'array',
-                  description: '3個不同的發文方向',
+                  description: '3 個不同的發文方向，從原文找出或歸納',
                   items: {
                     type: 'object',
                     properties: {
@@ -5524,24 +5534,23 @@ async function genScript(directionHint) {
               required: ['topic', 'background', 'directions']
             }
           }],
-          tool_choice: { type: 'tool', name: 'suggest_meme_topic' }
+          tool_choice: { type: 'tool', name: 'organize_meme_ideas' }
         };
 
-        const _r = await fetch('/api/claude', { method: 'POST', headers: _headers, body: JSON.stringify(_toolBody) });
+        const _r = await fetch('/api/claude', { method: 'POST', headers: _orgHeaders, body: JSON.stringify(_toolBody) });
         if (!_r.ok) throw new Error(`Claude ${_r.status}`);
         const _d = await _r.json();
-        // tool_use 回傳在 content[].type === 'tool_use' 的 input 裡
         const _toolResult = _d.content?.find(c => c.type === 'tool_use')?.input;
         if (_toolResult) {
-          _finalTopicName = _toolResult.topic || '今日時事';
+          _finalTopicName = _toolResult.topic || '今日靈感';
           _bgText = _toolResult.background || '';
           _directions = (_toolResult.directions || []).slice(0, 3);
-          console.log('[今天發什麼] tool_use 成功：', _toolResult);
+          console.log('[今天發什麼] Step 2 整理結果：', _toolResult);
         } else {
           throw new Error('No tool_use in response');
         }
       } catch(_err) {
-        console.error('[今天發什麼] tool_use 失敗：', _err.message);
+        console.error('[今天發什麼] 失敗：', _err.message);
         // fallback：用舊的文字解析（簡化版）
         try {
           const _fallbackRes = await claude('你是台灣社群梗圖創作助手。', _todayPrompt + '\n\n回覆格式（嚴格遵守）：\n話題：（名稱）\n背景：（說明）\n1.（方向名）：（說明）\n2.（方向名）：（說明）\n3.（方向名）：（說明）', false, false);
