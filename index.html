@@ -5583,16 +5583,22 @@ async function genScript(directionHint) {
             r = r.replace(/[」』]$/, '');
 
             // 補齊不成對的引號（Claude 有時只開不關）
-            const pairs = [['「','」'], ['『','』'], ['"','"'], ['(','(', ')'], ['（','）']];
-            for (const [open, close] of [['「','」'], ['『','』'], ['（','）'], ['(',')']]) {
-              const opens = (r.match(new RegExp('\\' + open, 'g')) || []).length;
-              const closes = (r.match(new RegExp('\\' + close, 'g')) || []).length;
+            // 用字元計數取代 regex，避免反斜線轉譯問題
+            function _countChar(str, ch) {
+              let n = 0;
+              for (let i = 0; i < str.length; i++) if (str[i] === ch) n++;
+              return n;
+            }
+            const bracketPairs = [['「','」'], ['『','』'], ['（','）'], ['(',')']];
+            for (const [open, close] of bracketPairs) {
+              const opens = _countChar(r, open);
+              const closes = _countChar(r, close);
               if (opens > closes) r += close.repeat(opens - closes);
               else if (closes > opens) r = open.repeat(closes - opens) + r;
             }
             // 一般雙引號
-            const dq = (r.match(/"/g) || []).length;
-            if (dq % 2 !== 0) r += '"';
+            const dqCount = _countChar(r, '"');
+            if (dqCount % 2 !== 0) r += '"';
 
             return r.trim() || s;
           }
