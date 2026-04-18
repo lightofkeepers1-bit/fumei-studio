@@ -5042,29 +5042,11 @@ async function genInspo() {
       </div>`).join('');
     area.style.display = 'block';
 
-    // 動態帶入當下日期（不強調季節，避免 AI 一直黏在季節話題）
-    const _now = new Date();
-    const _weekdayMap = ['週日','週一','週二','週三','週四','週五','週六'];
-    const _dateCtx = `今天是 ${_now.getFullYear()} 年 ${_now.getMonth()+1} 月 ${_now.getDate()} 日（${_weekdayMap[_now.getDay()]}）。`;
-
-    const _todayPromptFor = (ai) => `${_dateCtx}
-
-請**撇除你訓練資料裡對「今天」「最近」的既有印象**，純粹根據上面的當下日期思考。
-
-「${charName}」今天社群可以發什麼？
+    const _todayPromptFor = (ai) => `「${charName}」今天社群可以發什麼？
 
 角色：${charName}（${charCtx.slice(0, 200)}）
 
-幫這個角色想一個今天適合發的社群貼文靈感。請從以下任一角度切入，每次**隨機**挑不同的角度（不要每次都選同一類）：
-- 生活觀察（通勤、外送、辦公室小事）
-- 情緒共鳴（疲累、懶散、小確幸）
-- 流行迷因（網路梗、台灣在地哏）
-- 職場日常（會議、主管、同事）
-- 感情互動（朋友、家人、曖昧）
-- 飲食小事（外食、手搖、點心）
-- 時事吐槽（如果有真正有趣的事件）
-
-⚠️ 不要每次都選季節話題，要平均分散到不同角度。
+幫這個角色想一個有梗、有共鳴的社群貼文靈感。
 
 用這個格式回覆（每項一行）：
 話題：（主題或事件名稱，10-20 字）
@@ -5086,19 +5068,8 @@ async function genInspo() {
             maxOutputTokens: 2000,
             thinkingConfig: { thinkingBudget: 0 }  // 明確關閉 thinking，全部 token 給實際輸出
           },
-          systemInstruction: { parts: [{ text: `${_dateCtx}\n\n請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據當下日期思考。\n\n你是台灣社群梗圖創意顧問。角色「${charName}」：${charCtx.slice(0, 200)}` }] },
-          contents: [{ parts: [{ text: `幫這個角色想一個今天適合發的社群貼文靈感。
-
-從以下任一角度切入（隨機選一個，不要總選同一類）：
-- 生活觀察（通勤、外送、辦公室）
-- 情緒共鳴（疲累、懶散、小確幸）
-- 流行迷因（網路梗、台灣在地哏）
-- 職場日常（會議、主管、同事）
-- 感情互動（朋友、家人、曖昧）
-- 飲食小事（外食、手搖、點心）
-- 時事吐槽（如果有真正有趣的事件）
-
-⚠️ 請平均分散到不同角度，不要每次都選季節。
+          systemInstruction: { parts: [{ text: `你是台灣社群梗圖創意顧問。角色「${charName}」：${charCtx.slice(0, 200)}` }] },
+          contents: [{ parts: [{ text: `幫這個角色想一個有梗、有共鳴的社群貼文靈感。
 
 格式（每項一行）：
 話題：（主題名稱，10-20 字）
@@ -5487,20 +5458,12 @@ async function genScript(directionHint) {
       const _excludeNote = _recentTopics.length
         ? `\n\n【禁止重複】以下話題已經用過，絕對不要再選：${_recentTopics.join('、')}。請選一個完全不同的話題。`
         : '';
-      // 完全放手 —— 用使用者選的模型，prompt 就一句話
-      const _nowTd = new Date();
-      const _wdTd = ['週日','週一','週二','週三','週四','週五','週六'][_nowTd.getDay()];
-      const _todayPrompt = `今天是 ${_nowTd.getFullYear()} 年 ${_nowTd.getMonth()+1} 月 ${_nowTd.getDate()} 日（${_wdTd}）。
+      // 完全放手 —— 日期只當隱性 context，prompt 一句話
+      const _todayPrompt = `「${charName}」今天社群可以發什麼？
 
-⚠️ 請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據上面的當下日期思考。若要提季節，請自行依照日期判斷，不要腦補。
+角色：${charName}（${buildCharPrompt().replace(/^你現在是.*?。\n/, '').slice(0, 200)}）
 
-「${charName}」今天可以發什麼？
-
-角色設定：
-${buildCharPrompt().replace(/^你現在是.*?。\n/, '')}
-
-幫這個角色想一個今天適合發的社群貼文主題，不限於新聞時事，也可以是生活觀察、流行趨勢、職場日常、季節話題、網路迷因等等，只要有梗、有共鳴就好。
-給 3 個不同的發文方向，每個有標題和簡短說明。${_excludeNote}`;
+幫這個角色想一個有梗、有共鳴的社群貼文主題，再給 3 個不同的發文方向（每個有標題和簡短說明）。${_excludeNote}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
