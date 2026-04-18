@@ -1715,6 +1715,19 @@ onAuthStateChanged(auth, async (user) => {
       const _imgNoTaskStale = 3 * 60 * 1000;
       const _n = Date.now();
 
+      // ✅ 自動清除已退點且超過 10 分鐘的殭屍佔位紀錄（避免歷史被塞滿）
+      const _deadStale = 10 * 60 * 1000;
+      const _beforeLen = scriptHistory.length;
+      scriptHistory = scriptHistory.filter(h => {
+        const isDeadPending = h.refunded && (h.format === '生成失敗' || h.format === '掃描失敗' || h.format === '生圖失敗') &&
+                              (h.topic === '（生成中）' || h.topic === '今日時事' || !h.topic) &&
+                              (_n - h.id) > _deadStale;
+        return !isDeadPending;
+      });
+      if (scriptHistory.length < _beforeLen) {
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+      }
+
       // 生圖：繼續輪詢（有 taskId 且未逾時）
       const pending = scriptHistory.filter(h => h.format === '生圖中' && h.taskId && (_n - h.id) < _stale);
       pending.forEach(h => { if (window.resumeImgPolling) window.resumeImgPolling(h); });
@@ -5548,10 +5561,21 @@ async function genScript(directionHint) {
         const _d = await _r.json();
         const _toolResult = _d.content?.find(c => c.type === 'tool_use')?.input;
         if (_toolResult) {
-          _finalTopicName = _toolResult.topic || '今日靈感';
+          // 後處理：強制移除 Claude Haiku 愛加的「台灣人的」「台灣XX的」「XX族的」前綴
+          function _stripObserverPrefix(s) {
+            if (!s) return s;
+            let r = s.trim();
+            // 移除「台灣人的」「台灣上班族的」「XX族的」「現代人的」等客觀觀察前綴
+            r = r.replace(/^(台灣人?|台灣?[\u4e00-\u9fff]{1,4}族|現代人?|我們這些[\u4e00-\u9fff]{0,4}|我們[\u4e00-\u9fff]{0,4})的\s*[「『]?/, '');
+            // 移除結尾對應的引號
+            r = r.replace(/[」』]$/, '');
+            return r.trim() || s; // 萬一全清光了，還原
+          }
+          _finalTopicName = _stripObserverPrefix(_toolResult.topic) || '今日靈感';
           _bgText = _toolResult.background || '';
           _directions = (_toolResult.directions || []).slice(0, 3);
           console.log('[今天發什麼] Step 2 整理結果：', _toolResult);
+          console.log('[今天發什麼] 清理後話題：', _finalTopicName);
         } else {
           throw new Error('No tool_use in response');
         }
