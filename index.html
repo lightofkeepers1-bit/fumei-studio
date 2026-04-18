@@ -4610,10 +4610,35 @@ ${_charCtxForScan}
 只輸出6行，不要編號、不要額外說明。`;
     }
 
-    // Gemini 已成功 → 跳過 Claude 呼叫，直接到歷史存檔
+    // Gemini 已成功 → 存歷史 + 更新佔位 → return
     if (isNews && geminiSuccess) {
+      // 取得剛剛渲染的 topicList（從 grid 的卡片反推）
+      if (window._currentUid && !window._guestMode && _scanPendingId) {
+        const _scanTopicsFromGrid = Array.from(grid.querySelectorAll('.topic-chip')).map((el, i) => {
+          const title = el.querySelector('strong')?.textContent?.trim() || '';
+          const sub = el.querySelector('span[style*="pink-deep"]')?.textContent?.trim() || '';
+          return { title, sub };
+        });
+        const scanLines = _scanTopicsFromGrid.map((t, i) => `話題${i+1}：${t.title}\n「${t.sub}」`);
+        const scanEntry = {
+          id: _scanPendingId,
+          topic: `📡 話題掃描｜今日時事`,
+          script: scanLines.join('\n\n'),
+          format: '話題掃描',
+          type: '',
+          duration: _scanPendingId ? Math.round((Date.now() - _scanPendingId) / 1000) : null,
+          credits: CREDIT_COST.news || 2,
+          date: new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+        };
+        const _idx = scriptHistory.findIndex(h => h.id === _scanPendingId);
+        if (_idx !== -1) scriptHistory[_idx] = scanEntry;
+        else scriptHistory.unshift(scanEntry);
+        if (scriptHistory.length > 50) scriptHistory = scriptHistory.slice(0, 50);
+        localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
+        if (window.syncToCloud) window.syncToCloud();
+        renderHistory();
+      }
       btn.disabled = false; load.classList.remove('show'); _scanInProgress = false;
-      // 歷史存檔走下方的 if (window._currentUid && !window._guestMode) 區段
       return;
     }
 
