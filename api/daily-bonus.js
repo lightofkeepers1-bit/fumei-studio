@@ -49,7 +49,9 @@ export default async function handler(req, res) {
   // 安全驗證：只允許 Vercel Cron 或管理員手動觸發
   const authHeader = req.headers['authorization'] || '';
   const isCron = req.headers['x-vercel-cron'] === '1';
-  const isAdmin = authHeader === `Bearer ${process.env.CRON_SECRET || 'fumei-cron-2024'}`;
+  const cronSecret = process.env.CRON_SECRET;
+  // 環境變數沒設就只允許 Vercel Cron，不接受手動觸發
+  const isAdmin = cronSecret && authHeader === `Bearer ${cronSecret}`;
   if (!isCron && !isAdmin) {
     return res.status(401).json({ error: '未授權' });
   }

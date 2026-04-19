@@ -3022,6 +3022,12 @@ window._renderHistory = function() {
 // ── VERSION ───────────────────────────────────────
 const APP_VERSION = '5.19.0';
 
+// ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
+window.esc = function(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+};
+
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
 let _directionCardsShowing = false;
@@ -4380,9 +4386,9 @@ ${pttHeadlines}
 
       grid.innerHTML = topicList.map((t, i) =>
         `<div class="topic-chip" data-idx="${i}">
-          <span class="topic-num">話題 ${i+1}${t.rssIndex >= 0 && pttItems[t.rssIndex] ? ` <a href="${pttItems[t.rssIndex].url}" target="_blank" style="font-size:0.65rem;color:var(--pink-deep);text-decoration:none">↗PTT</a>` : ''}</span>
-          <strong>${t.title}</strong><br>
-          <span style="font-size:0.8rem;color:#999">${t.sub}</span>
+          <span class="topic-num">話題 ${i+1}${t.rssIndex >= 0 && pttItems[t.rssIndex] ? ` <a href="${esc(pttItems[t.rssIndex].url)}" target="_blank" rel="noopener noreferrer" style="font-size:0.65rem;color:var(--pink-deep);text-decoration:none">↗PTT</a>` : ''}</span>
+          <strong>${esc(t.title)}</strong><br>
+          <span style="font-size:0.8rem;color:#999">${esc(t.sub)}</span>
           <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
         </div>`
       ).join('');
@@ -4564,8 +4570,8 @@ ${_charCtxForScan}
               grid.innerHTML = topicList.map((item, i) => {
                 return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
                   <span class="topic-num">話題 ${i+1}</span>
-                  <strong>${item.title}</strong><br>
-                  <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+                  <strong>${esc(item.title)}</strong><br>
+                  <span style="color:var(--pink-deep);font-size:0.81rem">${esc(item.sub)}</span>
                   <span style="font-size:0.6rem;color:#ccc;margin-left:4px">🔗 🔥 Google 熱搜</span>
                   <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
                 </div>`
@@ -4719,12 +4725,12 @@ ${_charCtxForScan}
         }) || null;
       }
       const sourceTag = rssItem?.link
-        ? `<a href="${rssItem.link}" target="_blank" style="font-size:0.65rem;color:#aaa;text-decoration:none;display:inline-block;margin-top:4px" onclick="event.stopPropagation()">🔗 ${rssItem.source || '查看原文'}</a>`
+        ? `<a href="${esc(rssItem.link)}" target="_blank" rel="noopener noreferrer" style="font-size:0.65rem;color:#aaa;text-decoration:none;display:inline-block;margin-top:4px" onclick="event.stopPropagation()">🔗 ${esc(rssItem.source || '查看原文')}</a>`
         : '';
       return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
         <span class="topic-num">話題 ${i+1}</span>
-        <strong>${item.title}</strong><br>
-        <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+        <strong>${esc(item.title)}</strong><br>
+        <span style="color:var(--pink-deep);font-size:0.81rem">${esc(item.sub)}</span>
         ${sourceTag}
         <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題"
           style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
