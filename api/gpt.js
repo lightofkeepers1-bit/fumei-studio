@@ -49,7 +49,7 @@ function checkIpRate(ip) {
   const now = Date.now();
   const entry = ipCache.get(ip) || { count: 0, start: now };
   if (now - entry.start > 60000) { ipCache.set(ip, { count: 1, start: now }); return true; }
-  if (entry.count >= 10) return false;
+  if (entry.count >= 20) return false;
   entry.count++; ipCache.set(ip, entry); return true;
 }
 
@@ -75,7 +75,8 @@ export default async function handler(req, res) {
   const guestToken = req.headers['x-guest-token'] || '';
   const ip         = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 
-  if (!checkIpRate(ip)) return res.status(429).json({ error: '⚠️ 請求過於頻繁，請稍後再試' });
+  // 登入用戶有點數系統管控，不做 IP 限制；只對訪客做 IP 限制
+  if (!uid && !checkIpRate(ip)) return res.status(429).json({ error: '⚠️ 請求過於頻繁，請稍後再試' });
 
   if (!uid) {
     if (GUEST_BLOCKED_FEATURES.includes(feature)) return res.status(403).json({ error: '🔒 此功能需要登入才能使用', needLogin: true });
