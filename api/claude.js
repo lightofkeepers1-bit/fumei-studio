@@ -79,6 +79,8 @@ function checkIpRate(ip) {
 }
 
 // ── 訪客封鎖功能 ────────────────────────────────────
+// 'reply' 為佔位示例，前端目前未送 x-guest-feature header，此機制實際未啟用
+// 要封鎖某功能時：前端對應 fetch 加 headers['x-guest-feature'] = '功能名'
 const GUEST_BLOCKED_FEATURES = ['reply'];
 
 // ── 驗證 session token ──────────────────────────────

@@ -5,15 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fumei Studio ✨ | AI 梗圖創作助手 × 台灣社群內容</title>
 <meta name="description" content="Fumei Studio 是台灣第一個 AI 梗圖創作工具，結合 Claude、GPT、Gemini 自動掃描時事話題、生成腳本、一鍵生圖，幫你輕鬆經營 IG、FB、Threads 粉絲專頁。">
-<meta name="keywords" content="AI梗圖,梗圖創作,台灣梗圖,社群內容,腳本生成,AI生圖,Fumei Studio,Fumei Studio">
+<meta name="keywords" content="AI梗圖,梗圖創作,台灣梗圖,社群內容,腳本生成,AI生圖,Fumei Studio,IG小編,Threads 梗圖">
+<meta name="author" content="Fumei Studio">
+<meta name="theme-color" content="#F4A7B9">
 <link rel="canonical" href="https://fumei-studio.com/">
 <meta name="robots" content="index, follow">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Fumei Studio">
 <meta property="og:url" content="https://fumei-studio.com/">
 <meta property="og:title" content="Fumei Studio ✨ | AI 梗圖創作助手 × 台灣社群內容">
 <meta property="og:description" content="台灣第一個 AI 梗圖創作工具，自動掃描時事、生成腳本、一鍵生圖，輕鬆經營 IG、FB 粉專。">
 <meta property="og:image" content="https://fumei-studio.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Fumei Studio — AI 梗圖創作助手">
 <meta property="og:locale" content="zh_TW">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
@@ -60,6 +66,35 @@
 <style>
 /* 回訪者：landing 從 DOM 第一幀就隱藏（避免閃爍） */
 html.returning-user #landingOverlay { display: none !important; }
+
+/* Landing page RWD：手機一欄 */
+@media (max-width: 768px) {
+  #landingOverlay div[style*="grid-template-columns:1fr 1fr"],
+  #landingOverlay div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  #landingOverlay div[style*="min-height:90vh"] {
+    min-height: auto !important;
+    padding: 40px 20px !important;
+  }
+  #landingOverlay h1, #landingOverlay h2 { font-size: 1.6rem !important; line-height: 1.3 !important; }
+  #landingOverlay [style*="font-size:2.8rem"], #landingOverlay [style*="font-size:3rem"] {
+    font-size: 2rem !important;
+  }
+}
+
+/* iOS Safari 100vh 修正（網址列會遮住） */
+@supports (-webkit-touch-callout: none) {
+  #landingOverlay div[style*="min-height:90vh"] { min-height: -webkit-fill-available !important; }
+}
+
+/* 手機上把 onmouseover 的 sticky hover 關掉（改用 CSS hover 只對有 hover 設備啟用） */
+@media (hover: none) {
+  button[onmouseover], div[onmouseover], a[onmouseover] {
+    /* 移除 inline onmouseover 設的樣式幾乎不可能，但 :hover 不會觸發就算小勝利 */
+  }
+}
 </style>
 <style>
   :root {
@@ -3024,6 +3059,41 @@ window.esc = function(s) {
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 };
 
+// ── 全域錯誤捕捉（未預期錯誤寫進 Firestore errors/ + console）──
+window._errorLogBuffer = [];
+function _logError(type, data) {
+  try {
+    const entry = {
+      type,
+      message: String(data.message || data.reason?.message || data.reason || data).slice(0, 500),
+      stack: String(data.error?.stack || data.reason?.stack || '').slice(0, 2000),
+      url: location.pathname + location.search,
+      ts: Date.now(),
+      ua: navigator.userAgent.slice(0, 200),
+      uid: window._currentUid || '',
+    };
+    console.error('[AppError]', entry);
+    window._errorLogBuffer.push(entry);
+    // 批次寫雲端（最多每 30 秒一次，避免錯誤風暴洗爆 Firestore）
+    if (!window._errorFlushTimer && window._currentUid) {
+      window._errorFlushTimer = setTimeout(async () => {
+        window._errorFlushTimer = null;
+        const batch = window._errorLogBuffer.splice(0, 10);
+        if (!batch.length) return;
+        try {
+          const { collection, addDoc, serverTimestamp } =
+            await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+          for (const e of batch) {
+            await addDoc(collection(window.db, 'errors'), { ...e, created_at: serverTimestamp() });
+          }
+        } catch(_) {}
+      }, 30000);
+    }
+  } catch(_) {}
+}
+window.addEventListener('error', e => _logError('error', e));
+window.addEventListener('unhandledrejection', e => _logError('unhandledrejection', e));
+
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
 let _directionCardsShowing = false;
@@ -3186,6 +3256,21 @@ window.deductCredits = async (cost, feature) => {
   if (current < cost) return { ok: false, reason: 'insufficient', remaining: current };
 
   const newVal = current - cost;
+
+  // ✅ 先嘗試寫雲端，成功後才扣本地（避免關 tab 時雲端沒寫到 → 下次同步退點）
+  try {
+    const { doc, updateDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await updateDoc(doc(window.db, 'users', window._currentUid), {
+      fumei_credits: newVal,
+      ['fumei_credits_last_use']: new Date().toISOString(),
+    });
+  } catch(e) {
+    console.error('[Credits] cloud write failed', e);
+    return { ok: false, reason: 'cloudWriteFailed', remaining: current };
+  }
+
+  // 雲端寫成功 → 更新本地
   localStorage.setItem('fumei_credits', String(newVal));
   window.updateCreditsUI(newVal);
   window.showCreditToast(cost, newVal);
@@ -3195,18 +3280,6 @@ window.deductCredits = async (cost, feature) => {
   if (window.addCreditLogEntry) {
     window.addCreditLogEntry({ action: featureLabel[feature] || feature, delta: -cost, ts: Date.now() });
   }
-
-  // 非同步寫回雲端（不等待，避免阻塞 UI）
-  (async () => {
-    try {
-      const { doc, updateDoc, increment } =
-        await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      await updateDoc(doc(window.db, 'users', window._currentUid), {
-        fumei_credits: newVal,
-        ['fumei_credits_last_use']: new Date().toISOString(),
-      });
-    } catch(e) { console.error('[Credits] cloud write failed', e); }
-  })();
 
   return { ok: true, remaining: newVal };
 };

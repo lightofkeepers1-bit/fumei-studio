@@ -130,7 +130,15 @@ export default async function handler(req, res) {
 
       const newCredits = current - cost;
       await fsUpdateCredits(docPath, newCredits);
+      // 寫入 guest_tokens/ 讓後續 API 呼叫能驗證（同批操作不重複扣點）
       const token = `${safeKey.slice(0, 12)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const expires = Date.now() + 60 * 1000; // 60 秒內有效
+      const safeToken = token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+      await fsSet(`guest_tokens/${safeToken}`, {
+        fingerprint: { stringValue: safeKey },
+        expires: { integerValue: String(expires) },
+        created_at: { stringValue: new Date().toISOString() },
+      });
       return res.status(200).json({ credits: newCredits, token });
     }
 
