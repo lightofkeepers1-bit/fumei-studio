@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.email == 'lightofkeepers1@gmail.com';
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 使用者資料
+    // 點數只允許「降低或不變」（扣點），要「增加」必須走伺服器（尚未實作）
+    // 目前登入使用者仍可改自己的其他欄位（角色設定、歷史等）
+    // ⚠️ 長期方案：所有點數操作改走 serverless + Admin SDK，前端完全不能寫 fumei_credits
+    // ─────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if isAdmin() || (
+        request.auth != null
+        && request.auth.uid == uid
+        && (
+          // 沒動到 credits 欄位 → 允許
+          !('fumei_credits' in request.resource.data)
+          || !('fumei_credits' in resource.data)
+          // 或 credits 沒增加（扣點 / 維持原值）
+          || request.resource.data.fumei_credits <= resource.data.fumei_credits
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 邀請碼
+    // get：登入使用者可查特定碼（驗證用）
+    // list：只有 admin 能列出（防止撈清單）
+    // update：兌換時自動標記 used_by 自己，且舊資料未被用
+    // ─────────────────────────────────────────────────────
+    match /invite_codes/{code} {
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          request.auth != null
+          && resource.data.used_by == ''
+          && resource.data.active == true
+          && request.resource.data.used_by == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['used_by', 'used_uid', 'used_at', 'active'])
+        );
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 意見回饋
+    // ─────────────────────────────────────────────────────
+    match /feedback/{id} {
+      allow create: if request.auth != null;
+      allow read, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 錯誤日誌（新增）
+    // ─────────────────────────────────────────────────────
+    match /errors/{id} {
+      allow create: if request.auth != null;
+      allow read, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 訪客點數
+    // read：保持公開（serverless guest-check.js 用 REST 無 auth 讀取）
+    // write：只能降低不能增加（防刷）；新建必須是 20（初始化上限）
+    // ⚠️ 未來理想：讓前端完全不能寫，都走 /api/guest-check
+    // ─────────────────────────────────────────────────────
+    match /guest_credits/{fp} {
+      allow read: if true;
+      allow create: if request.resource.data.credits is int
+                    && request.resource.data.credits == 20;
+      allow update: if request.resource.data.credits is int
+                    && request.resource.data.credits >= 0
+                    && request.resource.data.credits <= 20
+                    && request.resource.data.credits <= resource.data.credits;
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 訪客 token / 使用紀錄（新增）
+    // 完全禁止前端存取，只允許 serverless 用 REST 寫入
+    // 因 REST 用公開 apiKey 也算「無 auth」狀態 → 需要開放寫入
+    // 但讀取不開（避免被 enumerate）
+    // ─────────────────────────────────────────────────────
+    match /guest_tokens/{token} {
+      allow read: if isAdmin();
+      allow write: if true;  // serverless 寫入
+    }
+    match /guest_usage/{fp} {
+      allow read: if isAdmin();
+      allow write: if true;  // serverless 寫入（rate limit 計數）
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 已刪除帳號黑名單
+    // ─────────────────────────────────────────────────────
+    match /deleted_users/{emailKey} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 管理員清單（限 admin 讀，避免洩漏）
+    // ─────────────────────────────────────────────────────
+    match /admins/{emailKey} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 公開設定（公告、維護模式等）
+    // ─────────────────────────────────────────────────────
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // 邀請關係
+    // ─────────────────────────────────────────────────────
+    match /referrals/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

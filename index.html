@@ -717,7 +717,27 @@ window.logoutUser = async () => {
   await signOut(auth);
 };
 
-// ── 邀請碼兌換 ──
+// ── 邀請碼兌換（走 /api/redeem，使用 Firebase Admin SDK 原子交易）──
+window.redeemInviteCodeViaApi = async (code) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('NOT_LOGGED_IN');
+  const idToken = await user.getIdToken();
+  const r = await fetch('/api/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+    body: JSON.stringify({ code })
+  });
+  const d = await r.json();
+  if (!r.ok || !d.ok) { const err = new Error(d.error || '兌換失敗'); err.reason = d.reason; throw err; }
+  // 同步本地
+  localStorage.setItem('fumei_credits', String(d.newBalance));
+  window.updateCreditsUI(d.newBalance);
+  if (window.addCreditLogEntry) {
+    window.addCreditLogEntry({ action: '兌換邀請碼 ' + code, delta: +d.creditsAdded, ts: Date.now(), remaining: d.newBalance });
+  }
+  return d;
+};
+
 window.redeemInviteCode = async () => {
   const input = document.getElementById('inviteCodeInput');
   const msg = document.getElementById('inviteCodeMsg');
@@ -726,56 +746,35 @@ window.redeemInviteCode = async () => {
 
   msg.style.color = '#aaa'; msg.textContent = '⏳ 驗證中...';
 
-  try {
-    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
-      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-
-    const codeRef = _doc(db, 'invite_codes', code);
-    const snap = await _getDoc(codeRef);
-
-    if (!snap.exists()) {
-      msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return;
-    }
-    const data = snap.data();
-    if (!data.active) {
-      msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return;
-    }
-    if (data.used_by && data.used_by !== '') {
-      msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return;
-    }
-
-    // 如果目前已登入，直接套用（不需再登入）
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const creditsToAdd = data.credits || 20;
-      await updateDoc(codeRef, {
-        used_by: currentUser.email,
-        used_uid: currentUser.uid,
-        used_at: serverTimestamp(),
-        active: false
-      });
-      await window.addCredits(creditsToAdd, 'invite:' + code);
-      // 備份紀錄
-      await window.saveToCloud(currentUser.uid, {
-        fumei_invite_last: code,
-        fumei_invite_last_at: new Date().toISOString(),
-      });
+  // 已登入 → 直接兌換
+  if (auth.currentUser) {
+    try {
+      const d = await window.redeemInviteCodeViaApi(code);
       msg.style.color = '#2d6a4f';
-      msg.textContent = `🎉 兌換成功！已補充 ${creditsToAdd} 點（目前 ${window.getCredits()} 點）`;
+      msg.textContent = `🎉 兌換成功！已補充 ${d.creditsAdded} 點（目前 ${d.newBalance} 點）`;
       input.value = '';
-      return;
+    } catch (e) {
+      msg.style.color = '#e85d8a';
+      msg.textContent = e.message || '❌ 兌換失敗';
     }
+    return;
+  }
 
-    // 未登入：儲存 pending code，展開登入選項
+  // 未登入：前端做簡單驗證（用讀取權限確認存在），暫存 code 後引導登入
+  try {
+    const { getDoc: _getDoc, doc: _doc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await _getDoc(_doc(db, 'invite_codes', code));
+    if (!snap.exists()) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return; }
+    const data = snap.data();
+    if (!data.active) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return; }
+    if (data.used_by && data.used_by !== '') { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return; }
     localStorage.setItem('fumei_pending_invite', code);
     msg.style.color = '#2d6a4f';
     msg.textContent = '✅ 邀請碼有效！請選擇登入方式完成兌換 👇';
-    // 展開 Email 登入表單（讓用戶選擇登入方式）
     const emailArea = document.getElementById('emailFormArea');
     if (emailArea) emailArea.style.display = 'block';
-
   } catch(e) {
-    console.error(e);
     msg.style.color = '#e85d8a'; msg.textContent = '❌ 驗證失敗，請稍後再試';
   }
 };
@@ -788,28 +787,15 @@ window.redeemFromSettings = async () => {
   if (!input || !msg) return;
   const code = (input.value || '').trim().toUpperCase();
   if (!code) { msg.style.color = '#e85d8a'; msg.textContent = '請輸入邀請碼'; return; }
-  // 借用主兌換流程
-  document.getElementById('inviteCodeInput') && (document.getElementById('inviteCodeInput').value = code);
+  if (!window._currentUid || !auth.currentUser) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請先登入'; return; }
   msg.style.color = '#aaa'; msg.textContent = '⏳ 兌換中...';
   try {
-    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
-      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const codeRef = _doc(db, 'invite_codes', code);
-    const snap = await _getDoc(codeRef);
-    if (!snap.exists()) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return; }
-    const data = snap.data();
-    if (!data.active) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return; }
-    if (data.used_by) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return; }
-    if (!window._currentUid) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請先登入'; return; }
-    const creditsToAdd = data.credits || 20;
-    await updateDoc(codeRef, { used_by: auth.currentUser.email, used_uid: window._currentUid, used_at: serverTimestamp(), active: false });
-    await window.addCredits(creditsToAdd, 'invite:' + code);
-    await window.saveToCloud(window._currentUid, { fumei_invite_last: code, fumei_invite_last_at: new Date().toISOString() });
+    const d = await window.redeemInviteCodeViaApi(code);
     input.value = '';
-    const newCredits = window.getCredits();
     msg.style.color = '#2d6a4f';
-    msg.textContent = `🎉 成功！補充 ${creditsToAdd} 點，目前 ${newCredits} 點`;
-    document.getElementById('creditsInfoNum').textContent = newCredits;
+    msg.textContent = `🎉 成功！補充 ${d.creditsAdded} 點，目前 ${d.newBalance} 點`;
+    const el = document.getElementById('creditsInfoNum');
+    if (el) el.textContent = d.newBalance;
   } catch(e) {
     console.error(e);
     msg.style.color = '#e85d8a'; msg.textContent = '❌ 兌換失敗';
@@ -1870,37 +1856,18 @@ onAuthStateChanged(auth, async (user) => {
     const fbTab = document.getElementById('feedbackTab');
     if (fbTab) fbTab.style.display = '';
 
-    // 檢查是否有待兌換的邀請碼
+    // 檢查是否有待兌換的邀請碼（透過 /api/redeem 原子兌換）
     const pendingCode = localStorage.getItem('fumei_pending_invite');
     if (pendingCode) {
       try {
-        const { doc: _doc, getDoc: _getDoc, updateDoc, serverTimestamp } =
-          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        const codeRef = _doc(db, 'invite_codes', pendingCode);
-        const snap = await _getDoc(codeRef);
-        if (snap.exists() && snap.data().active && !snap.data().used_by) {
-          const codeData = snap.data();
-          const creditsToAdd = codeData.credits || 20;
-          // 標記邀請碼已使用，同時記錄 uid
-          await updateDoc(codeRef, {
-            used_by: user.email,
-            used_uid: user.uid,
-            used_at: serverTimestamp(),
-            active: false
-          });
-          // 補充點數（syncCreditsFromCloud 已先跑，這裡再加）
-          await window.addCredits(creditsToAdd, 'invite:' + pendingCode);
-          await window.saveToCloud(user.uid, {
-            fumei_invite_last: pendingCode,
-            fumei_invite_last_at: new Date().toISOString(),
-          });
-          localStorage.removeItem('fumei_pending_invite');
-          document.getElementById('welcomeModal').style.display = 'none';
-          setTimeout(() => alert(`🎉 邀請碼兌換成功！已補充 ${creditsToAdd} 點`), 500);
-        } else {
-          localStorage.removeItem('fumei_pending_invite');
-        }
-      } catch(e) { console.error('邀請碼套用失敗', e); localStorage.removeItem('fumei_pending_invite'); }
+        const d = await window.redeemInviteCodeViaApi(pendingCode);
+        localStorage.removeItem('fumei_pending_invite');
+        document.getElementById('welcomeModal').style.display = 'none';
+        setTimeout(() => alert(`🎉 邀請碼兌換成功！已補充 ${d.creditsAdded} 點`), 500);
+      } catch(e) {
+        console.error('邀請碼套用失敗', e);
+        localStorage.removeItem('fumei_pending_invite');
+      }
     }
 
     // 換登入方式偵測（舊邀請碼帳號合併，保留向後相容）
@@ -3429,13 +3396,21 @@ window.doCheckinFromModal = async () => {
       if (toast) { toast.textContent = '今日已簽到過囉！'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
       return;
     }
-    // 補點 + 寫 Firestore
-    await window.addCredits(DAILY_BONUS, 'daily_checkin');
-    // 更新雲端簽到日期
-    const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_checkin_date: today });
+    // 呼叫伺服器端簽到 API（原子交易：驗證 + 加點 + 標記日期）
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) {
+      throw new Error(d.error || '簽到失敗');
+    }
+    // 同步本地
+    localStorage.setItem('fumei_credits', String(d.newBalance));
+    window.updateCreditsUI(d.newBalance);
     localStorage.setItem(CHECKIN_KEY, today);
-    addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now() });
+    addCreditLogEntry({ action: '每日簽到', delta: +d.creditsAdded, ts: Date.now(), remaining: d.newBalance });
     // 更新所有簽到按鈕狀態
     if (window.initCheckinBtn) window.initCheckinBtn();
     window.closeCheckinModal();

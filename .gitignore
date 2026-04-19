@@ -19,6 +19,9 @@ build/
 .env.local
 .env.*.local
 *.pem
+# Firebase Admin SDK service account 絕對不要 commit
+*firebase-adminsdk*.json
+service-account*.json
 
 # OS
 .DS_Store
