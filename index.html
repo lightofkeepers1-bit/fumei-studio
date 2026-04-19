@@ -5,15 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fumei Studio ✨ | AI 梗圖創作助手 × 台灣社群內容</title>
 <meta name="description" content="Fumei Studio 是台灣第一個 AI 梗圖創作工具，結合 Claude、GPT、Gemini 自動掃描時事話題、生成腳本、一鍵生圖，幫你輕鬆經營 IG、FB、Threads 粉絲專頁。">
-<meta name="keywords" content="AI梗圖,梗圖創作,台灣梗圖,社群內容,腳本生成,AI生圖,Fumei Studio,Fumei Studio">
+<meta name="keywords" content="AI梗圖,梗圖創作,台灣梗圖,社群內容,腳本生成,AI生圖,Fumei Studio,IG小編,Threads 梗圖">
+<meta name="author" content="Fumei Studio">
+<meta name="theme-color" content="#F4A7B9">
 <link rel="canonical" href="https://fumei-studio.com/">
 <meta name="robots" content="index, follow">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Fumei Studio">
 <meta property="og:url" content="https://fumei-studio.com/">
 <meta property="og:title" content="Fumei Studio ✨ | AI 梗圖創作助手 × 台灣社群內容">
 <meta property="og:description" content="台灣第一個 AI 梗圖創作工具，自動掃描時事、生成腳本、一鍵生圖，輕鬆經營 IG、FB 粉專。">
 <meta property="og:image" content="https://fumei-studio.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Fumei Studio — AI 梗圖創作助手">
 <meta property="og:locale" content="zh_TW">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
@@ -60,6 +66,35 @@
 <style>
 /* 回訪者：landing 從 DOM 第一幀就隱藏（避免閃爍） */
 html.returning-user #landingOverlay { display: none !important; }
+
+/* Landing page RWD：手機一欄 */
+@media (max-width: 768px) {
+  #landingOverlay div[style*="grid-template-columns:1fr 1fr"],
+  #landingOverlay div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  #landingOverlay div[style*="min-height:90vh"] {
+    min-height: auto !important;
+    padding: 40px 20px !important;
+  }
+  #landingOverlay h1, #landingOverlay h2 { font-size: 1.6rem !important; line-height: 1.3 !important; }
+  #landingOverlay [style*="font-size:2.8rem"], #landingOverlay [style*="font-size:3rem"] {
+    font-size: 2rem !important;
+  }
+}
+
+/* iOS Safari 100vh 修正（網址列會遮住） */
+@supports (-webkit-touch-callout: none) {
+  #landingOverlay div[style*="min-height:90vh"] { min-height: -webkit-fill-available !important; }
+}
+
+/* 手機上把 onmouseover 的 sticky hover 關掉（改用 CSS hover 只對有 hover 設備啟用） */
+@media (hover: none) {
+  button[onmouseover], div[onmouseover], a[onmouseover] {
+    /* 移除 inline onmouseover 設的樣式幾乎不可能，但 :hover 不會觸發就算小勝利 */
+  }
+}
 </style>
 <style>
   :root {
@@ -682,7 +717,27 @@ window.logoutUser = async () => {
   await signOut(auth);
 };
 
-// ── 邀請碼兌換 ──
+// ── 邀請碼兌換（走 /api/redeem，使用 Firebase Admin SDK 原子交易）──
+window.redeemInviteCodeViaApi = async (code) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('NOT_LOGGED_IN');
+  const idToken = await user.getIdToken();
+  const r = await fetch('/api/redeem', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+    body: JSON.stringify({ code })
+  });
+  const d = await r.json();
+  if (!r.ok || !d.ok) { const err = new Error(d.error || '兌換失敗'); err.reason = d.reason; throw err; }
+  // 同步本地
+  localStorage.setItem('fumei_credits', String(d.newBalance));
+  window.updateCreditsUI(d.newBalance);
+  if (window.addCreditLogEntry) {
+    window.addCreditLogEntry({ action: '兌換邀請碼 ' + code, delta: +d.creditsAdded, ts: Date.now(), remaining: d.newBalance });
+  }
+  return d;
+};
+
 window.redeemInviteCode = async () => {
   const input = document.getElementById('inviteCodeInput');
   const msg = document.getElementById('inviteCodeMsg');
@@ -691,56 +746,35 @@ window.redeemInviteCode = async () => {
 
   msg.style.color = '#aaa'; msg.textContent = '⏳ 驗證中...';
 
-  try {
-    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
-      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-
-    const codeRef = _doc(db, 'invite_codes', code);
-    const snap = await _getDoc(codeRef);
-
-    if (!snap.exists()) {
-      msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return;
-    }
-    const data = snap.data();
-    if (!data.active) {
-      msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return;
-    }
-    if (data.used_by && data.used_by !== '') {
-      msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return;
-    }
-
-    // 如果目前已登入，直接套用（不需再登入）
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const creditsToAdd = data.credits || 20;
-      await updateDoc(codeRef, {
-        used_by: currentUser.email,
-        used_uid: currentUser.uid,
-        used_at: serverTimestamp(),
-        active: false
-      });
-      await window.addCredits(creditsToAdd, 'invite:' + code);
-      // 備份紀錄
-      await window.saveToCloud(currentUser.uid, {
-        fumei_invite_last: code,
-        fumei_invite_last_at: new Date().toISOString(),
-      });
+  // 已登入 → 直接兌換
+  if (auth.currentUser) {
+    try {
+      const d = await window.redeemInviteCodeViaApi(code);
       msg.style.color = '#2d6a4f';
-      msg.textContent = `🎉 兌換成功！已補充 ${creditsToAdd} 點（目前 ${window.getCredits()} 點）`;
+      msg.textContent = `🎉 兌換成功！已補充 ${d.creditsAdded} 點（目前 ${d.newBalance} 點）`;
       input.value = '';
-      return;
+    } catch (e) {
+      msg.style.color = '#e85d8a';
+      msg.textContent = e.message || '❌ 兌換失敗';
     }
+    return;
+  }
 
-    // 未登入：儲存 pending code，展開登入選項
+  // 未登入：前端做簡單驗證（用讀取權限確認存在），暫存 code 後引導登入
+  try {
+    const { getDoc: _getDoc, doc: _doc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap = await _getDoc(_doc(db, 'invite_codes', code));
+    if (!snap.exists()) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return; }
+    const data = snap.data();
+    if (!data.active) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return; }
+    if (data.used_by && data.used_by !== '') { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return; }
     localStorage.setItem('fumei_pending_invite', code);
     msg.style.color = '#2d6a4f';
     msg.textContent = '✅ 邀請碼有效！請選擇登入方式完成兌換 👇';
-    // 展開 Email 登入表單（讓用戶選擇登入方式）
     const emailArea = document.getElementById('emailFormArea');
     if (emailArea) emailArea.style.display = 'block';
-
   } catch(e) {
-    console.error(e);
     msg.style.color = '#e85d8a'; msg.textContent = '❌ 驗證失敗，請稍後再試';
   }
 };
@@ -753,28 +787,15 @@ window.redeemFromSettings = async () => {
   if (!input || !msg) return;
   const code = (input.value || '').trim().toUpperCase();
   if (!code) { msg.style.color = '#e85d8a'; msg.textContent = '請輸入邀請碼'; return; }
-  // 借用主兌換流程
-  document.getElementById('inviteCodeInput') && (document.getElementById('inviteCodeInput').value = code);
+  if (!window._currentUid || !auth.currentUser) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請先登入'; return; }
   msg.style.color = '#aaa'; msg.textContent = '⏳ 兌換中...';
   try {
-    const { getDoc: _getDoc, doc: _doc, updateDoc, serverTimestamp } =
-      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const codeRef = _doc(db, 'invite_codes', code);
-    const snap = await _getDoc(codeRef);
-    if (!snap.exists()) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 邀請碼不存在'; return; }
-    const data = snap.data();
-    if (!data.active) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已失效'; return; }
-    if (data.used_by) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 此邀請碼已被使用'; return; }
-    if (!window._currentUid) { msg.style.color = '#e85d8a'; msg.textContent = '❌ 請先登入'; return; }
-    const creditsToAdd = data.credits || 20;
-    await updateDoc(codeRef, { used_by: auth.currentUser.email, used_uid: window._currentUid, used_at: serverTimestamp(), active: false });
-    await window.addCredits(creditsToAdd, 'invite:' + code);
-    await window.saveToCloud(window._currentUid, { fumei_invite_last: code, fumei_invite_last_at: new Date().toISOString() });
+    const d = await window.redeemInviteCodeViaApi(code);
     input.value = '';
-    const newCredits = window.getCredits();
     msg.style.color = '#2d6a4f';
-    msg.textContent = `🎉 成功！補充 ${creditsToAdd} 點，目前 ${newCredits} 點`;
-    document.getElementById('creditsInfoNum').textContent = newCredits;
+    msg.textContent = `🎉 成功！補充 ${d.creditsAdded} 點，目前 ${d.newBalance} 點`;
+    const el = document.getElementById('creditsInfoNum');
+    if (el) el.textContent = d.newBalance;
   } catch(e) {
     console.error(e);
     msg.style.color = '#e85d8a'; msg.textContent = '❌ 兌換失敗';
@@ -1440,12 +1461,8 @@ window.submitFeedback = async () => {
       version,
       created_at: serverTimestamp()
     });
-    // 同時發 LINE Notify（失敗不影響送出成功）
-    fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid || '' },
-      body: JSON.stringify({ type: window._feedbackType, text, email, version })
-    }).catch(() => {});
+    // （已移除 LINE Notify 呼叫：LINE Notify 於 2025/3/31 EOL，且 /api/notify endpoint 不存在）
+    // 所有回饋都存在 Firestore 'feedback' collection，管理員可在後台查看
     msg.style.color = '#4caf50';
     msg.textContent = '✅ 已送出，感謝你的回饋！';
     document.getElementById('feedbackText').value = '';
@@ -1839,37 +1856,18 @@ onAuthStateChanged(auth, async (user) => {
     const fbTab = document.getElementById('feedbackTab');
     if (fbTab) fbTab.style.display = '';
 
-    // 檢查是否有待兌換的邀請碼
+    // 檢查是否有待兌換的邀請碼（透過 /api/redeem 原子兌換）
     const pendingCode = localStorage.getItem('fumei_pending_invite');
     if (pendingCode) {
       try {
-        const { doc: _doc, getDoc: _getDoc, updateDoc, serverTimestamp } =
-          await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        const codeRef = _doc(db, 'invite_codes', pendingCode);
-        const snap = await _getDoc(codeRef);
-        if (snap.exists() && snap.data().active && !snap.data().used_by) {
-          const codeData = snap.data();
-          const creditsToAdd = codeData.credits || 20;
-          // 標記邀請碼已使用，同時記錄 uid
-          await updateDoc(codeRef, {
-            used_by: user.email,
-            used_uid: user.uid,
-            used_at: serverTimestamp(),
-            active: false
-          });
-          // 補充點數（syncCreditsFromCloud 已先跑，這裡再加）
-          await window.addCredits(creditsToAdd, 'invite:' + pendingCode);
-          await window.saveToCloud(user.uid, {
-            fumei_invite_last: pendingCode,
-            fumei_invite_last_at: new Date().toISOString(),
-          });
-          localStorage.removeItem('fumei_pending_invite');
-          document.getElementById('welcomeModal').style.display = 'none';
-          setTimeout(() => alert(`🎉 邀請碼兌換成功！已補充 ${creditsToAdd} 點`), 500);
-        } else {
-          localStorage.removeItem('fumei_pending_invite');
-        }
-      } catch(e) { console.error('邀請碼套用失敗', e); localStorage.removeItem('fumei_pending_invite'); }
+        const d = await window.redeemInviteCodeViaApi(pendingCode);
+        localStorage.removeItem('fumei_pending_invite');
+        document.getElementById('welcomeModal').style.display = 'none';
+        setTimeout(() => alert(`🎉 邀請碼兌換成功！已補充 ${d.creditsAdded} 點`), 500);
+      } catch(e) {
+        console.error('邀請碼套用失敗', e);
+        localStorage.removeItem('fumei_pending_invite');
+      }
     }
 
     // 換登入方式偵測（舊邀請碼帳號合併，保留向後相容）
@@ -3022,6 +3020,47 @@ window._renderHistory = function() {
 // ── VERSION ───────────────────────────────────────
 const APP_VERSION = '5.19.0';
 
+// ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
+window.esc = function(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+};
+
+// ── 全域錯誤捕捉（未預期錯誤寫進 Firestore errors/ + console）──
+window._errorLogBuffer = [];
+function _logError(type, data) {
+  try {
+    const entry = {
+      type,
+      message: String(data.message || data.reason?.message || data.reason || data).slice(0, 500),
+      stack: String(data.error?.stack || data.reason?.stack || '').slice(0, 2000),
+      url: location.pathname + location.search,
+      ts: Date.now(),
+      ua: navigator.userAgent.slice(0, 200),
+      uid: window._currentUid || '',
+    };
+    console.error('[AppError]', entry);
+    window._errorLogBuffer.push(entry);
+    // 批次寫雲端（最多每 30 秒一次，避免錯誤風暴洗爆 Firestore）
+    if (!window._errorFlushTimer && window._currentUid) {
+      window._errorFlushTimer = setTimeout(async () => {
+        window._errorFlushTimer = null;
+        const batch = window._errorLogBuffer.splice(0, 10);
+        if (!batch.length) return;
+        try {
+          const { collection, addDoc, serverTimestamp } =
+            await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+          for (const e of batch) {
+            await addDoc(collection(window.db, 'errors'), { ...e, created_at: serverTimestamp() });
+          }
+        } catch(_) {}
+      }, 30000);
+    }
+  } catch(_) {}
+}
+window.addEventListener('error', e => _logError('error', e));
+window.addEventListener('unhandledrejection', e => _logError('unhandledrejection', e));
+
 // ── 防止重整中斷任務 (beforeunload) ──────────────
 let _scanInProgress = false;
 let _directionCardsShowing = false;
@@ -3184,6 +3223,21 @@ window.deductCredits = async (cost, feature) => {
   if (current < cost) return { ok: false, reason: 'insufficient', remaining: current };
 
   const newVal = current - cost;
+
+  // ✅ 先嘗試寫雲端，成功後才扣本地（避免關 tab 時雲端沒寫到 → 下次同步退點）
+  try {
+    const { doc, updateDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await updateDoc(doc(window.db, 'users', window._currentUid), {
+      fumei_credits: newVal,
+      ['fumei_credits_last_use']: new Date().toISOString(),
+    });
+  } catch(e) {
+    console.error('[Credits] cloud write failed', e);
+    return { ok: false, reason: 'cloudWriteFailed', remaining: current };
+  }
+
+  // 雲端寫成功 → 更新本地
   localStorage.setItem('fumei_credits', String(newVal));
   window.updateCreditsUI(newVal);
   window.showCreditToast(cost, newVal);
@@ -3193,18 +3247,6 @@ window.deductCredits = async (cost, feature) => {
   if (window.addCreditLogEntry) {
     window.addCreditLogEntry({ action: featureLabel[feature] || feature, delta: -cost, ts: Date.now() });
   }
-
-  // 非同步寫回雲端（不等待，避免阻塞 UI）
-  (async () => {
-    try {
-      const { doc, updateDoc, increment } =
-        await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      await updateDoc(doc(window.db, 'users', window._currentUid), {
-        fumei_credits: newVal,
-        ['fumei_credits_last_use']: new Date().toISOString(),
-      });
-    } catch(e) { console.error('[Credits] cloud write failed', e); }
-  })();
 
   return { ok: true, remaining: newVal };
 };
@@ -3354,13 +3396,21 @@ window.doCheckinFromModal = async () => {
       if (toast) { toast.textContent = '今日已簽到過囉！'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
       return;
     }
-    // 補點 + 寫 Firestore
-    await window.addCredits(DAILY_BONUS, 'daily_checkin');
-    // 更新雲端簽到日期
-    const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_checkin_date: today });
+    // 呼叫伺服器端簽到 API（原子交易：驗證 + 加點 + 標記日期）
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) {
+      throw new Error(d.error || '簽到失敗');
+    }
+    // 同步本地
+    localStorage.setItem('fumei_credits', String(d.newBalance));
+    window.updateCreditsUI(d.newBalance);
     localStorage.setItem(CHECKIN_KEY, today);
-    addCreditLogEntry({ action: '每日簽到', delta: +DAILY_BONUS, ts: Date.now() });
+    addCreditLogEntry({ action: '每日簽到', delta: +d.creditsAdded, ts: Date.now(), remaining: d.newBalance });
     // 更新所有簽到按鈕狀態
     if (window.initCheckinBtn) window.initCheckinBtn();
     window.closeCheckinModal();
@@ -4380,9 +4430,9 @@ ${pttHeadlines}
 
       grid.innerHTML = topicList.map((t, i) =>
         `<div class="topic-chip" data-idx="${i}">
-          <span class="topic-num">話題 ${i+1}${t.rssIndex >= 0 && pttItems[t.rssIndex] ? ` <a href="${pttItems[t.rssIndex].url}" target="_blank" style="font-size:0.65rem;color:var(--pink-deep);text-decoration:none">↗PTT</a>` : ''}</span>
-          <strong>${t.title}</strong><br>
-          <span style="font-size:0.8rem;color:#999">${t.sub}</span>
+          <span class="topic-num">話題 ${i+1}${t.rssIndex >= 0 && pttItems[t.rssIndex] ? ` <a href="${esc(pttItems[t.rssIndex].url)}" target="_blank" rel="noopener noreferrer" style="font-size:0.65rem;color:var(--pink-deep);text-decoration:none">↗PTT</a>` : ''}</span>
+          <strong>${esc(t.title)}</strong><br>
+          <span style="font-size:0.8rem;color:#999">${esc(t.sub)}</span>
           <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
         </div>`
       ).join('');
@@ -4564,8 +4614,8 @@ ${_charCtxForScan}
               grid.innerHTML = topicList.map((item, i) => {
                 return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
                   <span class="topic-num">話題 ${i+1}</span>
-                  <strong>${item.title}</strong><br>
-                  <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+                  <strong>${esc(item.title)}</strong><br>
+                  <span style="color:var(--pink-deep);font-size:0.81rem">${esc(item.sub)}</span>
                   <span style="font-size:0.6rem;color:#ccc;margin-left:4px">🔗 🔥 Google 熱搜</span>
                   <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題" style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>
                 </div>`
@@ -4719,12 +4769,12 @@ ${_charCtxForScan}
         }) || null;
       }
       const sourceTag = rssItem?.link
-        ? `<a href="${rssItem.link}" target="_blank" style="font-size:0.65rem;color:#aaa;text-decoration:none;display:inline-block;margin-top:4px" onclick="event.stopPropagation()">🔗 ${rssItem.source || '查看原文'}</a>`
+        ? `<a href="${esc(rssItem.link)}" target="_blank" rel="noopener noreferrer" style="font-size:0.65rem;color:#aaa;text-decoration:none;display:inline-block;margin-top:4px" onclick="event.stopPropagation()">🔗 ${esc(rssItem.source || '查看原文')}</a>`
         : '';
       return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
         <span class="topic-num">話題 ${i+1}</span>
-        <strong>${item.title}</strong><br>
-        <span style="color:var(--pink-deep);font-size:0.81rem">${item.sub}</span>
+        <strong>${esc(item.title)}</strong><br>
+        <span style="color:var(--pink-deep);font-size:0.81rem">${esc(item.sub)}</span>
         ${sourceTag}
         <button onclick="event.stopPropagation();refreshOneTopic(${i})" title="重新生成這個話題"
           style="position:absolute;top:8px;right:8px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:8px;padding:2px 7px;font-size:0.72rem;color:var(--pink-deep);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;line-height:1.5">🔄</button>

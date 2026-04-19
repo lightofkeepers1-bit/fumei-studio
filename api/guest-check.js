@@ -76,6 +76,33 @@ export default async function handler(req, res) {
       return res.status(200).json({ credits });
     }
 
+    // ── POST ?type=checkin：每日簽到（同步雲端，不重複發）
+    if (req.method === 'POST' && req.query.type === 'checkin') {
+      const addCredits = parseInt(req.body?.credits ?? 0, 10);
+      const checkinDate = String(req.body?.checkin_date || '').slice(0, 10);
+      if (!checkinDate) return res.status(400).json({ error: '缺少簽到日期' });
+      const data = await fsGet(docPath);
+      // 今天已簽到就不重複加
+      const lastCheckin = data?.last_checkin_date?.stringValue || '';
+      if (lastCheckin === checkinDate) {
+        return res.status(200).json({ credits: parseInt(data?.credits?.integerValue ?? '0', 10), alreadyCheckedIn: true });
+      }
+      const url = `${FS_BASE}/${docPath}?key=${FIREBASE_API_KEY}`
+        + `&updateMask.fieldPaths=credits`
+        + `&updateMask.fieldPaths=last_checkin_date`
+        + `&updateMask.fieldPaths=updated_at`;
+      await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: {
+          credits: { integerValue: String(addCredits) },
+          last_checkin_date: { stringValue: checkinDate },
+          updated_at: { stringValue: new Date().toISOString() },
+        }}),
+      });
+      return res.status(200).json({ credits: addCredits, checkedIn: true });
+    }
+
     // ── POST：扣點數
     if (req.method === 'POST') {
       const cost = parseInt(req.body?.cost ?? 1, 10);
@@ -103,7 +130,15 @@ export default async function handler(req, res) {
 
       const newCredits = current - cost;
       await fsUpdateCredits(docPath, newCredits);
+      // 寫入 guest_tokens/ 讓後續 API 呼叫能驗證（同批操作不重複扣點）
       const token = `${safeKey.slice(0, 12)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const expires = Date.now() + 60 * 1000; // 60 秒內有效
+      const safeToken = token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+      await fsSet(`guest_tokens/${safeToken}`, {
+        fingerprint: { stringValue: safeKey },
+        expires: { integerValue: String(expires) },
+        created_at: { stringValue: new Date().toISOString() },
+      });
       return res.status(200).json({ credits: newCredits, token });
     }
 

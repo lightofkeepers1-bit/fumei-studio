@@ -1,1 +1,33 @@
+# Editor / IDE
 .claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
+
+# Build / Deploy
+.vercel/
+.next/
+dist/
+build/
+
+# Env / Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+# Firebase Admin SDK service account 絕對不要 commit
+*firebase-adminsdk*.json
+service-account*.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
