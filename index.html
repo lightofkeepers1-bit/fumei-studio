@@ -1440,12 +1440,8 @@ window.submitFeedback = async () => {
       version,
       created_at: serverTimestamp()
     });
-    // 同時發 LINE Notify（失敗不影響送出成功）
-    fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-firebase-uid': window._currentUid || '' },
-      body: JSON.stringify({ type: window._feedbackType, text, email, version })
-    }).catch(() => {});
+    // （已移除 LINE Notify 呼叫：LINE Notify 於 2025/3/31 EOL，且 /api/notify endpoint 不存在）
+    // 所有回饋都存在 Firestore 'feedback' collection，管理員可在後台查看
     msg.style.color = '#4caf50';
     msg.textContent = '✅ 已送出，感謝你的回饋！';
     document.getElementById('feedbackText').value = '';
