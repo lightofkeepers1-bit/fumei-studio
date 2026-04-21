@@ -576,6 +576,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+window.auth = auth; // 讓其他 script block（簽到 modal、checkinModalBtn 等）可以存取
 // 確保登入狀態永久保留（避免 Safari ITP 清除導致每次重新登入）
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 const db = getFirestore(app);
@@ -9522,7 +9523,7 @@ window.addEventListener('load', () => {
   </div>
 </footer>
 <script>
-  // 取得當前部署版本號，顯示在 footer + console
+  // 取得當前部署版本號，同時更新 header 與 footer
   (async () => {
     try {
       const r = await fetch('/api/version', { cache: 'no-store' });
@@ -9530,16 +9531,32 @@ window.addEventListener('load', () => {
       const d = await r.json();
       window._appVersion = d;
       const envTag = d.env === 'production' ? '' : ` [${d.env}]`;
-      const txt = `v${d.sha}${envTag}${d.branch ? ' · ' + d.branch : ''}`;
+      // Header (#appVersion)：在原本的 manual 版本後面 append SHA
+      // 這樣使用者看到 header 就知道目前是哪個 commit
+      const hdr = document.getElementById('appVersion');
+      if (hdr) {
+        const manual = hdr.textContent.trim(); // 例如 "v5.16.5"
+        hdr.textContent = `${manual} · ${d.sha}${envTag}`;
+        hdr.style.cursor = 'pointer';
+        hdr.title = `完整 SHA: ${d.shaFull}\nBranch: ${d.branch}\n${d.message}\n(點擊複製)`;
+        hdr.onclick = () => {
+          navigator.clipboard?.writeText(`${manual}-${d.sha} (${d.branch}) — ${d.message}`).catch(() => {});
+          const orig = hdr.textContent;
+          hdr.textContent = '✓ 已複製';
+          setTimeout(() => { hdr.textContent = orig; }, 1500);
+        };
+      }
+      // Footer 小 badge 保留（冗餘但不礙事）
       const badge = document.getElementById('versionBadge');
       if (badge) {
-        badge.textContent = txt;
+        badge.textContent = `v${d.sha}${envTag}${d.branch ? ' · ' + d.branch : ''}`;
         badge.style.cursor = 'pointer';
         badge.title = `完整 SHA: ${d.shaFull}\n${d.message}\n(點擊複製)`;
         badge.onclick = () => {
           navigator.clipboard?.writeText(`${d.sha} (${d.branch}) — ${d.message}`).catch(() => {});
+          const orig = badge.textContent;
           badge.textContent = '✓ 已複製';
-          setTimeout(() => { badge.textContent = txt; }, 1500);
+          setTimeout(() => { badge.textContent = orig; }, 1500);
         };
       }
       console.log(
