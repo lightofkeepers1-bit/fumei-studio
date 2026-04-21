@@ -738,6 +738,48 @@ window.redeemInviteCodeViaApi = async (code) => {
   return d;
 };
 
+// ── 統一的點數調整 API（退點 + 推薦獎勵）────────────────
+// 所有會「加 fumei_credits」的操作都走 /api/adjust，避免前端直寫被 firestore.rules 擋
+window.adjustCreditsViaApi = async (body) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('NOT_LOGGED_IN');
+  const idToken = await user.getIdToken();
+  const r = await fetch('/api/adjust', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok || !d.ok) { const err = new Error(d.error || '調整點數失敗'); err.reason = d.reason; throw err; }
+  return d;
+};
+
+// Helper：退點 + 更新本地 UI + 寫 credit log
+// API 失敗時 fallback 做樂觀更新（避免使用者以為沒退）
+// reason 必須在 api/adjust.js 的 REFUND_REASONS allowlist 內
+window.refundCreditsViaApi = async (amount, reason, logAction) => {
+  try {
+    const d = await window.adjustCreditsViaApi({ action: 'refund', amount, reason });
+    localStorage.setItem('fumei_credits', String(d.newBalance));
+    if (window.updateCreditsUI) window.updateCreditsUI(d.newBalance);
+    if (logAction && window.addCreditLogEntry) {
+      window.addCreditLogEntry({ action: logAction, delta: +amount, ts: Date.now(), remaining: d.newBalance });
+    }
+    return d;
+  } catch(e) {
+    console.error('[Refund]', reason, 'API failed:', e);
+    // 樂觀更新本地 UI（雲端會 out-of-sync，syncCreditsFromCloud higher-wins 會補回）
+    const cur = window.getCredits ? window.getCredits() : 0;
+    const optimistic = Math.max(0, cur) + amount;
+    localStorage.setItem('fumei_credits', String(optimistic));
+    if (window.updateCreditsUI) window.updateCreditsUI(optimistic);
+    if (logAction && window.addCreditLogEntry) {
+      window.addCreditLogEntry({ action: logAction + '（雲端失敗）', delta: +amount, ts: Date.now(), remaining: optimistic });
+    }
+    return { ok: false, creditsAdded: amount, newBalance: optimistic, offline: true };
+  }
+};
+
 window.redeemInviteCode = async () => {
   const input = document.getElementById('inviteCodeInput');
   const msg = document.getElementById('inviteCodeMsg');
@@ -917,33 +959,33 @@ window.processReferral = async (uid) => {
   const refShortId = window._pendingReferrer;
   if (!refShortId || !uid || uid.startsWith(refShortId)) return;
   try {
-    const { doc, getDoc, setDoc, getDocs, collection, serverTimestamp, updateDoc, increment } =
-      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const refSnap = await getDoc(doc(window.db, 'referrals', uid));
-    if (refSnap.exists()) return;
-    const usersSnap = await getDocs(collection(window.db, 'users'));
-    const referrerDoc = usersSnap.docs.find(d => d.id.startsWith(refShortId));
-    if (!referrerDoc || referrerDoc.id === uid) return;
-    const referrerUid = referrerDoc.id;
-    const referralCount = referrerDoc.data().fumei_referral_count || 0;
-    if (referralCount >= REFERRAL_MAX_COUNT) return;
-    await setDoc(doc(window.db, 'referrals', uid), { referrer_uid: referrerUid, rewarded: true, created_at: serverTimestamp() });
-    await updateDoc(doc(window.db, 'users', referrerUid), {
-      fumei_credits: increment(REFERRAL_REWARD_REFERRER),
-      fumei_referral_count: increment(1),
-      [`fumei_credits_added_${Date.now()}`]: { amount: REFERRAL_REWARD_REFERRER, source: 'referral', at: new Date().toISOString() },
-    });
-    await updateDoc(doc(window.db, 'users', uid), {
-      fumei_credits: increment(REFERRAL_REWARD_REFEREE),
-      [`fumei_credits_added_${Date.now()}`]: { amount: REFERRAL_REWARD_REFEREE, source: 'referral_bonus', at: new Date().toISOString() },
-    });
-    const current = window.getCredits();
-    if (current >= 0) { const nv = current + REFERRAL_REWARD_REFEREE; localStorage.setItem('fumei_credits', String(nv)); window.updateCreditsUI(nv); }
+    // R-4：走 /api/adjust，由 server 端掃 users 找 referrer 並做原子 tx
+    // 避免前端直寫 fumei_credits 被 firestore.rules 擋
+    const d = await window.adjustCreditsViaApi({ action: 'referral', referrerShortId: refShortId });
+    // 清除 pending
     sessionStorage.removeItem('fumei_ref');
     window._pendingReferrer = '';
+    // 更新本地
+    localStorage.setItem('fumei_credits', String(d.newBalance));
+    if (window.updateCreditsUI) window.updateCreditsUI(d.newBalance);
+    // Toast
     const toast = document.getElementById('creditsToast');
-    if (toast) { toast.textContent = `🎉 透過邀請連結加入！額外獲得 ${REFERRAL_REWARD_REFEREE}⚡`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 5000); }
-  } catch(e) { console.warn('referral failed', e); }
+    if (toast) {
+      toast.textContent = `🎉 透過邀請連結加入！額外獲得 ${d.creditsAdded}⚡`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 5000);
+    }
+  } catch(e) {
+    // 幾個「預期會失敗」的情境當正常結束（不發 toast、不重試）
+    if (e.reason === 'alreadyRewarded' || e.reason === 'referrerNotFound' ||
+        e.reason === 'referrerFull' || e.reason === 'selfReferral') {
+      console.log('[Referral] skipped:', e.reason);
+      sessionStorage.removeItem('fumei_ref');
+      window._pendingReferrer = '';
+      return;
+    }
+    console.warn('[Referral] failed:', e);
+  }
 };
 
 window.updateReferralBanner = async (uid) => {
@@ -1785,14 +1827,8 @@ onAuthStateChanged(auth, async (user) => {
             if (h.format === '掃描中') totalRefund += CREDIT_COST.news || 2;
             if (h.format === '生圖中') totalRefund += h.credits || IMG_COST?.std || 1;
           });
-          const cur = window.getCredits ? window.getCredits() : parseInt(localStorage.getItem('fumei_credits') || '0');
-          const refunded = Math.max(0, cur) + totalRefund;
-          localStorage.setItem('fumei_credits', String(refunded));
-          if (window.updateCreditsUI) window.updateCreditsUI(refunded);
-          if (window.addCreditLogEntry) window.addCreditLogEntry({ action: `中斷退點（${toRefund.length}筆）`, delta: +totalRefund, ts: Date.now() });
-          // 同步到雲端
-          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-          await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+          // R-4：走 /api/adjust 統一退點（helper 處理本地更新 + 雲端同步 + log）
+          await window.refundCreditsViaApi(totalRefund, 'stale_refund', `中斷退點（${toRefund.length}筆）`);
           // Toast 通知
           const toast = document.getElementById('creditsToast');
           if (toast) {
@@ -4740,14 +4776,8 @@ ${_charCtxForScan}
       if (window._currentUid) {
         const catVal = document.getElementById('topicCat')?.value;
         const refundCost = catVal === 'PTT' ? 3 : (catVal === '時事' ? CREDIT_COST.news : CREDIT_COST.scan);
-        try {
-          const cur = window.getCredits();
-          const ref = (cur < 0 ? 0 : cur) + refundCost;
-          localStorage.setItem('fumei_credits', String(ref));
-          window.updateCreditsUI(ref);
-          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-          await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: ref });
-        } catch(e2) {}
+        // R-4：走 /api/adjust 統一退點
+        await window.refundCreditsViaApi(refundCost, 'scan_fail', '掃描失敗退點');
       }
       return;
     }
@@ -4846,21 +4876,14 @@ ${_charCtxForScan}
     if (window._currentUid && !window._guestMode) {
       const catVal = document.getElementById('topicCat')?.value;
       const refundCost = catVal === 'PTT' ? 3 : (catVal === '時事' ? CREDIT_COST.news : CREDIT_COST.scan);
-      try {
-        const current = window.getCredits();
-        const refunded = (current < 0 ? 0 : current) + refundCost;
-        localStorage.setItem('fumei_credits', String(refunded));
-        window.updateCreditsUI(refunded);
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-        if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '掃描失敗退點', delta: +refundCost, ts: Date.now() });
-        const toast = document.getElementById('creditsToast');
-        if (toast) {
-          toast.textContent = `⚡ 掃描失敗，已退還 ${refundCost} 點（目前 ${refunded} 點）`;
-          toast.classList.add('show');
-          setTimeout(() => toast.classList.remove('show'), 4000);
-        }
-      } catch(refundErr) { console.error('[Refund] scan failed:', refundErr); }
+      // R-4：走 /api/adjust 統一退點
+      const _refundResult = await window.refundCreditsViaApi(refundCost, 'scan_fail', '掃描失敗退點');
+      const toast = document.getElementById('creditsToast');
+      if (toast) {
+        toast.textContent = `⚡ 掃描失敗，已退還 ${refundCost} 點（目前 ${_refundResult.newBalance} 點）`;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
+      }
     }
 
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
@@ -5287,15 +5310,9 @@ ${charCtx}
   // 如果三個全部失敗，退還點數
   const allFailed = results.every(r => r.status === 'rejected');
   if (allFailed && window._currentUid) {
-    const current = window.getCredits();
-    const refunded = (current < 0 ? 0 : current) + CREDIT_COST.inspo;
-    localStorage.setItem('fumei_credits', String(refunded));
-    window.updateCreditsUI(refunded);
-    try {
-      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-      await updateDoc(doc(window.db, window._currentUid), { fumei_credits: refunded });
-    } catch(e) {}
-    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '三AI發想失敗退點', delta: +CREDIT_COST.inspo, ts: Date.now() });
+    // R-4：走 /api/adjust 統一退點
+    // （順手修原本 doc(window.db, window._currentUid) 缺 collection 名的 bug — 之前這行雲端同步從來沒成功過）
+    await window.refundCreditsViaApi(CREDIT_COST.inspo, 'inspo_fail', '三AI發想失敗退點');
     const toast = document.getElementById('creditsToast');
     if (toast) {
       toast.textContent = `⚡ 三AI發想失敗，已退還 ${CREDIT_COST.inspo} 點`;
@@ -6145,21 +6162,14 @@ async function genScript(directionHint) {
     // ✅ 退還點數
     if (window._currentUid && !window._guestMode) {
       const refundCost = (type === '時事反應' || type === '今天發什麼') ? CREDIT_COST.news : CREDIT_COST.script;
-      try {
-        const current = window.getCredits();
-        const refunded = (current < 0 ? 0 : current) + refundCost;
-        localStorage.setItem('fumei_credits', String(refunded));
-        window.updateCreditsUI(refunded);
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-        if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生成失敗退點', delta: +refundCost, ts: Date.now() });
-        const toast = document.getElementById('creditsToast');
-        if (toast) {
-          toast.textContent = `⚡ 生成失敗，已退還 ${refundCost} 點`;
-          toast.classList.add('show');
-          setTimeout(() => toast.classList.remove('show'), 4000);
-        }
-      } catch(refundErr) { console.error('[Refund] failed:', refundErr); }
+      // R-4：走 /api/adjust 統一退點
+      await window.refundCreditsViaApi(refundCost, 'script_fail', '生成失敗退點');
+      const toast = document.getElementById('creditsToast');
+      if (toast) {
+        toast.textContent = `⚡ 生成失敗，已退還 ${refundCost} 點`;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
+      }
     }
 
     if (window.handleGuestApiError && window.handleGuestApiError(e)) {
@@ -6440,14 +6450,8 @@ async function refreshHistory() {
     if (changed) {
       localStorage.setItem('fumei_history', JSON.stringify(scriptHistory));
       if (window._currentUid && totalRefund > 0) {
-        const cur = window.getCredits ? window.getCredits() : 0;
-        const refunded = cur + totalRefund;
-        localStorage.setItem('fumei_credits', String(refunded));
-        if (window.updateCreditsUI) window.updateCreditsUI(refunded);
-        try {
-          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-          await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-        } catch(_) {}
+        // R-4：走 /api/adjust 統一退點
+        await window.refundCreditsViaApi(totalRefund, 'stale_refund', '刷新中斷退點');
       }
       if (window.syncToCloud) window.syncToCloud();
     }
@@ -8554,21 +8558,9 @@ async function generateImage() {
     }
   };
 
-  // 統一退點函式（只呼叫一次）
-  const doImgRefund = () => {
-    const refunded = (window.getCredits() < 0 ? 0 : window.getCredits()) + cost;
-    localStorage.setItem('fumei_credits', String(refunded));
-    window.updateCreditsUI(refunded);
-    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
-    // R-3：補 await + 錯誤 log，避免雲端同步失敗被默默吃掉
-    (async () => {
-      try {
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-      } catch(e) {
-        console.error('[生圖退點] 雲端同步失敗:', e);
-      }
-    })();
+  // R-4：統一退點函式，走 /api/adjust（helper 處理本地 + 雲端 + log）
+  const doImgRefund = async () => {
+    await window.refundCreditsViaApi(cost, 'image_fail', '生圖失敗退點');
     const toast = document.getElementById('creditsToast');
     if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
   };
