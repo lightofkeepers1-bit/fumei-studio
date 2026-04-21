@@ -5597,7 +5597,7 @@ async function genScript(directionHint) {
       });
       const _todayPrompt = `今天是 ${_dateStr}，台灣社群可以發什麼文？
 
-想 1 個具體話題 + 3 個不同的切入角度（寫成自由文字就好）。${_catNote}${_excludeNote}`;
+想 1 個具體話題，再給 3 個可以直接貼出去的發文 hook（每個都是具體的句子或場景，讀起來會有畫面）。${_catNote}${_excludeNote}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
@@ -5658,12 +5658,12 @@ async function genScript(directionHint) {
                 background: { type: 'string', description: '從原文找一句話當背景說明（原文原話）' },
                 directions: {
                   type: 'array',
-                  description: '3 個不同的發文方向，從原文找出或歸納',
+                  description: '3 個具體的發文 hook，從原文擷取',
                   items: {
                     type: 'object',
                     properties: {
-                      name: { type: 'string', description: '方向名稱（6字以內）' },
-                      desc: { type: 'string', description: '具體怎麼做（30字以內）' }
+                      name: { type: 'string', description: '一個具體的 hook（15 字內）：可以直接當發文標題或第一句的句子，要有畫面感或情境感' },
+                      desc: { type: 'string', description: '這個 hook 會怎麼延伸、會講什麼具體內容（30 字內，從原文擷取關鍵句，不改寫）' }
                     },
                     required: ['name', 'desc']
                   }
