@@ -82,7 +82,7 @@ async function fsUpdate(docPath, fields) {
 // ── Handler ──────────────────────────────────────
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.fumei-studio.com');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-firebase-uid');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -173,7 +173,11 @@ export default async function handler(req, res) {
 <body>
 <p style="font-family:sans-serif;text-align:center;margin-top:80px;color:#aaa">正在跳轉至綠界付款頁面...</p>
 <form id="f" method="POST" action="${ECPAY_API_URL}">
-${Object.entries(params).map(([k,v]) => `<input type="hidden" name="${k}" value="${v}">`).join('\n')}
+${Object.entries(params).map(([k,v]) => {
+  // HTML escape：uid 由 client 帶入，不 escape 會 attribute breakout
+  const safe = String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<input type="hidden" name="${k}" value="${safe}">`;
+}).join('\n')}
 </form>
 <script>document.getElementById('f').submit();</script>
 </body></html>`;

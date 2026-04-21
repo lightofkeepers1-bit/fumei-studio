@@ -5,16 +5,21 @@ import admin from 'firebase-admin';
 
 let _app;
 
+// 環境變數錯誤專用 Error，讓 handler 能區分「server 沒設好」vs「token 無效」
+export class AdminMisconfiguredError extends Error {
+  constructor(msg) { super(msg); this.name = 'AdminMisconfiguredError'; }
+}
+
 export function getAdmin() {
   if (_app) return _app;
   if (!admin.apps.length) {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT env var not set');
+    if (!raw) throw new AdminMisconfiguredError('FIREBASE_SERVICE_ACCOUNT env var not set');
     let creds;
     try {
       creds = JSON.parse(raw);
     } catch (e) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON: ' + e.message);
+      throw new AdminMisconfiguredError('FIREBASE_SERVICE_ACCOUNT is not valid JSON: ' + e.message);
     }
     _app = admin.initializeApp({
       credential: admin.credential.cert(creds),

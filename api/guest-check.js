@@ -2,6 +2,8 @@
 // GET  ?type=credits → 查詢訪客剩餘點數（新訪客自動初始化 20 點）
 // POST ?type=deduct  → 扣點數 body: { cost: 1 }
 
+import { randomBytes } from 'crypto';
+
 const FIREBASE_PROJECT = 'fumei-3e684';
 const FIREBASE_API_KEY = 'AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY';
 const GUEST_INIT_CREDITS = 20;
@@ -48,7 +50,7 @@ async function fsUpdateCredits(docPath, credits) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.fumei-studio.com');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-fingerprint');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -131,7 +133,8 @@ export default async function handler(req, res) {
       const newCredits = current - cost;
       await fsUpdateCredits(docPath, newCredits);
       // 寫入 guest_tokens/ 讓後續 API 呼叫能驗證（同批操作不重複扣點）
-      const token = `${safeKey.slice(0, 12)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      // 用 Node crypto 產亂數，避免 Math.random() 可預測（Y-2）
+      const token = `${safeKey.slice(0, 12)}_${Date.now()}_${randomBytes(6).toString('hex')}`;
       const expires = Date.now() + 60 * 1000; // 60 秒內有效
       const safeToken = token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
       await fsSet(`guest_tokens/${safeToken}`, {

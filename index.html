@@ -1585,7 +1585,10 @@ onAuthStateChanged(auth, async (user) => {
     // ⚡ 同步點數（訪客點數完全獨立，不合併到正式帳號）
     await window.syncCreditsFromCloud(user.uid);
     // 處理邀請獎勵（新用戶首次登入）
-    if (window._pendingReferrer) window.processReferral(user.uid).catch(() => {});
+    // Y-7：保留錯誤 log，方便 debug（原本 catch(()=>{}) 吞掉所有錯誤）
+    if (window._pendingReferrer) {
+      window.processReferral(user.uid).catch(e => console.warn('[Referral] processing failed:', e));
+    }
     // 更新邀請橫幅
     if (window.updateReferralBanner) window.updateReferralBanner(user.uid).catch(() => {});
     // 點數同步完成後才觸發簽到彈窗（避免簽到點數被初始值覆蓋）
@@ -1667,9 +1670,16 @@ onAuthStateChanged(auth, async (user) => {
       // 更新 header logo
       const logoIcon = document.querySelector('.logo-icon');
       if (logoIcon) {
-        logoIcon.innerHTML = finalImg
-          ? '<img src="' + finalImg + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
-          : finalEmoji;
+        if (finalImg) {
+          // 用 DOM API 避免 attribute breakout XSS（R-2a）
+          const _avatarImg = document.createElement('img');
+          _avatarImg.src = finalImg;
+          _avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
+          logoIcon.textContent = '';
+          logoIcon.appendChild(_avatarImg);
+        } else {
+          logoIcon.textContent = finalEmoji;
+        }
       }
     } else {
       // 雲端沒有資料（新帳號），也要還原頭像備份
@@ -6404,7 +6414,7 @@ async function refreshHistory() {
     }
     // 重新跑逾時判定（同登入後的邏輯）
     const _now = Date.now();
-    const _scriptStaleMs = 1 * 60 * 1000;
+    const _scriptStaleMs = 3 * 60 * 1000;  // Y-1：3 分鐘（Sonnet+search 常跑 1-2 分鐘，1 分鐘會誤殺）
     const _imgNoTaskStaleMs = 3 * 60 * 1000;
     const _imgStaleMs    = 30 * 60 * 1000;
     let changed = false;
@@ -8245,7 +8255,12 @@ function saveSettings() {
   document.title = name + ' ✨';
   const logoIcon = document.querySelector('.logo-icon');
   if (img) {
-    logoIcon.innerHTML = `<img src="${img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    // 用 DOM API 避免 attribute breakout XSS（R-2b）
+    const _avatarImg = document.createElement('img');
+    _avatarImg.src = img;
+    _avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
+    logoIcon.textContent = '';
+    logoIcon.appendChild(_avatarImg);
   } else {
     logoIcon.textContent = emoji;
   }
@@ -8545,11 +8560,15 @@ async function generateImage() {
     localStorage.setItem('fumei_credits', String(refunded));
     window.updateCreditsUI(refunded);
     if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '生圖失敗退點', delta: +cost, ts: Date.now() });
-    try {
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js').then(({ doc, updateDoc }) => {
-        updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
-      });
-    } catch(_) {}
+    // R-3：補 await + 錯誤 log，避免雲端同步失敗被默默吃掉
+    (async () => {
+      try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        await updateDoc(doc(window.db, 'users', window._currentUid), { fumei_credits: refunded });
+      } catch(e) {
+        console.error('[生圖退點] 雲端同步失敗:', e);
+      }
+    })();
     const toast = document.getElementById('creditsToast');
     if (toast) { toast.textContent = `⚡ 生圖失敗，已退還 ${cost} 點`; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 4000); }
   };
@@ -9037,8 +9056,16 @@ window.addEventListener('load', () => {
   const savedImg   = localStorage.getItem('fumei_avatar_img');
   const savedEmoji = localStorage.getItem('fumei_avatar_emoji') || '🐾';
   const logoIcon   = document.querySelector('.logo-icon');
-  if (savedImg) { logoIcon.innerHTML = `<img src="${savedImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
-  else { logoIcon.textContent = savedEmoji; }
+  if (savedImg) {
+    // 用 DOM API 避免 attribute breakout XSS（R-2c）
+    const _avatarImg = document.createElement('img');
+    _avatarImg.src = savedImg;
+    _avatarImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
+    logoIcon.textContent = '';
+    logoIcon.appendChild(_avatarImg);
+  } else {
+    logoIcon.textContent = savedEmoji;
+  }
   // swatch listeners
   document.querySelectorAll('.color-swatch').forEach(s => {
     s.addEventListener('click', () => {
@@ -9054,7 +9081,7 @@ window.addEventListener('load', () => {
   handlePaymentReturn();
   // ✅ 超過 1 分鐘的「生成中」/「掃描中」/「生圖中（無 taskId）」改為失敗，超過 30 分鐘的「生圖中（有 taskId）」也改為失敗
   const _staleThreshold = 30 * 60 * 1000;
-  const _scriptStaleLoad = 1 * 60 * 1000;
+  const _scriptStaleLoad = 3 * 60 * 1000;  // Y-1：3 分鐘（Sonnet+search 常跑 1-2 分鐘，1 分鐘會誤殺）
   const _imgNoTaskStaleLoad = 3 * 60 * 1000;
   const _now = Date.now();
   let _cleaned = false;

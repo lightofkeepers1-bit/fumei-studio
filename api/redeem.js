@@ -20,6 +20,10 @@ export default async function handler(req, res) {
     try {
       decoded = await verifyIdToken(idToken);
     } catch (e) {
+      if (e.name === 'AdminMisconfiguredError') {
+        console.error('[redeem] admin misconfigured:', e.message);
+        return res.status(500).json({ error: '伺服器設定錯誤', reason: 'serverMisconfigured' });
+      }
       return res.status(401).json({ error: '身份驗證失敗', reason: 'invalidToken' });
     }
     const uid = decoded.uid;
