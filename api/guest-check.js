@@ -54,6 +54,21 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-fingerprint');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // ── 版本資訊查詢（不需 fingerprint）─────────────────
+  // 原本 /api/version 會讓 function 數量 > 12（Hobby 方案上限）→ deploy 失敗
+  // 合併到這裡 reuse，使用者 fetch('/api/guest-check?type=version') 拿版本資訊
+  if (req.method === 'GET' && req.query.type === 'version') {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    const sha = process.env.VERCEL_GIT_COMMIT_SHA || 'local';
+    return res.status(200).json({
+      sha:      sha.slice(0, 7),
+      shaFull:  sha,
+      branch:   process.env.VERCEL_GIT_COMMIT_REF || '',
+      message:  (process.env.VERCEL_GIT_COMMIT_MESSAGE || '').split('\n')[0].slice(0, 80),
+      env:      process.env.VERCEL_ENV || 'development',
+    });
+  }
+
   const fingerprint = req.headers['x-fingerprint'] || '';
   const safeKey = fingerprint.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
   if (!safeKey) return res.status(400).json({ error: '無效的裝置識別碼' });

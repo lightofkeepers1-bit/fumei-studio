@@ -9526,7 +9526,7 @@ window.addEventListener('load', () => {
   // 取得當前部署版本號，同時更新 header 與 footer
   (async () => {
     try {
-      const r = await fetch('/api/version', { cache: 'no-store' });
+      const r = await fetch('/api/guest-check?type=version', { cache: 'no-store' });
       if (!r.ok) return;
       const d = await r.json();
       window._appVersion = d;
