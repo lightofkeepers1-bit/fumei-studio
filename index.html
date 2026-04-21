@@ -3353,6 +3353,9 @@ window.autoShowCheckinModal = async (uid) => {
   setTimeout(() => {
     const modal = document.getElementById('checkinModal');
     if (!modal) return;
+    // 防衛性重設按鈕（避免上次互動殘留 disabled 狀態 — modal 是 display toggle 不是銷毀重建）
+    const btn = document.getElementById('checkinModalBtn');
+    if (btn) { btn.disabled = false; btn.textContent = '✨ 立刻領取！'; }
     const introImg = document.getElementById('intro-img');
     const charImg = document.getElementById('checkinCharImg');
     if (introImg && charImg) charImg.src = introImg.src;
@@ -3410,6 +3413,9 @@ window.autoShowGuestCheckin = async () => {
   setTimeout(() => {
     const modal = document.getElementById('checkinModal');
     if (!modal) return;
+    // 防衛性重設按鈕（避免 disabled stuck 住）
+    const btn = document.getElementById('checkinModalBtn');
+    if (btn) { btn.disabled = false; btn.textContent = '✨ 立刻領取！'; }
     const introImg = document.getElementById('intro-img');
     const charImg = document.getElementById('checkinCharImg');
     if (introImg && charImg) charImg.src = introImg.src;
@@ -3425,14 +3431,13 @@ window.closeCheckinModal = () => {
 window.doCheckinFromModal = async () => {
   const btn = document.getElementById('checkinModalBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 領取中...'; }
-  // 訪客模式
-  if (!window._currentUid && window._guestMode) {
-    window.closeCheckinModal();
-    await window.guestDailyCheckin();
-    if (btn) { btn.disabled = false; btn.textContent = '✨ 立刻領取！'; }
-    return;
-  }
   try {
+    // 訪客模式
+    if (!window._currentUid && window._guestMode) {
+      window.closeCheckinModal();
+      await window.guestDailyCheckin();
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     // 再次確認雲端（防止同一帳號多裝置）
     const alreadyDone = await window.checkTodayCheckin(window._currentUid);
@@ -3456,17 +3461,28 @@ window.doCheckinFromModal = async () => {
     localStorage.setItem('fumei_credits', String(d.newBalance));
     window.updateCreditsUI(d.newBalance);
     localStorage.setItem(CHECKIN_KEY, today);
-    addCreditLogEntry({ action: '每日簽到', delta: +d.creditsAdded, ts: Date.now(), remaining: d.newBalance });
+    if (window.addCreditLogEntry) window.addCreditLogEntry({ action: '每日簽到', delta: +d.creditsAdded, ts: Date.now(), remaining: d.newBalance });
     // 更新所有簽到按鈕狀態
     if (window.initCheckinBtn) window.initCheckinBtn();
     window.closeCheckinModal();
     const toast = document.getElementById('creditsToast');
     if (toast) {
-      toast.textContent = `🎁 每日簽到！獲得 ${DAILY_BONUS} 點 ✨`;
+      toast.textContent = `🎁 每日簽到！獲得 ${d.creditsAdded || DAILY_BONUS} 點 ✨`;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 4000);
     }
   } catch(e) {
+    // 改掉原本「靜默吞錯 + 只 reset 按鈕」的行為，一定要讓使用者看到錯誤訊息
+    // 不然使用者會以為按鈕壞掉（看起來就是「flicker 一下沒反應」）
+    console.error('[Checkin] failed:', e);
+    const toast = document.getElementById('creditsToast');
+    if (toast) {
+      toast.textContent = `❌ 簽到失敗：${e.message || '網路錯誤，請稍後再試'}`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+  } finally {
+    // 用 finally 確保所有路徑（成功/失敗/已簽到）都 reset 按鈕，避免 disabled stuck 住
     if (btn) { btn.disabled = false; btn.textContent = '✨ 立刻領取！'; }
   }
 };
@@ -3489,6 +3505,9 @@ window.dailyCheckin = async () => {
   // 開彈窗
   const modal = document.getElementById('checkinModal');
   if (modal) {
+    // 防衛性重設按鈕
+    const mBtn = document.getElementById('checkinModalBtn');
+    if (mBtn) { mBtn.disabled = false; mBtn.textContent = '✨ 立刻領取！'; }
     const introImg = document.getElementById('intro-img');
     const charImg = document.getElementById('checkinCharImg');
     if (introImg && charImg) charImg.src = introImg.src;
