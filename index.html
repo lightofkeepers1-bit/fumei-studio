@@ -5586,12 +5586,17 @@ async function genScript(directionHint) {
       const _catLabel = (_selectedNewsCat && _selectedNewsCat !== 'all') ? (_catKeyMap[_selectedNewsCat] || '') : '';
       const _catNote = _catLabel ? `\n\n【指定領域】這次請從「${_catLabel}」類話題發想，不要跑到其他領域。` : '';
 
-      // Step 1：角色本人自由發想今天可以發什麼（帶完整角色設定）
-      const _todayPrompt = `${buildCharPrompt()}
+      // Step 1：極簡 prompt，讓使用者選的 AI 自由發揮
+      // 刻意不塞 buildCharPrompt、不塞「社群小編」frame、不塞「你的語氣/風格」
+      // 角色語氣留到 Step 3 genScript（使用者選方向後才產真腳本）
+      // 血淚教訓：越簡單越好；過度框架會收窄 AI 的創作空間
+      // 保留的只有：日期（避免寫過期節日）、台灣（地域錨定）、分類、blacklist
+      const _dateStr = new Date().toLocaleDateString('zh-TW', {
+        year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+      });
+      const _todayPrompt = `今天是 ${_dateStr}，台灣社群可以發什麼文？
 
-現在是你的社群小編時間。今天你會想發什麼內容？${_catNote}
-
-請用你（角色本人）的語氣、個性、立場來發想，想一個有共鳴、有你的風格的貼文主題。寫成一段自由文字就好（話題名稱 + 為什麼想發 + 3 個不同的切入角度）。${_excludeNote || ''}`;
+想 1 個具體話題 + 3 個不同的切入角度（寫成自由文字就好）。${_catNote}${_excludeNote}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
@@ -9512,8 +9517,39 @@ window.addEventListener('load', () => {
       © 2025 Fumei Studio（個人開發者）｜聯絡信箱：lightofkeepers1@gmail.com<br>
       AI 生成內容僅供參考，請自行確認準確度後再發布
     </div>
+    <!-- 版本號（每次 deploy 自動更新，方便 debug 時對齊版本） -->
+    <div id="versionBadge" style="margin-top:10px;font-size:0.62rem;color:#c0a8b5;font-family:'Courier New',monospace;letter-spacing:0.5px;opacity:0.7" title="點擊複製完整 SHA">—</div>
   </div>
 </footer>
+<script>
+  // 取得當前部署版本號，顯示在 footer + console
+  (async () => {
+    try {
+      const r = await fetch('/api/version', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      window._appVersion = d;
+      const envTag = d.env === 'production' ? '' : ` [${d.env}]`;
+      const txt = `v${d.sha}${envTag}${d.branch ? ' · ' + d.branch : ''}`;
+      const badge = document.getElementById('versionBadge');
+      if (badge) {
+        badge.textContent = txt;
+        badge.style.cursor = 'pointer';
+        badge.title = `完整 SHA: ${d.shaFull}\n${d.message}\n(點擊複製)`;
+        badge.onclick = () => {
+          navigator.clipboard?.writeText(`${d.sha} (${d.branch}) — ${d.message}`).catch(() => {});
+          badge.textContent = '✓ 已複製';
+          setTimeout(() => { badge.textContent = txt; }, 1500);
+        };
+      }
+      console.log(
+        '%c🐾 Fumei Studio',
+        'font-size:14px;color:#fff;font-weight:900;padding:4px 10px;background:linear-gradient(135deg,#C9B8E8,#764ba2);border-radius:8px',
+        `\n  version:  ${d.sha}\n  branch:   ${d.branch}\n  env:      ${d.env}\n  message:  ${d.message}`
+      );
+    } catch(e) { /* 本機 dev 沒 endpoint 就靜默略過 */ }
+  })();
+</script>
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- LANDING PAGE OVERLAY                        -->
