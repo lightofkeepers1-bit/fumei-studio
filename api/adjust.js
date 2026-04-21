@@ -20,7 +20,7 @@ const REFUND_REASONS = new Set([
   'inspo_fail',    // 三AI發想失敗
   'stale_refund',  // 批次退 stale entries
 ]);
-const REFUND_MAX = 50;  // 單次退點上限（批次 stale 退可能多筆合計，所以上限放寬）
+const REFUND_MAX = 500;  // 單次退點上限（批次 stale 退最壞 = 50 entries × 8 pts(img pro) = 400，留 buffer）
 
 // 與前端 index.html ~line 890 的常數對齊
 const REFERRAL_REWARD_REFERRER = 50;
