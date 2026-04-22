@@ -3071,7 +3071,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.25.0';
+const APP_VERSION = '5.25.1';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -5628,6 +5628,10 @@ function pickInspo(el, direction) {
 
 // 「今天發什麼？」使用者選定方向後觸發產腳本
 async function pickTodayDirection(topicName, dirName, dirDesc) {
+  // 二次確認：避免誤點（Stage 2 會扣 ⚡1 點，不可反悔）
+  const _confirmMsg = `確定用「${dirName}」方向產腳本嗎？\n\n話題：${topicName}\n方向：${dirName}${dirDesc ? '（' + dirDesc + '）' : ''}\n\n將扣 ⚡1 點。`;
+  if (!confirm(_confirmMsg)) return;
+
   // 隱藏方向選擇區
   document.getElementById('todayDirectionArea').style.display = 'none';
   _directionCardsShowing = false;
@@ -5640,7 +5644,7 @@ async function pickTodayDirection(topicName, dirName, dirDesc) {
     used.textContent = `📅 今天發什麼：「${topicName}」→ ${dirName}`;
     used.style.display = 'block';
   }
-  // 直接觸發產腳本（type 帶入已選方向的 prompt）
+  // 觸發產腳本 Stage 2（type 帶入已選方向的 prompt）
   const type = document.getElementById('scriptType')?.value || '兩格梗圖';
   const model = document.getElementById('scriptModel')?.value || 'claude';
   await genScript(`今天發什麼:${topicName}:${dirName}:${dirDesc}`);
@@ -5670,6 +5674,9 @@ async function genScript(directionHint) {
       _directionCardsShowing = false;
     }
   }
+
+  // 重設 loading 文字預設值（避免前一次的「正在比對最新時事...」殘留）
+  if (loadTxt) loadTxt.textContent = '✨ 正在產出腳本...';
 
   // 今天發什麼方向已選：解析 hint 帶入話題
   let _todayTopic = '', _todayDir = '', _todayDirDesc = '';
