@@ -3066,7 +3066,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.21.3';
+const APP_VERSION = '5.22.0';
 
 // ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
 window.esc = function(s) {
@@ -5561,7 +5561,9 @@ async function genScript(directionHint) {
     // 「今天發什麼？」兩段式：先搜尋顯示方向，使用者選完再產腳本
     if (type === '今天發什麼' && !directionHint) {
       notice.style.display='block';
-      notice.textContent = '🔍 正在搜尋今日台灣熱門話題...';
+      notice.textContent = topic
+        ? `🔍 正在幫你從「${topic}」角度想今天發什麼...`
+        : '🔍 正在搜尋今日台灣熱門話題...';
       const todayStr = new Date().toLocaleDateString('zh-TW');
 
       // 排除最近已用過的話題，避免重複
@@ -5592,9 +5594,12 @@ async function genScript(directionHint) {
       const _dateStr = new Date().toLocaleDateString('zh-TW', {
         year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
       });
+      const _topicNote = topic
+        ? `\n\n【聚焦主題】這次請圍繞「${topic}」發想，可以結合今日情境、時事、節日或季節，讓內容跟今天有共鳴。`
+        : '';
       const _todayPrompt = `今天是 ${_dateStr}，台灣社群可以發什麼文？
 
-想 1 個具體話題，再給 3 個可以直接貼出去的發文 hook（每個都是具體的句子或場景，讀起來會有畫面）。${_catNote}${_excludeNote}`;
+想 1 個具體話題，再給 3 個可以直接貼出去的發文 hook（每個都是具體的句子或場景，讀起來會有畫面）。${_topicNote}${_catNote}${_excludeNote}`;
 
       // ── 用 Claude tool_use 直接拿結構化 JSON，不再 parse 自由文字 ──
       let _finalTopicName = '今日時事';
