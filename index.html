@@ -3066,7 +3066,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.22.1';
+const APP_VERSION = '5.23.0';
 
 // ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
 window.esc = function(s) {
@@ -4329,6 +4329,29 @@ async function claudeScan(msg, useSearch=false, feature='scan') {
 }
 
 // ── 通用話題去重（前端防線，不管 AI 回什麼都濾）──
+// ── 話題掃描 blacklist（避免同一天連續掃描結果重複）──
+function _getRecentScanBlacklist(catKey) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const raw = localStorage.getItem('fumei_recent_scan_topics');
+    const obj = raw ? JSON.parse(raw) : null;
+    if (!obj || obj.date !== today) return [];
+    return (obj.byCat && obj.byCat[catKey]) || [];
+  } catch (e) { return []; }
+}
+function _saveScanToBlacklist(catKey, titles) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const raw = localStorage.getItem('fumei_recent_scan_topics');
+    let obj = raw ? JSON.parse(raw) : null;
+    if (!obj || obj.date !== today) obj = { date: today, byCat: {} };
+    const existing = obj.byCat[catKey] || [];
+    const merged = [...titles, ...existing].slice(0, 30); // 最多記 30 個
+    obj.byCat[catKey] = merged;
+    localStorage.setItem('fumei_recent_scan_topics', JSON.stringify(obj));
+  } catch (e) {}
+}
+
 function _deduplicateTopics(topics) {
   function _bigrams(t) {
     const cjk = t.replace(/[^\u4e00-\u9fff]/g, '');
@@ -4565,6 +4588,12 @@ ${pttHeadlines}
         const _charCtxForScan = buildCharPrompt();
         const _charName = getCharName();
 
+        // blacklist：同一天同分類已掃過的話題不要重複
+        const _scanBlacklist = _getRecentScanBlacklist(catKey);
+        const _blacklistNote = _scanBlacklist.length
+          ? `\n\n【禁止重複】以下話題今天已經掃過，絕對不要再選：${_scanBlacklist.slice(0, 20).join('、')}。請選完全不同的事件。`
+          : '';
+
         const _geminiScanPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}（${['週日','週一','週二','週三','週四','週五','週六'][today.getDay()]}）。
 
 ⚠️ 請撇除你訓練資料裡對「今天」「最近」的既有印象，純粹根據當下日期 + Google Search 搜尋結果來回答。
@@ -4603,7 +4632,7 @@ ${_charCtxForScan}
 
 **2. 鄭麗文訪中經費遭質疑**
 國民黨主席訪中與習近平會晤，480萬經費由民主基金會撥補
-吐槽：（20-40 字，一句話，${_charName}的語氣）`;
+吐槽：（20-40 字，一句話，${_charName}的語氣）${_blacklistNote}`;
 
         const _geminiHeaders = { 'Content-Type': 'application/json' };
         if (window._currentUid) _geminiHeaders['x-firebase-uid'] = window._currentUid;
@@ -4665,12 +4694,74 @@ ${_charCtxForScan}
             }
 
             // 前端去重（同話題不同吐槽也算重複）
-            const _dedupedTopics = _deduplicateTopics(_parsedTopics);
+            let _dedupedTopics = _deduplicateTopics(_parsedTopics);
+
+            // 不足 6 題 → 再打一次，要求補齊（排除已有的 + blacklist）
+            if (_dedupedTopics.length >= 4 && _dedupedTopics.length < 6) {
+              try {
+                const _missing = 6 - _dedupedTopics.length;
+                const _haveTitles = _dedupedTopics.map(t => t.title).join('、');
+                const _excludeAll = [...(_scanBlacklist || []), ..._dedupedTopics.map(t => t.title)].slice(0, 25).join('、');
+                const _supplementPrompt = `今天是 ${today.toLocaleDateString('zh-TW')}。我需要再 ${_missing} 個台灣今日時事話題（${_charName}角度吐槽）。
+
+【已有話題，不要重複】${_haveTitles}
+【今天已掃過，不要重複】${_excludeAll}
+
+請再搜尋 ${_missing} 個【完全不同事件】的時事話題，沿用相同格式：
+
+**1. 完整事件標題**
+10-25 字事件說明
+吐槽：（20-40 字，${_charName}的語氣，一句話）
+
+只輸出 ${_missing} 則，不要編號重複，每則用空行隔開。`;
+                const _suppBody = {
+                  model: 'gemini-2.5-flash',
+                  generationConfig: { temperature: 0.95, maxOutputTokens: 2000, responseMimeType: 'text/plain' },
+                  contents: [{ parts: [{ text: _supplementPrompt }] }],
+                  tools: [{ google_search: {} }]
+                };
+                const _sr = await fetch('/api/gemini', { method: 'POST', headers: _geminiHeaders, body: JSON.stringify(_suppBody) });
+                if (_sr.ok) {
+                  const _sd = await _sr.json();
+                  const _sText = _sd.candidates?.[0]?.content?.parts?.filter(p => p.text).map(p => p.text).join('\n').trim() || '';
+                  if (_sText) {
+                    const _sSegs = _sText.split(/(?=\*\*\s*\d+[\.\)、])/g).map(s => s.trim()).filter(s => s);
+                    const _extraParsed = [];
+                    for (const seg of _sSegs) {
+                      const _tm = seg.match(/\*\*\s*\d+[\.\)、]\s*(.+?)\*\*/);
+                      if (!_tm) continue;
+                      const title = _tm[1].trim();
+                      if (title.length < 8) continue;
+                      const _rest2 = seg.replace(_tm[0], '').trim();
+                      const _tsu2 = _rest2.match(/吐槽[：:]\s*(.+?)(?:\n|$)/);
+                      let sub = _tsu2 ? _tsu2[1].trim() : '';
+                      if (!sub) {
+                        const _ls = _rest2.split('\n').map(l => l.trim()).filter(Boolean);
+                        sub = _ls[_ls.length - 1] || '';
+                      }
+                      sub = sub.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+                      if (sub.length > 45) {
+                        const _cut = sub.match(/^[^。！？!?]+[。！？!?]?/);
+                        sub = (_cut ? _cut[0] : sub).trim();
+                        if (sub.length > 45) sub = sub.slice(0, 42) + '…';
+                      }
+                      if (sub.length < 3) continue;
+                      _extraParsed.push({ title, sub, rssIndex: -1 });
+                    }
+                    if (_extraParsed.length) {
+                      _dedupedTopics = _deduplicateTopics([..._dedupedTopics, ..._extraParsed]);
+                    }
+                  }
+                }
+              } catch (e) { /* 補題失敗就用原本的 */ }
+            }
 
             // 必須至少 4 題合格才視為成功（去重後可能少於 5）
             if (_dedupedTopics.length >= 4) {
               geminiSuccess = true;
               const topicList = _dedupedTopics.slice(0, 6);
+              // 存入 blacklist（下次同分類掃描避開）
+              _saveScanToBlacklist(catKey, topicList.map(t => t.title));
 
               grid.innerHTML = topicList.map((item, i) => {
                 return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
