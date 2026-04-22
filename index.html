@@ -3066,7 +3066,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.21.1';
+const APP_VERSION = '5.21.2';
 
 // ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
 window.esc = function(s) {
@@ -3147,7 +3147,8 @@ window.updateCostBadges = () => {
   const type = document.getElementById('scriptType');
   const scriptBadge = document.querySelector('#scriptBtn .cost-badge');
   if (type && scriptBadge) {
-    const is2pt = type.value === '時事反應';
+    // 從話題掃描來的（scriptType 被鎖住）→ 1 點；使用者自己選時事反應 → 2 點
+    const is2pt = type.value === '時事反應' && !type.disabled;
     scriptBadge.textContent = is2pt ? '⚡2' : '⚡1';
     scriptBadge.style.background = is2pt ? 'rgba(255,150,150,0.35)' : 'rgba(255,255,255,0.22)';
     scriptBadge.style.border = is2pt ? '1px solid rgba(255,120,120,0.5)' : '1px solid rgba(255,255,255,0.4)';
@@ -5033,7 +5034,9 @@ function goToScript() {
   }
   sel.value = '時事反應';
   sel.disabled = true;
-  sel.title = '從話題掃描帶入，固定為時事反應';
+  sel.title = '從話題掃描帶入，固定為時事反應（話題已搜尋過，只收 1 點）';
+  // 同步更新 ⚡ 點數 badge（話題掃描帶入 → 1 點）
+  if (window.updateCostBadges) window.updateCostBadges();
 
   // 顯示分類 chip，同步話題掃描的分類選擇
   const row = document.getElementById('scriptNewsCatRow');
@@ -5057,6 +5060,8 @@ function unlockScriptType() {
   const sel = document.getElementById('scriptType');
   sel.disabled = false;
   sel.title = '';
+  // 解鎖後重算 badge（時事反應 + 未鎖 → 回到 ⚡2）
+  if (window.updateCostBadges) window.updateCostBadges();
 }
 
 
@@ -5502,7 +5507,9 @@ async function genScript(directionHint) {
 
   // ⚡ 登入用戶：點數檢查（時事反應扣2點，其他1點）
   if (window._currentUid) {
-    const scriptCost = type === '時事反應' ? CREDIT_COST.news : CREDIT_COST.script;
+    const _typeEl = document.getElementById('scriptType');
+    const _fromScan = _typeEl && _typeEl.disabled;
+    const scriptCost = (type === '時事反應' && !_fromScan) ? CREDIT_COST.news : CREDIT_COST.script;
     const result = await window.deductCredits(scriptCost, 'script');
     if (!result.ok) {
       if (result.reason === 'insufficient') {
@@ -6127,7 +6134,9 @@ async function genScript(directionHint) {
     const formatLabelMap = {'一格':'一格梗圖','兩格':'兩格梗圖','影片15':'影片腳本 15秒','影片30':'影片腳本 30秒','純文案':'純文案'};
     const _pendingEntryRef = _pendingHistoryId ? scriptHistory.find(h => h.id === _pendingHistoryId) : null;
     const _scriptDuration = _pendingEntryRef && _pendingEntryRef.startTime ? Math.round((Date.now() - _pendingEntryRef.startTime) / 1000) : null;
-    const _scriptCost = type === '時事反應' ? CREDIT_COST.news : CREDIT_COST.script;
+    const _typeElForCost = document.getElementById('scriptType');
+    const _fromScanForCost = _typeElForCost && _typeElForCost.disabled;
+    const _scriptCost = (type === '時事反應' && !_fromScanForCost) ? CREDIT_COST.news : CREDIT_COST.script;
     const finalEntry = {
       id: _pendingHistoryId || Date.now(),
       topic: topic,
@@ -6176,7 +6185,9 @@ async function genScript(directionHint) {
 
     // ✅ 退還點數
     if (window._currentUid && !window._guestMode) {
-      const refundCost = type === '時事反應' ? CREDIT_COST.news : CREDIT_COST.script;
+      const _typeElForRefund = document.getElementById('scriptType');
+      const _fromScanForRefund = _typeElForRefund && _typeElForRefund.disabled;
+      const refundCost = (type === '時事反應' && !_fromScanForRefund) ? CREDIT_COST.news : CREDIT_COST.script;
       // R-4：走 /api/adjust 統一退點
       await window.refundCreditsViaApi(refundCost, 'script_fail', '生成失敗退點');
       const toast = document.getElementById('creditsToast');
