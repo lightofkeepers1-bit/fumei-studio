@@ -2398,10 +2398,11 @@ window.syncToCloud = async () => {
 
 <header>
   <div class="header-inner">
-    <div class="logo-icon">🐾</div>
-    <div class="logo-text">
+    <!-- 點 logo 區域回首頁（每日任務 tab） -->
+    <div class="logo-icon" onclick="switchTab('daily')" style="cursor:pointer" title="回首頁">🐾</div>
+    <div class="logo-text" onclick="switchTab('daily')" style="cursor:pointer" title="回首頁">
       <h1>Fumei Studio</h1>
-      <p>AI 梗圖產文系統 ✨ <span id="appVersion">v5.16.5</span></p>
+      <p>AI 梗圖產文系統 ✨ <span id="appVersion" onclick="event.stopPropagation()" style="cursor:pointer">v5.16.5</span></p>
     </div>
 
     <!-- 右側整體容器：不換行，緊湊排列 -->
@@ -3065,7 +3066,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.20.0';
+const APP_VERSION = '5.20.1';
 
 // ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
 window.esc = function(s) {
@@ -3668,23 +3669,15 @@ function switchTab(name, el) {
     panel.classList.add('active');
     panel.setAttribute('role', 'tabpanel');
   }
-  // URL hash 同步（可分享深連結、可按返回鍵）
-  if (location.hash.slice(1) !== name) {
-    try { history.replaceState(null, '', '#' + name); } catch(e) {}
-  }
+  // 保持 URL 乾淨：切 tab 不寫 hash（使用者要求）
 }
-// 讀 URL hash 還原 Tab；鍵盤左右箭頭切換
+// 鍵盤左右箭頭切換 tab（accessibility）
+// 原本的「URL hash 同步 + 還原」已移除 — 使用者偏好乾淨網址
 (function(){
-  const VALID = ['daily','topics','script','image','history','feedback'];
-  function restoreFromHash() {
-    const n = location.hash.slice(1);
-    if (VALID.includes(n)) {
-      const b = document.querySelector('.tab[data-tab="' + n + '"]');
-      if (b && b.offsetParent !== null) switchTab(n, b);
-    }
+  // 載入時若網址有殘留 hash（例如舊書籤），靜默清掉
+  if (location.hash) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch(e) {}
   }
-  window.addEventListener('DOMContentLoaded', restoreFromHash);
-  window.addEventListener('hashchange', restoreFromHash);
   document.addEventListener('keydown', function(e){
     const t = document.activeElement;
     if (!t || !t.classList || !t.classList.contains('tab')) return;
@@ -9539,7 +9532,9 @@ window.addEventListener('load', () => {
         hdr.textContent = `${manual} · ${d.sha}${envTag}`;
         hdr.style.cursor = 'pointer';
         hdr.title = `完整 SHA: ${d.shaFull}\nBranch: ${d.branch}\n${d.message}\n(點擊複製)`;
-        hdr.onclick = () => {
+        hdr.onclick = (e) => {
+          // 避免冒泡到 .logo-text 觸發 switchTab('daily')
+          if (e && e.stopPropagation) e.stopPropagation();
           navigator.clipboard?.writeText(`${manual}-${d.sha} (${d.branch}) — ${d.message}`).catch(() => {});
           const orig = hdr.textContent;
           hdr.textContent = '✓ 已複製';
