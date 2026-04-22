@@ -3066,7 +3066,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.22.0';
+const APP_VERSION = '5.22.1';
 
 // ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
 window.esc = function(s) {
@@ -3147,9 +3147,9 @@ window.updateCostBadges = () => {
   const type = document.getElementById('scriptType');
   const scriptBadge = document.querySelector('#scriptBtn .cost-badge');
   if (type && scriptBadge) {
-    // 時事反應 + 話題空白（要自動搜尋）→ 2 點；話題有內容（無搜尋成本）→ 1 點
+    // 2 點情境：時事反應+空白話題（要搜尋）、今天發什麼（Sonnet 兩段都跑）
     const topicVal = (document.getElementById('scriptTopic')?.value || '').trim();
-    const is2pt = type.value === '時事反應' && !topicVal;
+    const is2pt = (type.value === '時事反應' && !topicVal) || type.value === '今天發什麼';
     scriptBadge.textContent = is2pt ? '⚡2' : '⚡1';
     scriptBadge.style.background = is2pt ? 'rgba(255,150,150,0.35)' : 'rgba(255,255,255,0.22)';
     scriptBadge.style.border = is2pt ? '1px solid rgba(255,120,120,0.5)' : '1px solid rgba(255,255,255,0.4)';
@@ -5508,8 +5508,8 @@ async function genScript(directionHint) {
 
   // ⚡ 登入用戶：點數檢查（時事反應扣2點，其他1點）
   if (window._currentUid) {
-    // 時事反應 + 話題空白（要自動搜尋）→ 2 點；話題有內容 → 1 點
-    const scriptCost = (type === '時事反應' && !topic) ? CREDIT_COST.news : CREDIT_COST.script;
+    // 2 點情境：時事反應+空白話題（要搜尋）、今天發什麼（Sonnet 兩段都跑）
+    const scriptCost = ((type === '時事反應' && !topic) || type === '今天發什麼') ? CREDIT_COST.news : CREDIT_COST.script;
     const result = await window.deductCredits(scriptCost, 'script');
     if (!result.ok) {
       if (result.reason === 'insufficient') {
@@ -6139,7 +6139,7 @@ async function genScript(directionHint) {
     const formatLabelMap = {'一格':'一格梗圖','兩格':'兩格梗圖','影片15':'影片腳本 15秒','影片30':'影片腳本 30秒','純文案':'純文案'};
     const _pendingEntryRef = _pendingHistoryId ? scriptHistory.find(h => h.id === _pendingHistoryId) : null;
     const _scriptDuration = _pendingEntryRef && _pendingEntryRef.startTime ? Math.round((Date.now() - _pendingEntryRef.startTime) / 1000) : null;
-    const _scriptCost = (type === '時事反應' && !topic) ? CREDIT_COST.news : CREDIT_COST.script;
+    const _scriptCost = ((type === '時事反應' && !topic) || type === '今天發什麼') ? CREDIT_COST.news : CREDIT_COST.script;
     const finalEntry = {
       id: _pendingHistoryId || Date.now(),
       topic: topic,
@@ -6188,7 +6188,7 @@ async function genScript(directionHint) {
 
     // ✅ 退還點數
     if (window._currentUid && !window._guestMode) {
-      const refundCost = (type === '時事反應' && !topic) ? CREDIT_COST.news : CREDIT_COST.script;
+      const refundCost = ((type === '時事反應' && !topic) || type === '今天發什麼') ? CREDIT_COST.news : CREDIT_COST.script;
       // R-4：走 /api/adjust 統一退點
       await window.refundCreditsViaApi(refundCost, 'script_fail', '生成失敗退點');
       const toast = document.getElementById('creditsToast');
