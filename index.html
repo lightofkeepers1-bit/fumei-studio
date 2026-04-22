@@ -278,6 +278,9 @@ html.returning-user #landingOverlay { display: none !important; }
   .rewrite-chip { padding:6px 14px;border-radius:20px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px }
   .rewrite-chip:hover { background:#f4e8ff;border-color:#764ba2 }
   .rewrite-cost { background:rgba(118,75,162,0.12);color:#764ba2;border:1px solid rgba(118,75,162,0.2);border-radius:10px;padding:1px 7px;font-size:0.68rem;font-weight:900;letter-spacing:0.2px }
+  @keyframes fmFadeIn { from { opacity:0 } to { opacity:1 } }
+  @keyframes fmFadeOut { from { opacity:1 } to { opacity:0 } }
+  @keyframes fmPopIn { from { opacity:0;transform:translateY(8px) scale(0.96) } to { opacity:1;transform:translateY(0) scale(1) } }
   .news-cat-chip { padding:5px 11px;border-radius:20px;border:1.5px solid #f0d8e0;background:white;color:#aaa;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s;white-space:nowrap }
   .model-chip { padding:4px 12px;border-radius:20px;border:1.5px solid #e0d8f0;background:white;color:#aaa;font-size:0.73rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;transition:all 0.15s;white-space:nowrap }
   .model-chip:hover { border-color:#764ba2;color:#764ba2 }
@@ -3071,7 +3074,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.25.1';
+const APP_VERSION = '5.26.0';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -5172,6 +5175,52 @@ function unlockScriptType() {
   if (window.updateCostBadges) window.updateCostBadges();
 }
 
+// ── 自訂 confirm modal（跟網站風格一致）──────
+// 用法：const ok = await window.showConfirmModal({ title, body, confirmText, cancelText });
+window.showConfirmModal = function({ title = '請確認', body = '', confirmText = '確定', cancelText = '取消', tone = 'primary' } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.setAttribute('data-confirm-modal', '1');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(50,30,80,0.42);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);animation:fmFadeIn 0.18s ease-out';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = "background:linear-gradient(135deg,#fffafc,#fff5f8);border-radius:22px;max-width:420px;width:100%;padding:24px 22px 20px;box-shadow:0 24px 70px rgba(90,40,70,0.28);font-family:'Noto Sans TC',sans-serif;border:1.5px solid #f0d8e0;animation:fmPopIn 0.22s cubic-bezier(0.34,1.56,0.64,1)";
+
+    const confirmBg = tone === 'danger'
+      ? 'linear-gradient(135deg,#ff9a9e,#E07A95)'
+      : 'linear-gradient(135deg,#F4A7B9,#E07A95)';
+
+    modal.innerHTML =
+      '<div style="font-size:1.05rem;font-weight:900;color:#5C3D2E;margin-bottom:10px;line-height:1.4">' + title + '</div>' +
+      '<div style="font-size:0.88rem;color:#7a5a6a;line-height:1.75;margin-bottom:20px;white-space:pre-wrap">' + body + '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button data-cm="cancel" style="padding:9px 20px;border-radius:14px;border:1.5px solid #e8d5f5;background:white;color:#764ba2;font-size:0.86rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.15s">' + cancelText + '</button>' +
+        '<button data-cm="ok" style="padding:9px 22px;border-radius:14px;border:none;background:' + confirmBg + ';color:white;font-size:0.86rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(224,122,149,0.35);transition:all 0.15s">' + confirmText + '</button>' +
+      '</div>';
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const cleanup = (result) => {
+      document.removeEventListener('keydown', keyHandler);
+      overlay.style.animation = 'fmFadeOut 0.12s ease-in';
+      setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 110);
+      resolve(result);
+    };
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      else if (e.key === 'Enter') cleanup(true);
+    };
+
+    modal.querySelector('[data-cm="cancel"]').addEventListener('click', () => cleanup(false));
+    modal.querySelector('[data-cm="ok"]').addEventListener('click', () => cleanup(true));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+    document.addEventListener('keydown', keyHandler);
+    // 自動 focus 確定按鈕，Enter 直接確認
+    setTimeout(() => modal.querySelector('[data-cm="ok"]').focus(), 50);
+  });
+};
+
 // ── 手動收起「今天發什麼」方向卡 ──────────────
 window.dismissTodayDirections = function() {
   const el = document.getElementById('todayDirectionArea');
@@ -5629,8 +5678,21 @@ function pickInspo(el, direction) {
 // 「今天發什麼？」使用者選定方向後觸發產腳本
 async function pickTodayDirection(topicName, dirName, dirDesc) {
   // 二次確認：避免誤點（Stage 2 會扣 ⚡1 點，不可反悔）
-  const _confirmMsg = `確定用「${dirName}」方向產腳本嗎？\n\n話題：${topicName}\n方向：${dirName}${dirDesc ? '（' + dirDesc + '）' : ''}\n\n將扣 ⚡1 點。`;
-  if (!confirm(_confirmMsg)) return;
+  const _esc = window.esc || ((s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
+  const _bodyHtml =
+    '<div style="font-size:0.82rem;color:#bbb;margin-bottom:3px">話題</div>' +
+    '<div style="font-weight:800;color:#5C3D2E;margin-bottom:10px">' + _esc(topicName) + '</div>' +
+    '<div style="font-size:0.82rem;color:#bbb;margin-bottom:3px">方向</div>' +
+    '<div style="font-weight:800;color:#5C3D2E">' + _esc(dirName) + '</div>' +
+    (dirDesc ? '<div style="font-size:0.82rem;color:#888;margin-top:3px">' + _esc(dirDesc) + '</div>' : '') +
+    '<div style="margin-top:14px;padding:8px 12px;background:rgba(244,167,185,0.15);border:1px solid #f0d8e0;border-radius:10px;font-size:0.82rem;color:#E07A95;font-weight:700">⚡ 將扣 1 點產出腳本</div>';
+  const _ok = await window.showConfirmModal({
+    title: '🎯 確定用這個方向產腳本？',
+    body: _bodyHtml,
+    confirmText: '✨ 產腳本',
+    cancelText: '再想想'
+  });
+  if (!_ok) return;
 
   // 隱藏方向選擇區
   document.getElementById('todayDirectionArea').style.display = 'none';
