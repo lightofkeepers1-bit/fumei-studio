@@ -3066,7 +3066,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.23.0';
+const APP_VERSION = '5.23.1';
 
 // ── HTML escape 工具（防止外部字串 XSS，用於 PTT/新聞標題等）──
 window.esc = function(s) {
@@ -4526,6 +4526,9 @@ ${pttHeadlines}
       });
       document.getElementById('topicsCard').style.display = 'block';
 
+      // 記錄這次掃描用的角色（切換時 safeguard 會比對）
+      window._lastScanCharIdx = (typeof getActiveIdx === 'function') ? getActiveIdx() : 0;
+
       // 快取此次結果（同分類、同小時內再掃直接用）
       // 不快取 — 歷史紀錄已保存掃描結果
 
@@ -4762,6 +4765,8 @@ ${_charCtxForScan}
               const topicList = _dedupedTopics.slice(0, 6);
               // 存入 blacklist（下次同分類掃描避開）
               _saveScanToBlacklist(catKey, topicList.map(t => t.title));
+              // 記錄這次掃描用的角色（切換時 safeguard 會比對）
+              window._lastScanCharIdx = (typeof getActiveIdx === 'function') ? getActiveIdx() : 0;
 
               grid.innerHTML = topicList.map((item, i) => {
                 return `<div class="topic-chip" data-idx="${i}" style="cursor:pointer;position:relative">
@@ -4931,6 +4936,9 @@ ${_charCtxForScan}
       el.addEventListener('click', () => pickTopic(topicListFinal[idx].title, topicListFinal[idx].rssIndex));
     });
     document.getElementById('topicsCard').style.display = 'block';
+
+    // 記錄這次掃描用的角色（切換時 safeguard 會比對）
+    window._lastScanCharIdx = (typeof getActiveIdx === 'function') ? getActiveIdx() : 0;
 
     // 登入用戶：把掃描結果存入歷史紀錄，取代佔位
     if (window._currentUid && !window._guestMode && topicListFinal.length > 0) {
@@ -7312,7 +7320,42 @@ function loadChars() {
 }
 function saveChars(chars) { localStorage.setItem('fumei_chars', JSON.stringify(chars)); }
 function getActiveIdx() { return parseInt(localStorage.getItem('fumei_char_active') || '0'); }
-function setActiveIdx(i) { localStorage.setItem('fumei_char_active', String(i)); }
+function setActiveIdx(i) {
+  const prevIdx = parseInt(localStorage.getItem('fumei_char_active') || '0');
+  localStorage.setItem('fumei_char_active', String(i));
+  // ── 角色切換 safeguard：清掉舊角色掃出來的話題，避免混角色 ──
+  if (prevIdx !== i) {
+    const topicsCard = document.getElementById('topicsCard');
+    const hasTopics = topicsCard && topicsCard.style.display !== 'none' && topicsCard.offsetParent !== null;
+    if (hasTopics && window._lastScanCharIdx !== undefined && window._lastScanCharIdx !== i) {
+      // 清掉話題掃描結果
+      topicsCard.style.display = 'none';
+      const grid = document.getElementById('topicsGrid');
+      if (grid) grid.innerHTML = '';
+      const selectedCard = document.getElementById('selectedCard');
+      if (selectedCard) selectedCard.style.display = 'none';
+      window._lastScanCharIdx = undefined;
+      // toast 提示
+      const toast = document.getElementById('creditsToast');
+      if (toast) {
+        const chars = (typeof loadChars === 'function') ? loadChars() : [];
+        const newName = (chars[i] || {}).name || '新角色';
+        toast.textContent = `🔄 已切換到 ${newName}，剛才的話題掃描結果已清除（避免混角色）`;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3500);
+      }
+    }
+    // 掃描進行中 → 僅提示，不阻擋
+    if (window._scanInProgress) {
+      const toast = document.getElementById('creditsToast');
+      if (toast) {
+        toast.textContent = '⚠️ 掃描進行中，本次結果仍是舊角色的吐槽風格';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3500);
+      }
+    }
+  }
+}
 
 function renderCharCards() {
   const chars = loadChars();
