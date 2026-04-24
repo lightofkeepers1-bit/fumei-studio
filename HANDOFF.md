@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.26.1'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.26.2'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -36,6 +36,12 @@
 - `c1d422e` 方向卡二次確認 + genScript loadTxt 殘留文字 bug 修
 - `22acc78` 二次確認改用 custom modal（粉色風格、ESC/Enter 支援、backdrop blur）
   - `window.showConfirmModal()` 通用函式，之後其他確認場景都可用
+
+**🐛 跨裝置簽到 bug 修（v5.26.2）**
+- 症狀：手機先簽到 → 電腦 F5 每次都跳簽到 modal，但按下去領不到（server 回「已簽到」）
+- 根因：server 寫 `fumei_checkin_last`，client `checkTodayCheckin()` 讀的是 `fumei_checkin_date`，**欄位名稱對不上**
+- 修法：client 改讀 `fumei_checkin_last`，同時 fallback 舊欄位 `fumei_checkin_date`（防歷史資料誤判）
+- 影響：所有跨裝置同一帳號的使用者都踩過
 
 ### 最終點數規則（v5.26.1）
 | 功能 | 點數 |
