@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.26.2'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.27.0'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -42,6 +42,13 @@
 - 根因：server 寫 `fumei_checkin_last`，client `checkTodayCheckin()` 讀的是 `fumei_checkin_date`，**欄位名稱對不上**
 - 修法：client 改讀 `fumei_checkin_last`，同時 fallback 舊欄位 `fumei_checkin_date`（防歷史資料誤判）
 - 影響：所有跨裝置同一帳號的使用者都踩過
+
+**🏠 Landing 顯示策略改成「每日一次」+ 關閉後落在每日任務（v5.27.0）**
+- 之前：只要使用者看過一次 landing（任何時候）→ 永遠跳過
+- 現在：每天第一次開啟才顯示 landing，同一天 F5 不重複，隔天再跳一次
+- 用 `fumei_landing_seen_date = YYYY-MM-DD` 記錄，比對今天日期
+- closeLandingOverlay 關閉後會 `switchTab('daily')` + `scrollTo(0,0)`，確保使用者落在「每日任務」頁頂
+- 保留舊 flag `fumei_landing_seen` 做兼容
 
 ### 最終點數規則（v5.26.1）
 | 功能 | 點數 |

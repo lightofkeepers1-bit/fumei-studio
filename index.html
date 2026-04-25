@@ -47,19 +47,17 @@
 }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
-<!-- 回訪者偵測：SEO 友善（預設顯示 landing），但已來過的使用者直接進 app，避免閃爍 -->
+<!-- Landing 顯示策略（v5.27.0）：每天第一次開啟才顯示 landing，同一天 F5 不重複 -->
 <script>
 (function(){
   try {
-    var returning =
-      localStorage.getItem('fumei_landing_seen') === '1' ||
-      localStorage.getItem('fumei_uid') ||
-      localStorage.getItem('fumei_onboarded') === '1' ||
-      localStorage.getItem('fumei_guest_onboarded') === '1' ||
-      localStorage.getItem('fumei_guest_mode') === '1';
-    if (returning) {
+    var today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    var lastSeenDate = localStorage.getItem('fumei_landing_seen_date');
+    // 今天已看過 → 直接進 app（避免閃爍）
+    if (lastSeenDate === today) {
       document.documentElement.classList.add('returning-user');
     }
+    // 今天還沒看 → 不加 returning-user class → landing 預設 display:block 會顯示
   } catch(e) {}
 })();
 </script>
@@ -3074,7 +3072,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.26.2';
+const APP_VERSION = '5.27.0';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -10061,9 +10059,23 @@ function closeLandingOverlay() {
   const lo = document.getElementById('landingOverlay');
   if (lo) lo.style.display = 'none';
   document.body.style.overflow = '';
-  // 記住已看過 landing；下次進來直接看 app
-  try { localStorage.setItem('fumei_landing_seen', '1'); } catch(e) {}
+  // 記下「今天已看過 landing」；同一天 F5 不再跳，隔天再跳一次
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('fumei_landing_seen_date', today);
+    // 保留舊 flag 兼容性
+    localStorage.setItem('fumei_landing_seen', '1');
+  } catch(e) {}
   document.documentElement.classList.add('returning-user');
+  // 關閉 landing 後一律落在「每日任務」分頁（避免 F5 殘留在其他分頁）
+  try {
+    if (typeof switchTab === 'function') {
+      const dailyBtn = document.querySelector('.tab[data-tab="daily"]');
+      switchTab('daily', dailyBtn);
+    }
+  } catch(e) {}
+  // 順手捲到頁首
+  window.scrollTo(0, 0);
 }
 
 // Landing 在 DOM 中預設顯示（SEO 友善），回訪者已由 <head> 的 returning-user class 即時隱藏
