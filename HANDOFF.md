@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.27.0'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.27.1'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -49,6 +49,13 @@
 - 用 `fumei_landing_seen_date = YYYY-MM-DD` 記錄，比對今天日期
 - closeLandingOverlay 關閉後會 `switchTab('daily')` + `scrollTo(0,0)`，確保使用者落在「每日任務」頁頂
 - 保留舊 flag `fumei_landing_seen` 做兼容
+
+**🐛 今天發什麼 Stage 2 殘留話題誤觸 Stage 1 bug（v5.27.1）**
+- 症狀：用今天發什麼產完腳本後（topic 框留下 `topicName｜dirName方向：desc` 格式），改格式（純文案 → 一格梗圖）再按產腳本，結果系統重新跑 Stage 1 找新話題，**沒沿用原本的話題+方向**
+- 根因：使用者按按鈕時 directionHint 是 undefined → genScript 進入 Stage 1 分支
+- 修法：genScript 開頭加偵測，若 topic 符合 `^(.+)｜(.+)方向：(.+)$` 格式 → 自動重組 directionHint，跳過 Stage 1 直走 Stage 2
+- 影響：使用者切換格式/模型重新生成時，可以沿用同樣的話題+方向，不會浪費 Sonnet 重新跑 Stage 1
+- 5.27.0 → 5.27.1
 
 ### 最終點數規則（v5.26.1）
 | 功能 | 點數 |

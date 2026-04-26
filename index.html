@@ -3072,7 +3072,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.27.0';
+const APP_VERSION = '5.27.1';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -5745,6 +5745,15 @@ async function genScript(directionHint) {
 
   // 重設 loading 文字預設值（避免前一次的「正在比對最新時事...」殘留）
   if (loadTxt) loadTxt.textContent = '✨ 正在產出腳本...';
+
+  // 偵測：話題框是 Stage 2 殘留格式（前次選方向後留下「topicName｜dirName方向：desc」）
+  // 沒帶 directionHint → 視為使用者要「換格式/換模型重新生成」 → 自動補回 directionHint，跳過 Stage 1 重新搜尋
+  if (!directionHint && type === '今天發什麼' && topic) {
+    const _stage2Match = topic.match(/^(.+?)｜(.+?)方向：(.+)$/s);
+    if (_stage2Match) {
+      directionHint = '今天發什麼:' + _stage2Match[1].trim() + ':' + _stage2Match[2].trim() + ':' + _stage2Match[3].trim();
+    }
+  }
 
   // 今天發什麼方向已選：解析 hint 帶入話題
   let _todayTopic = '', _todayDir = '', _todayDirDesc = '';
