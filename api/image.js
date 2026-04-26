@@ -18,13 +18,16 @@ async function fsIncrement(docPath, field) {
   } catch(e) {}
 }
 
-const ipCache = new Map();
-function checkIpRate(ip) {
+// Rate limit：只擋「建立新生圖任務」（POST），不擋 polling（GET 查狀態）
+// 主 key 用 uid（多人同 IP 不互相影響），fallback 用 IP（沒 uid 時保留 IP 級防護，例如 proxy 路徑）
+// 上限：60 秒內 10 個新任務（一個 IP/uid 1 分鐘最多 10 張圖，足夠正常使用）
+const rateCache = new Map();
+function checkRate(key) {
   const now = Date.now();
-  const entry = ipCache.get(ip) || { count: 0, start: now };
-  if (now - entry.start > 60000) { ipCache.set(ip, { count: 1, start: now }); return true; }
+  const entry = rateCache.get(key) || { count: 0, start: now };
+  if (now - entry.start > 60000) { rateCache.set(key, { count: 1, start: now }); return true; }
   if (entry.count >= 10) return false;
-  entry.count++; ipCache.set(ip, entry); return true;
+  entry.count++; rateCache.set(key, entry); return true;
 }
 
 export default async function handler(req, res) {
@@ -67,7 +70,7 @@ export default async function handler(req, res) {
   }
 
   if (!KIE_API_KEY) return res.status(500).json({ error: 'KIE API Key 未設定' });
-  if (!checkIpRate(ip)) return res.status(429).json({ error: '⚠️ 請求過於頻繁' });
+  // Rate limit 改在 POST 分支裡做（避免 polling GET 算進去）+ 用 uid 為 key（多人同 IP 不互相影響）
 
   // ── GET：查詢任務狀態 ──────────────────────────────
   if (req.method === 'GET') {
@@ -124,6 +127,13 @@ export default async function handler(req, res) {
   // ── POST：建立任務 ────────────────────────────────
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!uid) return res.status(401).json({ error: '請先登入才能使用生圖功能', needLogin: true });
+
+  // Rate limit：以 uid 為主 key（避免多人同 IP 互相干擾），uid 沒拿到時 fallback 用 IP
+  // 上限 10 張/分鐘對單一使用者已超過合理使用量
+  const rateKey = uid || ip;
+  if (!checkRate(rateKey)) {
+    return res.status(429).json({ error: '⚠️ 建立生圖任務太頻繁，請稍候 1 分鐘後再試' });
+  }
 
   const { quality = 'std', prompt, ratio = '9:16', refs = [] } = req.body;
   if (!prompt) return res.status(400).json({ error: '請提供 prompt' });

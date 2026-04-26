@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.27.1'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.28.0'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -56,6 +56,19 @@
 - 修法：genScript 開頭加偵測，若 topic 符合 `^(.+)｜(.+)方向：(.+)$` 格式 → 自動重組 directionHint，跳過 Stage 1 直走 Stage 2
 - 影響：使用者切換格式/模型重新生成時，可以沿用同樣的話題+方向，不會浪費 Sonnet 重新跑 Stage 1
 - 5.27.0 → 5.27.1
+
+**🐛 生圖「請求過於頻繁」誤擋（v5.28.0）**
+- 症狀：使用者一張圖還沒產完就跳「⚠️ 請求過於頻繁，已退還 8 點」
+- 根因：
+  1. `api/image.js` rate limit 用 IP 為 key，1 分鐘 10 個請求上限
+  2. 但 GET polling 每 4 秒一次，**單一使用者一張圖 = 1 POST + ~15 GET**，第一分鐘就超過 10
+  3. 多人同 IP（公司/咖啡廳/家裡）共享 quota → 更容易撞
+- 修法（D 方案 = A + C）：
+  - **A**：rate check 移到 POST 分支裡，GET polling 不算（只擋「建立新任務」）
+  - **C**：key 從 IP 改成 uid（多人同 IP 不互相干擾），uid 拿不到時 fallback 用 IP
+  - 變數 `ipCache` 改名 `rateCache`，函式 `checkIpRate` 改名 `checkRate`
+- 上限維持 10 張/分鐘（單一使用者已遠超合理用量，足夠擋濫用）
+- 5.27.1 → 5.28.0
 
 ### 最終點數規則（v5.26.1）
 | 功能 | 點數 |
