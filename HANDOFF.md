@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.30.0'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.30.1'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -79,7 +79,10 @@
 - notice 文字也跟著改：有 topic 時顯示「💡 正在幫你深化主題」而非「想今天發什麼」
 - 5.28.0 → 5.29.0
 
-**📝 新增「自由發想」類型 + 🎲「重新構思」按鈕（v5.30.0）**
+**📝 新增「自由發想」類型 + 🎲「重新構思」按鈕（v5.30.0 / hotfix v5.30.1）**
+
+⚠️ v5.30.1 hotfix：rebuildTopicSelects() 會動態重建 scriptType dropdown，把 HTML 靜態加的「自由發想」option 蓋掉。改到 rebuildTopicSelects 裡面 inject「自由發想」option（在「今天發什麼」之後），才會真的出現在下拉選單。
+
 
 1. 自由發想類型
 - 為什麼：使用者已有想法、想直接產腳本（不要 3 方向卡），但「職場梗 / 旅遊心得」等類型名稱會誤導以為內容會被類別偏向

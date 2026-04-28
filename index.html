@@ -3079,7 +3079,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.30.0';
+const APP_VERSION = '5.30.1';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -4297,6 +4297,7 @@ function rebuildTopicSelects() {
     const cur2 = scriptSel.value;
     scriptSel.innerHTML =
       `<option value="今天發什麼">📅 今天發什麼？</option>` +
+      `<option value="自由發想">📝 自由發想（直接拿話題產）</option>` +
       all.map(t => {
         const bl = BUILTIN_SCRIPT_LABELS[t.key];
         return `<option value="${bl ? bl.value : t.key}">${t.emoji} ${bl ? bl.label.replace(/^[^\s]+\s/,'') : t.name}</option>`;
