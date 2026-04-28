@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.30.1'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.30.2'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -82,6 +82,10 @@
 **📝 新增「自由發想」類型 + 🎲「重新構思」按鈕（v5.30.0 / hotfix v5.30.1）**
 
 ⚠️ v5.30.1 hotfix：rebuildTopicSelects() 會動態重建 scriptType dropdown，把 HTML 靜態加的「自由發想」option 蓋掉。改到 rebuildTopicSelects 裡面 inject「自由發想」option（在「今天發什麼」之後），才會真的出現在下拉選單。
+
+⚠️ v5.30.2 hotfix：自由發想出來的內容會飄離主題（測試 case：使用者輸入「寫AI vibecoding 結果每次都要叫我休息」，AI 寫出「台灣媽祖接班升級的邏輯」「超佛系寫碼境界」之類無關內容）。
+- 根因：`類型：自由發想` 對 AI 沒明確指引 + topicRuleNote 預設值「自行判斷最適合的切入角度」太鬆
+- 修法：type === '自由發想' 時，topicRuleNote 改為強指引：「完全以使用者話題為核心發揮，**不要扯到其他類別主題、不要硬塞時間情境、不要加入無關延伸**。如果話題很短，根據字面意思自然展開，不要過度發揮。」
 
 
 1. 自由發想類型
