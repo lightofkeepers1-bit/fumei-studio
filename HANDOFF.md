@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.32.2'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.33.0'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -121,6 +121,18 @@
 - 同步調整：`.script-controls-sticky` top 從 56px 改 50px（精準對齊 tabs 高度）
 - 桌面版維持原樣（header 一直 sticky 也沒差，螢幕大）
 - 5.32.1 → 5.32.2
+
+**🏠 把「每日任務」改名為「首頁」+ 任務清單禁止互動（v5.33.0）**
+- 為什麼：使用者反映很多人以為「每日任務」是系統會代發文，造成誤會
+- 改動：
+  - tab 文字 `📅 每日任務` → `🏠 首頁`
+  - 首頁介紹條文「📋 每日任務 — 追蹤你的發文進度」→「🏠 首頁 — 自行追蹤每日發文進度」
+  - 卡片標題「📋 今日發文任務」→「📋 今日發文提醒」
+  - 上方加黃色提醒框：「⚠️ 提醒清單僅供自行追蹤，Fumei Studio 不會代為發文」
+  - `#taskList` 加 `pointer-events:none; opacity:0.7` → 視覺保留但無法 toggle/del
+  - 整段「新增任務」輸入列直接拿掉（addTask UI 不再可用）
+- 注意：addTask / toggle / del 函式仍在，未刪除。日後若要重新啟用只需把 pointer-events 拿掉 + 補回 add-row HTML
+- 5.32.2 → 5.33.0
 
 
 1. 自由發想類型
