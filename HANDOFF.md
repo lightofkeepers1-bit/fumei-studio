@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.32.0'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.32.1'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -103,6 +103,16 @@
   - 所有 modal close（`.modal-close` / `.help-modal-close` / `.buy-modal-close`）統一 44×44 + 白底粉紅字 + 陰影
   - settings modal 的 `.modal-close` 在手機版改 absolute 定位（top:12px right:12px），桌面維持 inline
 - 5.31.0 → 5.32.0
+
+**📱 產腳本控制區也 sticky（v5.32.1）**
+- 痛點：使用者捲下去看結果，想再按產腳本要捲回上面
+- 修法：把選單列（type/format/model）+ 按鈕列（產出腳本/三AI發想）包進 `.script-controls-sticky`
+  - 手機版 `position: sticky; top: 56px;`（緊貼 tabs 下方）
+  - 白底 + 陰影 + 邊框，視覺上跟內容區隔
+  - margin: 0 -14px + padding-left/right:14px → 讓背景延伸到 card 邊緣
+  - z-index: 80（低於 tabs 90）
+- 結果：捲動時，tabs 和產腳本控制區都浮在最上方，使用者可以隨時切 tab 或重新產腳本
+- 5.32.0 → 5.32.1
 
 
 1. 自由發想類型
