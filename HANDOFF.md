@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.31.0'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.32.0'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -94,6 +94,15 @@
   - `pickTodayDirection()` 在 Stage 2 跑完後同樣切換
   - 同步呼叫 refreshScriptTypeOptions / updateCostBadges / toggleScriptTopicClearBtn 維持 UI 一致
 - 5.30.2 → 5.31.0
+
+**📱 手機 UX：tabs sticky 在頂端 + 加大 modal 關閉按鈕（v5.32.0）**
+- 痛點：手機上捲到下面，要切 tab 得捲回最上面；modal 的 ✕ 太小不好點
+- 修法（mobile @media max-width:768px）：
+  - `nav` 加 `position: sticky; top: 0; z-index: 90;` + 半透明漸層背景 + 陰影 → tabs 永遠浮在頂端
+  - `.tab` 從 padding 8px 14px 改成 10px 14px，加 min-height: 40px → 觸控好點
+  - 所有 modal close（`.modal-close` / `.help-modal-close` / `.buy-modal-close`）統一 44×44 + 白底粉紅字 + 陰影
+  - settings modal 的 `.modal-close` 在手機版改 absolute 定位（top:12px right:12px），桌面維持 inline
+- 5.31.0 → 5.32.0
 
 
 1. 自由發想類型
