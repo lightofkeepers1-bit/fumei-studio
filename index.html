@@ -3079,7 +3079,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.30.2';
+const APP_VERSION = '5.31.0';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -5717,6 +5717,15 @@ function pickInspo(el, direction) {
   const topicEl = document.getElementById('scriptTopic');
   const current = topicEl.value.trim().replace(/\n方向：.*/s,'').trim();
   topicEl.value = current ? `${current}\n方向：${direction}` : `方向：${direction}`;
+  // 三AI發想選完後自動切到「自由發想」模式 → 下次按產腳本直接 Haiku 出腳本（⚡1）
+  // 因為使用者已經有具體話題+方向，不需要再走 Stage 1 找方向
+  const sel = document.getElementById('scriptType');
+  if (sel && sel.value !== '自由發想' && !sel.disabled) {
+    sel.value = '自由發想';
+    if (window.refreshScriptTypeOptions) window.refreshScriptTypeOptions();
+    if (window.updateCostBadges) window.updateCostBadges();
+    if (window.toggleScriptTopicClearBtn) window.toggleScriptTopicClearBtn();
+  }
   document.getElementById('scriptBtn').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -5755,6 +5764,14 @@ async function pickTodayDirection(topicName, dirName, dirDesc) {
   const type = document.getElementById('scriptType')?.value || '兩格梗圖';
   const model = document.getElementById('scriptModel')?.value || 'claude';
   await genScript(`今天發什麼:${topicName}:${dirName}:${dirDesc}`);
+  // Stage 2 結束後切到自由發想模式，讓使用者下次按產腳本是「直接重產」(⚡1)
+  // 不再走 Stage 1 找方向；如果想要新方向，使用者可以自己切回「今天發什麼」
+  const _sel = document.getElementById('scriptType');
+  if (_sel && !_sel.disabled) {
+    _sel.value = '自由發想';
+    if (window.refreshScriptTypeOptions) window.refreshScriptTypeOptions();
+    if (window.updateCostBadges) window.updateCostBadges();
+  }
 }
 
 async function genScript(directionHint) {

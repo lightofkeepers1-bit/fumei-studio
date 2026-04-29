@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.30.2'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.31.0'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -86,6 +86,14 @@
 ⚠️ v5.30.2 hotfix：自由發想出來的內容會飄離主題（測試 case：使用者輸入「寫AI vibecoding 結果每次都要叫我休息」，AI 寫出「台灣媽祖接班升級的邏輯」「超佛系寫碼境界」之類無關內容）。
 - 根因：`類型：自由發想` 對 AI 沒明確指引 + topicRuleNote 預設值「自行判斷最適合的切入角度」太鬆
 - 修法：type === '自由發想' 時，topicRuleNote 改為強指引：「完全以使用者話題為核心發揮，**不要扯到其他類別主題、不要硬塞時間情境、不要加入無關延伸**。如果話題很短，根據字面意思自然展開，不要過度發揮。」
+
+**🔄 發想完自動切到「自由發想」模式（v5.31.0）**
+- 為什麼：使用者用三AI發想 / 今天發什麼 → 選了一個方向後，話題框已經有具體內容，下次按產腳本不該再跑 Stage 1 找方向；切到「自由發想」就是「直接重產」（⚡1，Haiku）
+- 修法：
+  - `pickInspo()` 結束時，若 scriptType 不是自由發想 + 沒被鎖（從話題掃描鎖住的不動）→ 自動切到「自由發想」
+  - `pickTodayDirection()` 在 Stage 2 跑完後同樣切換
+  - 同步呼叫 refreshScriptTypeOptions / updateCostBadges / toggleScriptTopicClearBtn 維持 UI 一致
+- 5.30.2 → 5.31.0
 
 
 1. 自由發想類型
