@@ -337,6 +337,11 @@ html.returning-user #landingOverlay { display: none !important; }
     .api-zone { width:100%; margin-left:0 }
     .api-input { width:100%; flex:1 }
 
+    /* 手機版：header 不 sticky（讓它捲走，把 sticky 位置讓給 tabs）*/
+    header {
+      position: static !important;
+    }
+
     /* Nav tabs - scrollable pill style + sticky on mobile */
     nav {
       padding:10px 12px 0; gap:6px;
@@ -352,7 +357,7 @@ html.returning-user #landingOverlay { display: none !important; }
     /* 產腳本控制區（選單列 + 按鈕列）手機版 sticky 在 tabs 下方 */
     .script-controls-sticky {
       position: sticky;
-      top: 56px; /* tabs 高度 + 一點空隙 */
+      top: 50px; /* tabs 高度 (10px padding + 40px tab = 50px) */
       z-index: 80;
       background: white;
       padding: 4px 0 8px;
@@ -3118,7 +3123,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.32.1';
+const APP_VERSION = '5.32.2';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 

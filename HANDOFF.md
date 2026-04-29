@@ -1,7 +1,7 @@
 # Fumei Studio — Handoff 狀態盤點
 
 **最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.32.1'`（live + origin/main 一致）
+**當前版本**：`APP_VERSION = '5.32.2'`（live + origin/main 一致）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
 
@@ -113,6 +113,14 @@
   - z-index: 80（低於 tabs 90）
 - 結果：捲動時，tabs 和產腳本控制區都浮在最上方，使用者可以隨時切 tab 或重新產腳本
 - 5.32.0 → 5.32.1
+
+**🐛 v5.32.0/.1 sticky 失效（v5.32.2 hotfix）**
+- 症狀：實測手機版「每日任務 tab」還是會跟著捲走，只有最上面 header 浮著
+- 根因：`header { position: sticky; top:0; z-index:100 }` 在桌面就有，比 nav 的 z-index:90 高 → header 把 nav 蓋住
+- 修法（mobile only）：`header { position: static !important }` 讓 header 捲走，把 sticky 寶座讓給 nav
+- 同步調整：`.script-controls-sticky` top 從 56px 改 50px（精準對齊 tabs 高度）
+- 桌面版維持原樣（header 一直 sticky 也沒差，螢幕大）
+- 5.32.1 → 5.32.2
 
 
 1. 自由發想類型
