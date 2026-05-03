@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Fumei Studio Admin — FB 發文</title>
+<link rel="icon" type="image/png" href="/og-image.png">
+<style>
+  :root {
+    --bg: #1a1a1f;
+    --panel: #25252e;
+    --panel-2: #2f2f3a;
+    --border: #3a3a48;
+    --text: #e8e8ee;
+    --muted: #8e8ea0;
+    --accent: #F4A7B9;
+    --accent-2: #ec7898;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --err: #f87171;
+    --info: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  header {
+    padding: 16px 24px; background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header h1 { margin: 0; font-size: 18px; color: var(--accent); }
+  header .user-info { font-size: 13px; color: var(--muted); display: flex; gap: 12px; align-items: center; }
+  header button.icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  header button.icon-btn:hover { background: var(--border); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  .panel h2 { margin: 0 0 16px; font-size: 16px; color: var(--accent); }
+  .panel .desc { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+  /* Forms */
+  textarea, input[type=text], input[type=datetime-local] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit;
+    font-size: 14px;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+
+  button.primary {
+    background: var(--accent); color: #1a1a1f; border: none; padding: 10px 20px;
+    border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  button.primary:hover { background: var(--accent-2); }
+  button.primary:disabled { background: var(--muted); cursor: not-allowed; }
+  button.secondary {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  button.secondary:hover { background: var(--border); }
+
+  /* Master controls */
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px; background: var(--panel-2); border-radius: 8px; }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls .grow { flex: 1; }
+
+  /* Cards */
+  .cards { display: grid; gap: 12px; margin-top: 16px; }
+  .card {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; transition: opacity .15s;
+  }
+  .card.skipped { opacity: .4; }
+  .card .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .card .name { font-weight: 700; font-size: 15px; }
+  .card .id { color: var(--muted); font-size: 11px; font-family: monospace; }
+  .card .row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .card .row input[type=text] { flex: 1; }
+  .card .row button { white-space: nowrap; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.ok { background: var(--ok); color: #052e16; }
+  .badge.warn { background: var(--warn); color: #451a03; }
+  .badge.err { background: var(--err); color: #450a0a; }
+  .badge.info { background: var(--info); color: #0c1a3a; }
+
+  /* Results & history */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table th, table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table th { color: var(--muted); font-weight: 600; }
+  table td.msg { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table a { color: var(--info); text-decoration: none; }
+  table a:hover { text-decoration: underline; }
+
+  /* Status bar */
+  #status-bar {
+    position: fixed; bottom: 20px; right: 20px; padding: 12px 18px;
+    border-radius: 8px; font-size: 13px; z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    transform: translateY(150%); transition: transform .2s;
+  }
+  #status-bar.show { transform: translateY(0); }
+  #status-bar.ok { background: var(--ok); color: #052e16; }
+  #status-bar.err { background: var(--err); color: #450a0a; }
+  #status-bar.info { background: var(--info); color: #0c1a3a; }
+
+  /* Setup */
+  .setup-box { background: rgba(244,167,185,.08); border: 1px dashed var(--accent); padding: 16px; border-radius: 8px; }
+  .setup-box code { background: rgba(0,0,0,.3); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+  .setup-box pre {
+    background: rgba(0,0,0,.4); padding: 10px; border-radius: 6px; font-size: 12px;
+    overflow-x: auto; line-height: 1.4;
+  }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+  .auth-box { max-width: 400px; margin: 60px auto; text-align: center; }
+  .auth-box .panel { padding: 32px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📣 Fumei FB 發文</h1>
+  <div class="user-info">
+    <span id="user-email">未登入</span>
+    <button class="icon-btn" id="logout-btn" hidden>登出</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- 未登入 -->
+  <div id="auth-view" class="auth-box" hidden>
+    <div class="panel">
+      <h2>需要登入</h2>
+      <p class="desc">用你的 admin Google 帳號登入</p>
+      <button class="primary" id="login-btn">用 Google 登入</button>
+    </div>
+  </div>
+
+  <!-- 非 admin -->
+  <div id="not-admin-view" hidden>
+    <div class="panel">
+      <h2>403 — 非管理員</h2>
+      <p class="desc">這個頁面只有 admin 能用。如果你應該是 admin，檢查 Vercel <code>ADMIN_EMAILS</code> 環境變數。</p>
+    </div>
+  </div>
+
+  <!-- Setup (admin 但還沒匯入粉專) -->
+  <div id="setup-view" hidden>
+    <div class="panel">
+      <h2>初次使用：匯入你的 FB 粉專 Token</h2>
+      <p class="desc">把 <code>fb-poster/pages.json</code> 的內容貼到下面（或手動輸入），然後按「匯入」。token 會存到 Firestore <code>fb_user_pages/{你的 uid}</code>。</p>
+
+      <div class="setup-box">
+        <p style="margin: 0 0 8px;"><strong>格式範例</strong>：</p>
+<pre>[
+  {"name": "Fumei 今天也很美", "id": "1065940949931693", "token": "EAA..."},
+  {"name": "吐貓 HaterCat", "id": "990123424192537", "token": "EAA..."}
+]</pre>
+      </div>
+
+      <textarea id="setup-json" placeholder='貼上 JSON 陣列...' style="margin-top: 12px; min-height: 180px; font-family: monospace; font-size: 12px;"></textarea>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button class="primary" id="setup-btn">匯入</button>
+        <button class="secondary" id="setup-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主發文介面 -->
+  <div id="poster-view" hidden>
+
+    <div class="panel">
+      <div class="controls">
+        <label>
+          <input type="checkbox" id="master-mode">
+          <strong>全部用同一內容</strong>
+        </label>
+        <span class="grow"></span>
+        <label>
+          排程: <input type="datetime-local" id="schedule-time" style="width: auto;">
+        </label>
+        <button class="secondary" id="clear-all-btn">清空全部</button>
+        <button class="primary" id="post-all-btn">全部發布 ✈</button>
+      </div>
+
+      <div id="master-area" hidden style="margin-top: 16px;">
+        <textarea id="master-text" placeholder="這篇內容會發到所有沒勾「跳過」的粉專..."></textarea>
+        <input type="text" id="master-image" placeholder="圖片 URL (https, 可選)" style="margin-top: 8px;">
+      </div>
+
+      <div id="cards-area" class="cards"></div>
+
+      <div id="results-area" style="margin-top: 16px;"></div>
+    </div>
+
+    <div class="panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 style="margin: 0;">📜 歷史紀錄</h2>
+        <div style="display: flex; gap: 8px;">
+          <select id="history-filter" style="background: var(--panel-2); color: var(--text); border: 1px solid var(--border); padding: 6px; border-radius: 6px;">
+            <option value="">全部</option>
+            <option value="posted">已發布</option>
+            <option value="scheduled">排程中</option>
+            <option value="failed">失敗</option>
+          </select>
+          <button class="secondary" id="reload-history">重新整理</button>
+          <button class="secondary" id="disconnect-btn" style="color: var(--err); border-color: var(--err);">解除連結</button>
+        </div>
+      </div>
+      <div id="history-area" class="empty">載入中...</div>
+    </div>
+
+  </div>
+
+</main>
+
+<div id="status-bar"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBQqFVSpTHDvrwbgtwuDOyFWbfSwhE7rCY",
+  authDomain: "fumei-3e684.firebaseapp.com",
+  projectId: "fumei-3e684",
+  storageBucket: "fumei-3e684.firebasestorage.app",
+  messagingSenderId: "466383145292",
+  appId: "1:466383145292:web:706971d30fda915bc2e7e9",
+  measurementId: "G-9F0XXZ1RRY"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+const provider = new GoogleAuthProvider();
+
+let currentPages = [];   // 當前 user 的粉專 list (no token)
+
+// ── DOM ──
+const $ = (id) => document.getElementById(id);
+const views = ['auth-view', 'not-admin-view', 'setup-view', 'poster-view'];
+function showView(name) {
+  views.forEach(v => $(v).hidden = (v !== name));
+}
+
+function status(msg, type = 'info', ms = 3000) {
+  const bar = $('status-bar');
+  bar.textContent = msg;
+  bar.className = `show ${type}`;
+  clearTimeout(status._t);
+  status._t = setTimeout(() => bar.classList.remove('show'), ms);
+}
+
+// ── Auth ──
+$('login-btn').onclick = async () => {
+  try { await signInWithPopup(auth, provider); }
+  catch (e) { status('登入失敗：' + e.message, 'err'); }
+};
+$('logout-btn').onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    showView('auth-view');
+    $('user-email').textContent = '未登入';
+    $('logout-btn').hidden = true;
+    return;
+  }
+  $('user-email').textContent = user.email;
+  $('logout-btn').hidden = false;
+  await loadPages();
+});
+
+// ── API helpers ──
+async function api(path, opts = {}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('not logged in');
+  const idToken = await user.getIdToken();
+  const r = await fetch(path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`,
+      ...(opts.headers || {}),
+    },
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(data.error || `HTTP ${r.status}`), { status: r.status, data });
+  return data;
+}
+
+// ── Pages ──
+async function loadPages() {
+  try {
+    const data = await api('/api/fb/pages');
+    if (!data.connected || data.pages.length === 0) {
+      currentPages = [];
+      showView('setup-view');
+      return;
+    }
+    currentPages = data.pages;
+    showView('poster-view');
+    renderCards();
+    loadHistory();
+  } catch (e) {
+    if (e.status === 403) {
+      showView('not-admin-view');
+    } else {
+      status('讀取粉專失敗：' + e.message, 'err');
+    }
+  }
+}
+
+// ── Setup ──
+$('setup-btn').onclick = async () => {
+  let json;
+  try { json = JSON.parse($('setup-json').value); }
+  catch (e) { return status('JSON 格式錯誤：' + e.message, 'err'); }
+  if (!Array.isArray(json) || json.length === 0) return status('必須是非空陣列', 'err');
+
+  try {
+    const r = await api('/api/admin/fb/setup-pages', {
+      method: 'POST',
+      body: JSON.stringify({ pages: json }),
+    });
+    status(`匯入 ${r.count} 個粉專成功 ✓`, 'ok');
+    setTimeout(loadPages, 800);
+  } catch (e) {
+    status('匯入失敗：' + e.message, 'err', 6000);
+  }
+};
+$('setup-cancel').onclick = () => $('setup-json').value = '';
+
+// ── Cards ──
+function renderCards() {
+  const html = currentPages.map((p, i) => `
+    <div class="card" data-idx="${i}" data-page-id="${p.id}">
+      <div class="card-head">
+        <div>
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="id">${p.id}</div>
+        </div>
+        <label style="font-size: 12px; color: var(--muted);">
+          <input type="checkbox" class="skip-toggle"> 跳過
+        </label>
+      </div>
+      <textarea class="msg-text" placeholder="貼文內容..."></textarea>
+      <div class="row">
+        <input type="text" class="msg-image" placeholder="圖片 URL (https, 可選)">
+        <button class="secondary post-single">單獨發布</button>
+      </div>
+    </div>
+  `).join('');
+  $('cards-area').innerHTML = html;
+
+  // Skip toggle
+  document.querySelectorAll('.skip-toggle').forEach(el => {
+    el.onchange = (e) => {
+      e.target.closest('.card').classList.toggle('skipped', e.target.checked);
+    };
+  });
+
+  // Single post
+  document.querySelectorAll('.post-single').forEach(el => {
+    el.onclick = (e) => {
+      const card = e.target.closest('.card');
+      submitPosts([cardToPost(card)]);
+    };
+  });
+}
+
+// ── Master mode ──
+$('master-mode').onchange = (e) => {
+  $('master-area').hidden = !e.target.checked;
+  // 隱藏每個 card 的 textarea (只看名字 + skip)
+  document.querySelectorAll('.card .msg-text, .card .msg-image, .card .post-single').forEach(el => {
+    el.style.display = e.target.checked ? 'none' : '';
+  });
+};
+
+// ── Helpers ──
+function cardToPost(card) {
+  const idx = +card.dataset.idx;
+  const page = currentPages[idx];
+  const masterMode = $('master-mode').checked;
+  return {
+    page_id: page.id,
+    message: masterMode ? $('master-text').value : card.querySelector('.msg-text').value,
+    image_url: (masterMode ? $('master-image').value : card.querySelector('.msg-image').value).trim() || null,
+  };
+}
+
+function getScheduledAt() {
+  const v = $('schedule-time').value;
+  if (!v) return null;
+  return Math.floor(new Date(v).getTime() / 1000);
+}
+
+// ── Post all ──
+$('post-all-btn').onclick = () => {
+  const scheduled_at = getScheduledAt();
+  const cards = [...document.querySelectorAll('.card')].filter(c => !c.classList.contains('skipped'));
+  if (cards.length === 0) return status('沒有粉專可發 (全部勾跳過了)', 'warn');
+
+  const posts = cards
+    .map(c => ({ ...cardToPost(c), scheduled_at }))
+    .filter(p => p.message || p.image_url);
+
+  if (posts.length === 0) return status('沒有任何內容 (text 跟 image 都空)', 'warn');
+  submitPosts(posts);
+};
+
+// ── Submit posts ──
+async function submitPosts(posts) {
+  const scheduled_at = getScheduledAt();
+  posts.forEach(p => { if (scheduled_at && !p.scheduled_at) p.scheduled_at = scheduled_at; });
+
+  $('post-all-btn').disabled = true;
+  document.querySelectorAll('.post-single').forEach(b => b.disabled = true);
+  status(`發布中 (${posts.length} 篇)...`, 'info', 60000);
+
+  try {
+    const r = await api('/api/fb/post', { method: 'POST', body: JSON.stringify({ posts }) });
+    renderResults(r.results);
+    const okCount = r.results.filter(x => x.ok).length;
+    status(`完成: ${okCount}/${r.results.length} 成功`, okCount === r.results.length ? 'ok' : 'warn', 5000);
+    loadHistory();
+  } catch (e) {
+    status('發布失敗：' + e.message, 'err', 6000);
+  } finally {
+    $('post-all-btn').disabled = false;
+    document.querySelectorAll('.post-single').forEach(b => b.disabled = false);
+  }
+}
+
+function renderResults(results) {
+  const html = `
+    <div class="panel" style="margin-top: 16px;">
+      <h2 style="font-size: 14px;">本次結果</h2>
+      <table>
+        <thead><tr><th>粉專</th><th>狀態</th><th>連結 / 錯誤</th></tr></thead>
+        <tbody>
+          ${results.map(r => `
+            <tr>
+              <td>${escapeHtml(r.page_name || r.page_id)}</td>
+              <td>${r.ok
+                ? `<span class="badge ${r.status === 'scheduled' ? 'info' : 'ok'}">${r.status === 'scheduled' ? '排程' : '已發'}</span>`
+                : `<span class="badge err">失敗</span>`}</td>
+              <td>${r.ok && r.fb_post_id
+                ? `<a href="${fbPostUrl(r.fb_post_id)}" target="_blank">查看</a>`
+                : escapeHtml(r.error || '')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  $('results-area').innerHTML = html;
+}
+
+// ── Clear ──
+$('clear-all-btn').onclick = () => {
+  document.querySelectorAll('.msg-text, .msg-image').forEach(el => el.value = '');
+  $('master-text').value = '';
+  $('master-image').value = '';
+  $('schedule-time').value = '';
+  $('results-area').innerHTML = '';
+};
+
+// ── History ──
+async function loadHistory() {
+  const filter = $('history-filter').value;
+  $('history-area').innerHTML = '<div class="empty">載入中...</div>';
+  try {
+    const url = '/api/fb/history?limit=50' + (filter ? `&status=${filter}` : '');
+    const r = await api(url);
+    if (r.posts.length === 0) {
+      $('history-area').innerHTML = '<div class="empty">還沒有發文紀錄</div>';
+      return;
+    }
+    $('history-area').innerHTML = `
+      <table>
+        <thead>
+          <tr><th>時間</th><th>粉專</th><th>內容</th><th>狀態</th><th>動作</th></tr>
+        </thead>
+        <tbody>
+          ${r.posts.map(p => `
+            <tr>
+              <td>${formatTime(p.posted_at)}${p.scheduled_at ? `<br><small style="color: var(--info)">→ ${formatTime(p.scheduled_at)}</small>` : ''}</td>
+              <td>${escapeHtml(p.page_name)}</td>
+              <td class="msg" title="${escapeAttr(p.message || '')}">${escapeHtml((p.message || '').slice(0, 50))}${p.image_url ? ' 📷' : ''}</td>
+              <td>${statusBadge(p.status)}${p.error_msg ? `<br><small style="color: var(--err)">${escapeHtml(p.error_msg.slice(0, 60))}</small>` : ''}</td>
+              <td>${p.fb_post_id ? `<a href="${fbPostUrl(p.fb_post_id)}" target="_blank">查看</a>` : ''}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) {
+    if (e.status === 500 && /index/i.test(e.message)) {
+      $('history-area').innerHTML = `
+        <div class="empty">
+          <p style="color: var(--err);">⚠️ Firestore 需要建立 composite index</p>
+          <p style="font-size: 12px;">第一次跑 query 會給連結, 看 Vercel logs 或 server console。</p>
+        </div>`;
+    } else {
+      $('history-area').innerHTML = `<div class="empty" style="color: var(--err);">${escapeHtml(e.message)}</div>`;
+    }
+  }
+}
+$('reload-history').onclick = loadHistory;
+$('history-filter').onchange = loadHistory;
+
+// ── Disconnect ──
+$('disconnect-btn').onclick = async () => {
+  if (!confirm('確定要解除 FB 粉專連結？\ntoken 會從 Firestore 刪除，下次要重新匯入。\n(發文歷史保留)')) return;
+  try {
+    await api('/api/fb/disconnect', { method: 'POST' });
+    status('已解除連結', 'ok');
+    setTimeout(loadPages, 800);
+  } catch (e) {
+    status('解除失敗：' + e.message, 'err');
+  }
+};
+
+// ── Utils ──
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function fbPostUrl(fbPostId) {
+  // fb_post_id 格式: "{page_id}_{post_id}"
+  if (!fbPostId || !fbPostId.includes('_')) return '#';
+  const [pid, post] = fbPostId.split('_');
+  return `https://www.facebook.com/${pid}/posts/${post}`;
+}
+function statusBadge(s) {
+  const cls = { posted: 'ok', scheduled: 'info', failed: 'err' }[s] || 'warn';
+  const label = { posted: '已發', scheduled: '排程', failed: '失敗' }[s] || s;
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+</script>
+
+</body>
+</html>
