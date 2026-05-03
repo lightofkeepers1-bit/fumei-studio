@@ -283,17 +283,18 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ── API helpers ──
-async function api(path, opts = {}) {
+// 所有 fb 動作合進 /api/adjust (Vercel hobby tier 12 functions 上限)
+async function api(action, body = {}) {
   const user = auth.currentUser;
   if (!user) throw new Error('not logged in');
   const idToken = await user.getIdToken();
-  const r = await fetch(path, {
-    ...opts,
+  const r = await fetch('/api/adjust', {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${idToken}`,
-      ...(opts.headers || {}),
     },
+    body: JSON.stringify({ action, ...body }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(data.error || `HTTP ${r.status}`), { status: r.status, data });
@@ -303,7 +304,7 @@ async function api(path, opts = {}) {
 // ── Pages ──
 async function loadPages() {
   try {
-    const data = await api('/api/fb/pages');
+    const data = await api('fb_pages');
     if (!data.connected || data.pages.length === 0) {
       currentPages = [];
       showView('setup-view');
@@ -330,10 +331,7 @@ $('setup-btn').onclick = async () => {
   if (!Array.isArray(json) || json.length === 0) return status('必須是非空陣列', 'err');
 
   try {
-    const r = await api('/api/admin/fb/setup-pages', {
-      method: 'POST',
-      body: JSON.stringify({ pages: json }),
-    });
+    const r = await api('fb_setup_pages', { pages: json });
     status(`匯入 ${r.count} 個粉專成功 ✓`, 'ok');
     setTimeout(loadPages, 800);
   } catch (e) {
@@ -431,7 +429,7 @@ async function submitPosts(posts) {
   status(`發布中 (${posts.length} 篇)...`, 'info', 60000);
 
   try {
-    const r = await api('/api/fb/post', { method: 'POST', body: JSON.stringify({ posts }) });
+    const r = await api('fb_post', { posts });
     renderResults(r.results);
     const okCount = r.results.filter(x => x.ok).length;
     status(`完成: ${okCount}/${r.results.length} 成功`, okCount === r.results.length ? 'ok' : 'warn', 5000);
@@ -483,8 +481,7 @@ async function loadHistory() {
   const filter = $('history-filter').value;
   $('history-area').innerHTML = '<div class="empty">載入中...</div>';
   try {
-    const url = '/api/fb/history?limit=50' + (filter ? `&status=${filter}` : '');
-    const r = await api(url);
+    const r = await api('fb_history', { limit: 50, ...(filter ? { status: filter } : {}) });
     if (r.posts.length === 0) {
       $('history-area').innerHTML = '<div class="empty">還沒有發文紀錄</div>';
       return;
@@ -526,7 +523,7 @@ $('history-filter').onchange = loadHistory;
 $('disconnect-btn').onclick = async () => {
   if (!confirm('確定要解除 FB 粉專連結？\ntoken 會從 Firestore 刪除，下次要重新匯入。\n(發文歷史保留)')) return;
   try {
-    await api('/api/fb/disconnect', { method: 'POST' });
+    await api('fb_disconnect');
     status('已解除連結', 'ok');
     setTimeout(loadPages, 800);
   } catch (e) {
