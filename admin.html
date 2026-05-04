@@ -314,6 +314,7 @@ async function loadPages() {
     showView('poster-view');
     renderCards();
     loadHistory();
+    applyDraftFromMainSite();
   } catch (e) {
     if (e.status === 403) {
       showView('not-admin-view');
@@ -321,6 +322,33 @@ async function loadPages() {
       status('讀取粉專失敗：' + e.message, 'err');
     }
   }
+}
+
+// 從主站「📢 發到 FB 粉專」/任務清單橋接過來的草稿：自動勾「全部用同一內容」並填入 master textarea
+function applyDraftFromMainSite() {
+  let draft = '', ts = 0;
+  try {
+    draft = localStorage.getItem('fumei_fb_draft') || '';
+    ts = parseInt(localStorage.getItem('fumei_fb_draft_ts') || '0', 10);
+  } catch (_) { return; }
+  if (!draft) return;
+  // 過期 (>10 分鐘) 不套用，避免歷史殘留誤填
+  if (ts && Date.now() - ts > 10 * 60 * 1000) {
+    try { localStorage.removeItem('fumei_fb_draft'); localStorage.removeItem('fumei_fb_draft_ts'); } catch (_) {}
+    return;
+  }
+  const masterMode = $('master-mode');
+  const masterText = $('master-text');
+  if (!masterMode || !masterText) return;
+  if (!masterMode.checked) {
+    masterMode.checked = true;
+    masterMode.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  masterText.value = draft;
+  masterText.dispatchEvent(new Event('input', { bubbles: true }));
+  // 用完即清，避免下次刷新又自動填
+  try { localStorage.removeItem('fumei_fb_draft'); localStorage.removeItem('fumei_fb_draft_ts'); } catch (_) {}
+  status('已從主站帶入腳本內容 ✓', 'ok', 4000);
 }
 
 // ── Setup ──
