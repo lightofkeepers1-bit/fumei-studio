@@ -1661,8 +1661,11 @@ onAuthStateChanged(auth, async (user) => {
       };
     }
     document.getElementById('userName').textContent = user.displayName || user.email;
+    // 防止 admin.html 等同源 tab 觸發 Firebase 跨 tab Auth 同步時，把主站誤切回首頁 / 清 scriptArea
+    const _prevUid = window._currentUid;
     window._currentUid = user.uid;
     window._currentUserEmail = user.email || '';
+    const _isFreshLogin = _prevUid !== user.uid;
     // 初始化 header 簽到按鈕
     setTimeout(() => {
       if (window.initCheckinBtn) window.initCheckinBtn();
@@ -1794,27 +1797,31 @@ onAuthStateChanged(auth, async (user) => {
     renderTasks();
     renderHistory();
     if (window.renderHeaderCharBar) window.renderHeaderCharBar();
-    // 登入後跳回每日任務頁（首頁）
-    const dailyTabBtn = document.querySelector('.tab[onclick*="daily"]');
-    if (dailyTabBtn) switchTab('daily', dailyTabBtn);
-    // 清除產腳本頁的舊結果殘留
-    const scriptArea = document.getElementById('scriptArea');
-    if (scriptArea) scriptArea.style.display = 'none';
-    const scriptResult = document.getElementById('scriptResult');
-    if (scriptResult) scriptResult.textContent = '';
-    const autoUsed = document.getElementById('autoUsed');
-    if (autoUsed) { autoUsed.style.display = 'none'; autoUsed.textContent = ''; }
-    const scriptTopic = document.getElementById('scriptTopic');
-    if (scriptTopic) scriptTopic.value = '';
-    const scanErr = document.getElementById('scanErr');
-    if (scanErr) scanErr.classList.remove('show');
-    const scriptErr = document.getElementById('scriptErr');
-    if (scriptErr) scriptErr.classList.remove('show');
-    // 清除話題掃描結果
-    const topicsGrid = document.getElementById('topicsGrid');
-    if (topicsGrid) topicsGrid.innerHTML = '';
-    const selectedCard = document.getElementById('selectedCard');
-    if (selectedCard) selectedCard.style.display = 'none';
+    // 只在「剛登入 / 換帳號」才切回首頁 + 清結果殘留
+    // 跨 tab Firebase Auth 同步觸發本 callback 時 (uid 沒變)，跳過避免主站誤切回首頁
+    if (_isFreshLogin) {
+      // 登入後跳回每日任務頁（首頁）
+      const dailyTabBtn = document.querySelector('.tab[onclick*="daily"]');
+      if (dailyTabBtn) switchTab('daily', dailyTabBtn);
+      // 清除產腳本頁的舊結果殘留
+      const scriptArea = document.getElementById('scriptArea');
+      if (scriptArea) scriptArea.style.display = 'none';
+      const scriptResult = document.getElementById('scriptResult');
+      if (scriptResult) scriptResult.textContent = '';
+      const autoUsed = document.getElementById('autoUsed');
+      if (autoUsed) { autoUsed.style.display = 'none'; autoUsed.textContent = ''; }
+      const scriptTopic = document.getElementById('scriptTopic');
+      if (scriptTopic) scriptTopic.value = '';
+      const scanErr = document.getElementById('scanErr');
+      if (scanErr) scanErr.classList.remove('show');
+      const scriptErr = document.getElementById('scriptErr');
+      if (scriptErr) scriptErr.classList.remove('show');
+      // 清除話題掃描結果
+      const topicsGrid = document.getElementById('topicsGrid');
+      if (topicsGrid) topicsGrid.innerHTML = '';
+      const selectedCard = document.getElementById('selectedCard');
+      if (selectedCard) selectedCard.style.display = 'none';
+    }
 
     // 檢查是否有待執行的刪除帳號（需重新驗證後繼續）
     if (localStorage.getItem('fumei_pending_delete') === '1') {
@@ -3131,7 +3138,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.34.0';
+const APP_VERSION = '5.34.1';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
