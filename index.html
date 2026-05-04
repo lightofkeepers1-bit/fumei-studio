@@ -1630,6 +1630,10 @@ getRedirectResult(auth).then(result => {
 });
 
 onAuthStateChanged(auth, async (user) => {
+  // FB bridge 開新分頁時，admin.html 的 Firebase init 會跨 tab 觸發本 callback
+  // (logout transient → re-login)，導致主站誤切回首頁 / 清 scriptArea。
+  // 5 秒抑制窗口內跳過所有 callback。
+  if (window._suppressAuthCallbackUI && Date.now() - window._suppressAuthCallbackUI < 5000) return;
   if (user) {
     // Email 登入需驗證（Google 登入不需要檢查）
     const isEmailProvider = user.providerData.some(p => p.providerId === 'password');
@@ -3138,7 +3142,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.34.3';
+const APP_VERSION = '5.34.4';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -6691,6 +6695,7 @@ window.sendScriptToFb = function sendScriptToFb(e) {
     localStorage.setItem('fumei_fb_draft', text);
     localStorage.setItem('fumei_fb_draft_ts', String(Date.now()));
   } catch (err) { alert('暫存失敗：' + err.message); return false; }
+  window._suppressAuthCallbackUI = Date.now(); // 抑制 admin tab 觸發的跨 tab Auth callback
   const w = window.open('/admin', '_blank', 'noopener,noreferrer');
   if (!w) alert('新分頁被瀏覽器擋掉，請允許 ' + location.host + ' 的彈出視窗');
   return false;
@@ -6708,6 +6713,7 @@ window.openFbAdminBridge = function openFbAdminBridge(e) {
       localStorage.setItem('fumei_fb_draft_ts', String(Date.now()));
     } catch (_) { /* localStorage 不可用就不帶 */ }
   }
+  window._suppressAuthCallbackUI = Date.now(); // 抑制 admin tab 觸發的跨 tab Auth callback
   const w = window.open('/admin', '_blank', 'noopener,noreferrer');
   if (!w) alert('新分頁被瀏覽器擋掉，請允許 ' + location.host + ' 的彈出視窗');
   return false;
