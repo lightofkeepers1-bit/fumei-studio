@@ -1,13 +1,64 @@
 # Fumei Studio — Handoff 狀態盤點
 
-**最後更新**：2026-04-23
-**當前版本**：`APP_VERSION = '5.33.0'`（live + origin/main 一致）
+**最後更新**：2026-05-04
+**當前版本**：`APP_VERSION = '5.33.0'`（prod main `e697b54`）
 **上線日**：2026 年 4 月底（禮拜一）
-**Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）
+**Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）；entry ≤ 50 行；老的 archive
 
 ---
 
 ## 📅 Session 改動紀錄
+
+### 2026-05-04 — FB 發文系統收尾 + 主站<->後台橋接 (Phase A)
+
+**🎯 主軸**：把 admin FB 發文系統收尾上線 + 主站「腳本→admin」一鍵橋接
+
+**📦 Prod 狀態 (main `e697b54`)**
+- 4 個粉專 token 已匯入 `fb_user_pages/{admin_uid}` (Fumei 今天也很美 / 吐貓 HaterCat / 吐貓 X Fumei / 人生囧囧子)
+- Firestore composite index `fb_posts (user_uid↑, posted_at↓)` 已建好
+- 第一篇試發成功（Fumei 今天也很美，狀態:已發 + fb_post_id）
+- /admin 4 卡片 / 歷史紀錄 / 解除連結 / 排程 都正常
+
+**🛡 Preview only (`feat/fb-bridge` `c78fd91`，未 merge)**
+- 主站「📋 今日發文提醒」 admin 看到「📢 用 Fumei 發」按鈕（FB / both 任務）
+- 「腳本結果」 admin 看到第三顆「📢 發到 FB 粉專」按鈕
+- admin.html `applyDraftFromMainSite()`：載入時讀 localStorage `fumei_fb_draft`（10 分鐘有效）→ 自動勾「全部用同一內容」 + 填 master textarea
+- 同源 localStorage 傳遞，**0 後端改動 / 0 一般 user 影響 / 全 `window._isAdmin` gate**
+- ✅ 5 項測試全過（code shipped / 視覺 / 主站端 sendScriptToFb / admin 端 applyDraft 邏輯）
+- 完整 E2E 受限（preview origin 沒登入 prod admin session），但 merge prod 後同源就會跑通
+
+**❓ 等使用者決定**
+1. **feat/fb-bridge 要 merge main / 先試試 / 砍掉？** ← Next session 第一個問題
+2. **Phase B**（admin.html 砍掉，UI 內嵌進 index.html admin 區塊）要做嗎？
+3. **Phase C**（Meta App Review + 多用戶 OAuth 開放）何時啟動？1-3 個月，需 Data Deletion endpoint + 示範影片
+
+**🔗 一條龍 Roadmap（已跟 user 對齊）**
+| Phase | 內容 | 狀態 |
+|---|---|---|
+| A | admin only 主站<->後台橋接 | **本 session 完成 (preview)，等 merge** |
+| B | admin.html 整合進 index.html (admin gate) | 規劃中 |
+| C | Meta App Review + OAuth → 多用戶 + 點數扣費 | 待啟動 |
+| D | IG 整合（IG Business + FB Page 連結）| 後續 |
+| E | Cron 自動排程發文（Vercel cron + AI 自選話題）| 願景 |
+
+**⚠️ Meta 帳號 / Token**
+- 原 dev 帳號 2026-05-03 被 Meta 風控鎖 → 切到 `lightofkeepers2@hotmail.com` 新 App
+- 新 App ID `1522117856153893` / Secret `28116905dca208f6b7ef8d624bdc480d`
+- `fb-poster/pages.json` 含 4 page tokens（60 天有效，gitignored，本機絕對路徑 `C:\Users\TingYihChang\Downloads\for COde\fb-poster\pages.json`）
+- 60 天到期前要重跑 `python social_poster.py setup`
+
+**🐞 待辦 / 雜項**
+- 🔴 **生圖 rate limit 太嚴**（user 2026-05-04 反映「貼沒幾張圖就不能用」）
+  - 位置：`api/image.js:24` (`rateCache`) + `:131-135` (`checkRate`)
+  - 現況：10 張/分鐘 per uid（GET polling 不算，POST 才算）
+  - 建議改：(1) admin bypass `if (adminEmails.includes(decoded.email)) skip rate`；(2) 抬高為 30/min
+  - 預估 5-10 行 patch
+- 🟡 HANDOFF 老 session entry 待 archive（>10 個 session 沒動，2026-04-23 那段佔半個檔案）
+- 🟢 Phase B 起動前要先決定：FB UI 整合進 index.html 還是保留 admin.html？
+
+**Next session 第一步**：問 user「feat/fb-bridge 要 merge 嗎？要不要先順手處理生圖 rate limit？」
+
+---
 
 ### 2026-04-23 — v5.20.1 → v5.26.1（16 commits）
 
