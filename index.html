@@ -6654,6 +6654,7 @@ function cp(id) {
 // FB 發文後台橋接：把當前腳本結果送到 /admin（admin only）
 // 透過 localStorage 同源傳遞，admin.html 載入時自動填到 master textarea。
 window.sendScriptToFb = function sendScriptToFb(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
   if (!window._isAdmin) {
     if (e && e.preventDefault) e.preventDefault();
     alert('此功能限管理員使用');
@@ -6679,6 +6680,7 @@ window.sendScriptToFb = function sendScriptToFb(e) {
 
 // 從任務清單觸發：開 /admin 後台。如有現成腳本順手帶過去，沒有也 OK。
 window.openFbAdminBridge = function openFbAdminBridge(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
   if (!window._isAdmin) {
     if (e && e.preventDefault) e.preventDefault();
     return false;
