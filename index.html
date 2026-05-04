@@ -3138,7 +3138,7 @@ window._renderHistory = function() {
 };
 
 // ── VERSION ───────────────────────────────────────
-const APP_VERSION = '5.34.1';
+const APP_VERSION = '5.34.2';
 // 立即填入 header 的版本號，避免 F5 時看到舊版殘影
 (() => { const _v = document.getElementById('appVersion'); if (_v) _v.textContent = 'v' + APP_VERSION; })();
 
@@ -6698,18 +6698,33 @@ window.sendScriptToFb = function sendScriptToFb(e) {
 
 // 從任務清單觸發：開 /admin 後台。如有現成腳本順手帶過去，沒有也 OK。
 window.openFbAdminBridge = function openFbAdminBridge(e) {
+  const _curTab = () => document.querySelector('.tab.active')?.textContent?.trim() || '?';
+  console.log('🔵 [bridge] click fired, tab=', _curTab(), 'admin=', window._isAdmin, 'uid=', window._currentUid);
   if (e) { if (e.preventDefault) e.preventDefault(); if (e.stopPropagation) e.stopPropagation(); }
-  if (!window._isAdmin) return false;
+  console.log('🔵 [bridge] after preventDefault, tab=', _curTab());
+  if (!window._isAdmin) { console.log('🔵 [bridge] not admin, abort'); return false; }
   const el = document.getElementById('scriptResult');
   const text = (el && (el.textContent || el.innerText) || '').trim();
   if (text) {
     try {
       localStorage.setItem('fumei_fb_draft', text);
       localStorage.setItem('fumei_fb_draft_ts', String(Date.now()));
-    } catch (_) { /* localStorage 不可用就不帶 */ }
+      console.log('🔵 [bridge] localStorage written, len=', text.length);
+    } catch (_) { console.log('🔵 [bridge] localStorage err'); }
+  } else {
+    console.log('🔵 [bridge] no script text to bridge');
   }
+  console.log('🔵 [bridge] about to window.open');
   const w = window.open('/admin', '_blank', 'noopener,noreferrer');
-  if (!w) alert('新分頁被瀏覽器擋掉，請允許 ' + location.host + ' 的彈出視窗');
+  console.log('🔵 [bridge] window.open returned:', w ? 'OK new window' : 'NULL (popup blocked)', 'tab=', _curTab());
+  if (!w) {
+    console.log('🔵 [bridge] showing alert');
+    alert('新分頁被瀏覽器擋掉，請允許 ' + location.host + ' 的彈出視窗');
+    console.log('🔵 [bridge] after alert dismissed, tab=', _curTab());
+  }
+  console.log('🔵 [bridge] returning false, final tab=', _curTab());
+  setTimeout(() => console.log('🔵 [bridge] +500ms later, tab=', _curTab()), 500);
+  setTimeout(() => console.log('🔵 [bridge] +2s later, tab=', _curTab()), 2000);
   return false;
 };
 function cpPrompt() {
