@@ -12,7 +12,12 @@
 //   失敗     → { ok: false, error, reason }
 
 import { getFirestore, verifyIdToken, getIdTokenFromReq } from './_lib/admin.js';
-import { postText, postPhoto, FBError } from './_lib/fb.js';
+import { postText, postPhoto, postPhotoBuffer, postMultiPhotos, FBError } from './_lib/fb.js';
+
+// 提高 body 上限，讓 admin 能直接上傳多張圖（base64 expand ~33%，5MB ≈ 3.7MB raw）
+export const config = {
+  api: { bodyParser: { sizeLimit: '5mb' } },
+};
 
 const REFUND_REASONS = new Set([
   'image_fail',    // 生圖失敗
@@ -283,16 +288,34 @@ async function handleFbPost(req, res, decoded) {
   const pageMap = Object.fromEntries(userPages.map(p => [p.id, p]));
 
   const results = [];
+  const MAX_PHOTOS_PER_POST = 10;
   for (const item of posts) {
     const page_id = String(item?.page_id || '');
     const message = String(item?.message || '');
     const image_url = item?.image_url ? String(item.image_url) : null;
     const scheduled_at = item?.scheduled_at ? parseInt(item.scheduled_at, 10) : null;
+    const rawPhotos = Array.isArray(item?.photoBase64s) ? item.photoBase64s : [];
 
     const page = pageMap[page_id];
     if (!page) { results.push({ page_id, ok: false, error: '不在你的粉專列表' }); continue; }
-    if (!message && !image_url) {
-      results.push({ page_id, page_name: page.name, ok: false, error: 'message 或 image_url 至少要一個' });
+    if (rawPhotos.length > MAX_PHOTOS_PER_POST) {
+      results.push({ page_id, page_name: page.name, ok: false, error: `一篇最多 ${MAX_PHOTOS_PER_POST} 張圖` });
+      continue;
+    }
+    // 把 base64 → Buffer (上傳用，不存 Firestore)
+    let photoBufs = [];
+    try {
+      photoBufs = rawPhotos.map(p => {
+        if (!p?.base64) throw new Error('photo base64 missing');
+        return { buffer: Buffer.from(p.base64, 'base64'), mimeType: String(p.mimeType || 'image/jpeg') };
+      });
+    } catch (e) {
+      results.push({ page_id, page_name: page.name, ok: false, error: '圖片解碼失敗：' + e.message });
+      continue;
+    }
+    const photoCount = photoBufs.length;
+    if (!message && !image_url && photoCount === 0) {
+      results.push({ page_id, page_name: page.name, ok: false, error: 'message / image_url / 上傳圖片 至少要一個' });
       continue;
     }
     if (image_url && !image_url.startsWith('https://')) {
@@ -315,9 +338,16 @@ async function handleFbPost(req, res, decoded) {
     const now = new Date().toISOString();
 
     try {
-      const fbResult = image_url
-        ? await postPhoto(page.id, page.token, image_url, message, scheduled_at)
-        : await postText(page.id, page.token, message, scheduled_at);
+      let fbResult;
+      if (photoCount >= 2) {
+        fbResult = await postMultiPhotos(page.id, page.token, photoBufs, message, scheduled_at);
+      } else if (photoCount === 1) {
+        fbResult = await postPhotoBuffer(page.id, page.token, photoBufs[0].buffer, photoBufs[0].mimeType, message, scheduled_at);
+      } else if (image_url) {
+        fbResult = await postPhoto(page.id, page.token, image_url, message, scheduled_at);
+      } else {
+        fbResult = await postText(page.id, page.token, message, scheduled_at);
+      }
       const fbPostId = fbResult.post_id || fbResult.id;
 
       await db.collection('fb_posts').add({
@@ -327,12 +357,13 @@ async function handleFbPost(req, res, decoded) {
         page_name: page.name,
         message,
         image_url,
+        photo_count: photoCount,
         fb_post_id: fbPostId,
         status,
         posted_at: now,
         scheduled_at: scheduled_at ? new Date(scheduled_at * 1000).toISOString() : null,
       });
-      results.push({ page_id: page.id, page_name: page.name, ok: true, fb_post_id: fbPostId, status });
+      results.push({ page_id: page.id, page_name: page.name, ok: true, fb_post_id: fbPostId, status, photo_count: photoCount });
     } catch (e) {
       const errMsg = e instanceof FBError ? e.message : (e.message || String(e));
       await db.collection('fb_posts').add({
@@ -342,6 +373,7 @@ async function handleFbPost(req, res, decoded) {
         page_name: page.name,
         message,
         image_url,
+        photo_count: photoCount,
         status: 'failed',
         error_msg: errMsg,
         posted_at: now,

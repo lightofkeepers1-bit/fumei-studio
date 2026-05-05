@@ -197,6 +197,12 @@
       <div id="master-area" hidden style="margin-top: 16px;">
         <textarea id="master-text" placeholder="這篇內容會發到所有沒勾「跳過」的粉專..."></textarea>
         <input type="text" id="master-image" placeholder="圖片 URL (https, 可選)" style="margin-top: 8px;">
+        <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <input type="file" id="master-files" accept="image/*" multiple style="font-size: 13px;">
+          <span id="master-files-info" style="font-size: 12px; color: var(--muted);"></span>
+          <button type="button" id="master-files-clear" class="secondary" style="font-size: 12px; padding: 4px 10px;">清除</button>
+        </div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">直接上傳本地圖片（多選 = 多圖貼文，最多 10 張，總大小 ≤ 4 MB）</div>
       </div>
 
       <div id="cards-area" class="cards"></div>
@@ -386,6 +392,11 @@ function renderCards() {
         <input type="text" class="msg-image" placeholder="圖片 URL (https, 可選)">
         <button class="secondary post-single">單獨發布</button>
       </div>
+      <div class="row msg-files-row" style="margin-top: 6px;">
+        <input type="file" class="msg-files" accept="image/*" multiple style="font-size: 12px; flex: 1;">
+        <span class="msg-files-info" style="font-size: 11px; color: var(--muted);"></span>
+        <button type="button" class="secondary msg-files-clear" style="font-size: 11px; padding: 4px 8px;">清除</button>
+      </div>
     </div>
   `).join('');
   $('cards-area').innerHTML = html;
@@ -399,10 +410,18 @@ function renderCards() {
 
   // Single post
   document.querySelectorAll('.post-single').forEach(el => {
-    el.onclick = (e) => {
+    el.onclick = async (e) => {
       const card = e.target.closest('.card');
-      submitPosts([cardToPost(card)]);
+      submitPosts([await cardToPost(card)]);
     };
+  });
+  // 每張卡片的檔案輸入：顯示檔案數 + 清除按鈕
+  document.querySelectorAll('.card').forEach(card => {
+    const fileEl = card.querySelector('.msg-files');
+    const infoEl = card.querySelector('.msg-files-info');
+    const clearEl = card.querySelector('.msg-files-clear');
+    if (fileEl && infoEl) fileEl.addEventListener('change', () => updateFilesInfo(fileEl, infoEl));
+    if (clearEl && fileEl && infoEl) clearEl.addEventListener('click', () => { fileEl.value = ''; updateFilesInfo(fileEl, infoEl); });
   });
 }
 
@@ -410,20 +429,63 @@ function renderCards() {
 $('master-mode').onchange = (e) => {
   $('master-area').hidden = !e.target.checked;
   // 隱藏每個 card 的 textarea (只看名字 + skip)
-  document.querySelectorAll('.card .msg-text, .card .msg-image, .card .post-single').forEach(el => {
+  document.querySelectorAll('.card .msg-text, .card .msg-image, .card .post-single, .card .msg-files-row').forEach(el => {
     el.style.display = e.target.checked ? 'none' : '';
   });
 };
 
+// Master 檔案輸入 listeners (defined here so it runs once on page load)
+(function setupMasterFiles() {
+  const fileEl = $('master-files');
+  const infoEl = $('master-files-info');
+  const clearEl = $('master-files-clear');
+  if (!fileEl || !infoEl) return;
+  fileEl.addEventListener('change', () => updateFilesInfo(fileEl, infoEl));
+  if (clearEl) clearEl.addEventListener('click', () => { fileEl.value = ''; updateFilesInfo(fileEl, infoEl); });
+})();
+
+function updateFilesInfo(fileEl, infoEl) {
+  const files = [...fileEl.files];
+  if (files.length === 0) { infoEl.textContent = ''; infoEl.style.color = ''; return; }
+  const totalKB = Math.round(files.reduce((sum, f) => sum + f.size, 0) / 1024);
+  infoEl.textContent = `${files.length} 張 (${totalKB} KB)`;
+  infoEl.style.color = totalKB > 3500 ? 'var(--err)' : 'var(--muted)';
+}
+
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const r = String(reader.result || '');
+      const idx = r.indexOf(',');
+      resolve(idx >= 0 ? r.slice(idx + 1) : r);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function readFilesAsBase64(fileEl) {
+  if (!fileEl || !fileEl.files || fileEl.files.length === 0) return [];
+  const out = [];
+  for (const file of fileEl.files) {
+    out.push({ base64: await fileToBase64(file), mimeType: file.type || 'image/jpeg', filename: file.name });
+  }
+  return out;
+}
+
 // ── Helpers ──
-function cardToPost(card) {
+async function cardToPost(card) {
   const idx = +card.dataset.idx;
   const page = currentPages[idx];
   const masterMode = $('master-mode').checked;
+  const fileEl = masterMode ? $('master-files') : card.querySelector('.msg-files');
+  const photoBase64s = await readFilesAsBase64(fileEl);
   return {
     page_id: page.id,
     message: masterMode ? $('master-text').value : card.querySelector('.msg-text').value,
     image_url: (masterMode ? $('master-image').value : card.querySelector('.msg-image').value).trim() || null,
+    photoBase64s: photoBase64s.length ? photoBase64s : null,
   };
 }
 
@@ -434,16 +496,31 @@ function getScheduledAt() {
 }
 
 // ── Post all ──
-$('post-all-btn').onclick = () => {
+$('post-all-btn').onclick = async () => {
   const scheduled_at = getScheduledAt();
   const cards = [...document.querySelectorAll('.card')].filter(c => !c.classList.contains('skipped'));
   if (cards.length === 0) return status('沒有粉專可發 (全部勾跳過了)', 'warn');
 
-  const posts = cards
-    .map(c => ({ ...cardToPost(c), scheduled_at }))
-    .filter(p => p.message || p.image_url);
+  $('post-all-btn').disabled = true;
+  let posts;
+  try {
+    posts = await Promise.all(cards.map(async c => ({ ...(await cardToPost(c)), scheduled_at })));
+  } catch (e) {
+    $('post-all-btn').disabled = false;
+    return status('讀取圖片失敗：' + e.message, 'err');
+  }
+  posts = posts.filter(p => p.message || p.image_url || (p.photoBase64s && p.photoBase64s.length));
 
-  if (posts.length === 0) return status('沒有任何內容 (text 跟 image 都空)', 'warn');
+  if (posts.length === 0) {
+    $('post-all-btn').disabled = false;
+    return status('沒有任何內容 (text / image / 上傳檔案都空)', 'warn');
+  }
+  // 檢查總大小（base64 expand ~33%，4 MB raw ≈ 5.3 MB body，超過 Vercel 限制）
+  const totalBase64Bytes = posts.reduce((sum, p) => sum + (p.photoBase64s || []).reduce((s, ph) => s + (ph.base64?.length || 0), 0), 0);
+  if (totalBase64Bytes > 4_500_000) {
+    $('post-all-btn').disabled = false;
+    return status(`圖片總量過大 (${Math.round(totalBase64Bytes/1024)} KB base64)，請壓縮或減少張數`, 'err', 6000);
+  }
   submitPosts(posts);
 };
 

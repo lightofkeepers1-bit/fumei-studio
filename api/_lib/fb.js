@@ -47,6 +47,49 @@ export async function postPhoto(pageId, accessToken, imageUrl, caption = '', sch
   return handle(r);
 }
 
+// 直接 multipart 上傳 Buffer 到 FB（不需要圖床；node 18+ 有原生 FormData/Blob）
+export async function postPhotoBuffer(pageId, accessToken, photoBuffer, mimeType, caption = '', scheduledAt = null) {
+  const fd = new FormData();
+  fd.append('source', new Blob([photoBuffer], { type: mimeType || 'image/jpeg' }), 'photo.jpg');
+  if (caption) fd.append('caption', caption);
+  fd.append('access_token', accessToken);
+  if (scheduledAt) {
+    fd.append('published', 'false');
+    fd.append('scheduled_publish_time', String(scheduledAt));
+  }
+  const r = await fetch(`${GRAPH}/${pageId}/photos`, { method: 'POST', body: fd });
+  return handle(r);
+}
+
+// 多圖貼文：先把每張上傳為 unpublished photo 拿 photo_id，再用 attached_media 創建一篇 feed 貼文
+// photos: [{ buffer, mimeType }]
+export async function postMultiPhotos(pageId, accessToken, photos, message = '', scheduledAt = null) {
+  if (!Array.isArray(photos) || photos.length < 2) {
+    throw new FBError('postMultiPhotos 至少 2 張', 400);
+  }
+  const photoIds = [];
+  for (const p of photos) {
+    const fd = new FormData();
+    fd.append('source', new Blob([p.buffer], { type: p.mimeType || 'image/jpeg' }), 'photo.jpg');
+    fd.append('published', 'false');
+    fd.append('access_token', accessToken);
+    const r = await fetch(`${GRAPH}/${pageId}/photos`, { method: 'POST', body: fd });
+    const data = await handle(r);
+    if (!data.id) throw new FBError('Photo upload no id', 500);
+    photoIds.push(data.id);
+  }
+  const body = new URLSearchParams();
+  if (message) body.append('message', message);
+  body.append('access_token', accessToken);
+  body.append('attached_media', JSON.stringify(photoIds.map(id => ({ media_fbid: id }))));
+  if (scheduledAt) {
+    body.append('published', 'false');
+    body.append('scheduled_publish_time', String(scheduledAt));
+  }
+  const r = await fetch(`${GRAPH}/${pageId}/feed`, { method: 'POST', body });
+  return handle(r);
+}
+
 // 刪除貼文 (含排程未發布的)
 export async function deletePost(postId, accessToken) {
   const r = await fetch(
