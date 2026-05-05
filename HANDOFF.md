@@ -1,13 +1,52 @@
 # Fumei Studio — Handoff 狀態盤點
 
-**最後更新**：2026-05-04
-**當前版本**：`APP_VERSION = '5.33.0'`（prod main `e697b54`）
+**最後更新**：2026-05-05
+**當前版本**：`APP_VERSION = '5.35.0'`（prod main `4f0bd04`）
 **上線日**：2026 年 4 月底（禮拜一）
 **Session 紀錄原則**：每次改動都要把進度寫進這份 HANDOFF（使用者要求）；entry ≤ 50 行；老的 archive
 
 ---
 
 ## 📅 Session 改動紀錄
+
+### 2026-05-05 — Phase A 收尾 + 換話題/多風格範例 + 簡報 handoff
+
+**🎯 主軸**：(a) 生圖 rate limit + (b) 多風格範例 + (c) 給教授看的簡報級 handoff doc
+
+**📦 8 commits, v5.33.0 → v5.35.0**
+- `eb5973a` merge feat/fb-bridge → main (Phase A admin bridge live)
+- `0ee55e9` fix: bridge anchor 加 pointer-events:auto (taskList 父層 pointer-events:none 擋 click)
+- `4d4d485` fix: 5 秒 _suppressAuthCallbackUI flag 擋跨 tab Firebase Auth 同步副作用（修「跳回首頁」）
+- `e832d19` feat: 「換別的話題 ⚡1」按鈕 + genScript opts.__refreshTopicOnly cheap mode
+- `e845f3c` feat(image): rate limit 10→30/min + ADMIN_UIDS env var bypass
+- `4eb20e7` feat: 「多風格範例 ⚡1」按鈕 — 6 種 vibe 卡片 + 複製/產完整腳本 + 存歷史
+- `4f0bd04` docs: PRESENTATION_HANDOFF.md (教授簡報級) + HANDOFF_PROMPT.md 更新
+
+**🐛 FB Bridge 5-commit debug saga**（值得記）：root cause 三層疊加：
+  1. preview 上 vercel-live widget capture-phase listener 副作用
+  2. taskList 父層 `pointer-events:none` 繼承到 anchor → click 被 swallow（prod 才暴露）
+  3. 跨 tab Firebase Auth 同步 → 主站 onAuthStateChanged callback 兩次（logout transient + re-login）→ 觸發內建「登入後 switchTab('daily')」邏輯
+  最終 fix: 5 秒 `_suppressAuthCallbackUI` 抑制窗口
+
+**📝 新文件**：`PRESENTATION_HANDOFF.md` — 給教授看的簡報級 handoff
+- 全 context 自包含（普通人 + 技術人都看得懂）
+- 11 個 section：架構 / live features / 工程亮點故事 / 數字 / roadmap / demo 動線
+- 下一個 session 拿這份直接做 PowerPoint / Slides，不需再 dig 其他 doc
+
+**❓ 等使用者**：
+- ADMIN_UIDS env var 還沒設（不設也可，30/min 對所有人）— Firebase Console > Authentication > Users 撈 admin uid 加進 Vercel env
+- 「多風格範例」prod 實測（v5.35.0 deploy 完）
+
+**🟡 待辦**：
+- HANDOFF 老 entry archive（2026-04-23 / 2026-05-04 可考慮搬到 HANDOFF_archive.md）
+- Phase B 起動：admin.html 整合進 index.html admin 區塊
+- Phase C 啟動：Meta App Review 材料準備
+
+**Next session 第一步**：
+- 如要做簡報 → 直接讀 `PRESENTATION_HANDOFF.md`（HANDOFF_PROMPT.md 路線 A）
+- 如繼續開發 → 問 user 走哪條 (Phase B / 其他功能)
+
+---
 
 ### 2026-05-04 — FB 發文系統收尾 + 主站<->後台橋接 (Phase A)
 
