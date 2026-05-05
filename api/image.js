@@ -20,13 +20,13 @@ async function fsIncrement(docPath, field) {
 
 // Rate limit：只擋「建立新生圖任務」（POST），不擋 polling（GET 查狀態）
 // 主 key 用 uid（多人同 IP 不互相影響），fallback 用 IP（沒 uid 時保留 IP 級防護，例如 proxy 路徑）
-// 上限：60 秒內 10 個新任務（一個 IP/uid 1 分鐘最多 10 張圖，足夠正常使用）
+// 上限：60 秒內 30 個新任務（一個 uid 1 分鐘最多 30 張圖；admin via ADMIN_UIDS env var 完全 bypass）
 const rateCache = new Map();
 function checkRate(key) {
   const now = Date.now();
   const entry = rateCache.get(key) || { count: 0, start: now };
   if (now - entry.start > 60000) { rateCache.set(key, { count: 1, start: now }); return true; }
-  if (entry.count >= 10) return false;
+  if (entry.count >= 30) return false;
   entry.count++; rateCache.set(key, entry); return true;
 }
 
@@ -129,10 +129,14 @@ export default async function handler(req, res) {
   if (!uid) return res.status(401).json({ error: '請先登入才能使用生圖功能', needLogin: true });
 
   // Rate limit：以 uid 為主 key（避免多人同 IP 互相干擾），uid 沒拿到時 fallback 用 IP
-  // 上限 10 張/分鐘對單一使用者已超過合理使用量
-  const rateKey = uid || ip;
-  if (!checkRate(rateKey)) {
-    return res.status(429).json({ error: '⚠️ 建立生圖任務太頻繁，請稍候 1 分鐘後再試' });
+  // 上限 30 張/分鐘對單一使用者已超過合理使用量；admin via ADMIN_UIDS env var 完全 bypass
+  const adminUids = (process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const isAdmin = uid && adminUids.includes(uid);
+  if (!isAdmin) {
+    const rateKey = uid || ip;
+    if (!checkRate(rateKey)) {
+      return res.status(429).json({ error: '⚠️ 建立生圖任務太頻繁，請稍候 1 分鐘後再試' });
+    }
   }
 
   const { quality = 'std', prompt, ratio = '9:16', refs = [] } = req.body;
